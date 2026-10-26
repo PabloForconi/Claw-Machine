@@ -119,9 +119,13 @@ const DROP_REST = .3;   // after paying out all the cable, the claw sits this lo
 // Finger give: how fast a pressed finger swings up (radians per unit of overlap, per step), how far
 // it can, how fast it springs back (radians per second), and the widest a finger can ever swing
 const FLEX_GAIN = 6, FLEX_MAX = .8, FLEX_RETURN = 1.5, FLEX_MAX_ANGLE = 1.4;
-const AIM_TIME = 15, START_COINS = 10, PRIZE_COUNT = 26;
+const AIM_TIME = 15, START_COINS = 10;
+// Few enough capsules to leave gaps for the fingers, and sizes close together: a tight carpet of
+// capsules only lets the claw pinch tops, small ones sit too low to reach and big ones squeeze out
+const PRIZE_COUNT = 18, R_MIN = .29, R_MAX = .32, RESTOCK_BELOW = 8;
 const COLORS = [0xff5d8f, 0x4cc9f0, 0x80ed99, 0xb388ff, 0xff9f43];
-const FINGER_ANGLES = [-Math.PI / 2, -Math.PI / 2 + 2.094, -Math.PI / 2 + 4.189];
+// Four prongs: with three, the gap between two closed fingers was wide enough for a capsule to slip out
+const FINGER_ANGLES = [Math.PI / 4, 3 * Math.PI / 4, 5 * Math.PI / 4, 7 * Math.PI / 4];
 const BEST_KEY = 'clawMachine.best';
 
 let prizes = [], claw, coins, score, won, state, aimT, best = 0;
@@ -342,14 +346,14 @@ function fingerPensOn(p, open) {
 // How many fingers, opened this much, touch the prize (within gap)
 const fingersOn = (p, open, gap = .004) => fingerPensOn(p, open).filter(d => d > -gap).length;
 
-// Done closing on the prize: all three fingers on it, or every finger that isn't has given way on
+// Done closing on the prize: every finger on it, or every finger that isn't has given way on
 // something else (a neighbour, a wall) and two are on it, or it is jammed and a finger starts to dig in.
 // Until then the fingers that touch it keep pushing it towards the others, which centres it.
 function gripDone(p, open) {
   const pens = fingerPensOn(p, open), on = pens.map(d => d > -.004);
   if (Math.max(...pens) > .03) return true;
   const n = on.filter(Boolean).length;
-  return n === 3 || (n >= 2 && on.every((o, i) => o || claw.flex[i] > .05));
+  return n === on.length || (n >= 2 && on.every((o, i) => o || claw.flex[i] > .05));
 }
 
 // The fingers are hinged with some give: one that presses into a prize the claw isn't holding swings
@@ -392,7 +396,7 @@ const GOLD_SHELL = mat(0xffd23f, { metalness: .6, roughness: .25 }), STAR_MAT = 
 
 function mkPrize(x, y, z) {
   const rare = Math.random() < .12, col = COLORS[Math.random() * COLORS.length | 0];
-  const r = rare ? .27 : .28 + Math.random() * .08;
+  const r = R_MIN + Math.random() * (R_MAX - R_MIN);
   const g = new THREE.Group();
   const bot = new THREE.Mesh(HEMI_BOT, rare ? GOLD_SHELL : colorMat(col));
   const topM = new THREE.Mesh(HEMI_TOP, CLEAR);
@@ -426,7 +430,7 @@ function reset() {
   prizes = [];
   // x, z, vx, vz: the carriage; len: cable paid out; winch: its current speed; head: the hanging claw
   claw = {
-    x: HOME.x, z: HOME.z, vx: 0, vz: 0, len: L_MIN, winch: 0, dist: L_MIN, open: 1, flex: [0, 0, 0], held: null, q: 0, t: 0,
+    x: HOME.x, z: HOME.z, vx: 0, vz: 0, len: L_MIN, winch: 0, dist: L_MIN, open: 1, flex: FINGER_ANGLES.map(() => 0), held: null, q: 0, t: 0,
     head: { x: HOME.x, y: CARRIAGE_Y - L_MIN, z: HOME.z, vx: 0, vy: 0, vz: 0, r: .17 },
   };
   setMass(claw.head, HEAD_MASS, false);
@@ -877,7 +881,7 @@ function update(dt) {
       if (c.t > 1.2) {
         if (coins > 0) {
           state = 'idle';
-          if (prizes.length < 10) spawn(12, 5);   // restock from the top
+          if (prizes.length < RESTOCK_BELOW) spawn(PRIZE_COUNT - prizes.length, 5);   // restock from the top
         } else gameOver();
         hud();
       }
