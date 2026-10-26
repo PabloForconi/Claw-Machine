@@ -108,6 +108,12 @@ const LIMIT = { x: 1.7, z: 1.2 };
 const CARRIAGE_Y = 4.3, HEAD0 = 4.0;
 const G = 14, STEP = 1 / 120;
 const MOVE = 1.6, DROP = 2.2, LIFT = 1.8;
+// Claw dynamics: the carriage accelerates and brakes, the winch ramps up, and the head is a
+// mass hanging from an elastic cable, so it swings, bounces and goes slack when it lands
+const ACC = 4, WINCH_ACC = 8;
+const ROPE_K = 900, ROPE_C = 20, SWING_DRAG = .6;
+const HEAD_MIN_Y = .72;                                   // the finger tips touch the floor here
+const L_MIN = CARRIAGE_Y - HEAD0, L_MAX = CARRIAGE_Y - HEAD_MIN_Y + .2;
 const AIM_TIME = 15, START_COINS = 10, PRIZE_COUNT = 26;
 const COLORS = [0xff5d8f, 0x4cc9f0, 0x80ed99, 0xb388ff, 0xff9f43];
 const FINGER_ANGLES = [-Math.PI / 2, -Math.PI / 2 + 2.094, -Math.PI / 2 + 4.189];
@@ -119,7 +125,6 @@ const keys = { l: false, r: false, u: false, d: false };
 try { best = +localStorage.getItem(BEST_KEY) || 0; } catch (e) {}
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const headY = () => HEAD0 - claw.len;
 const $ = id => document.getElementById(id);
 
 // ---------- Renderer, camera, lights ----------
@@ -272,25 +277,42 @@ function setSeg(mesh, a, b) {
   mesh.scale.set(1, L, 1); mesh.quaternion.setFromUnitVectors(UP, vB.divideScalar(L));
 }
 
-// Each finger lives in its own vertical plane around the head: pivot → knee → tip.
+// The claw hangs along the cable: d points down the cable, e1 and e2 span the plane across it
+// (for a vertical cable, e1 = +x and e2 = +z)
+function clawFrame() {
+  const h = claw.head, dx = h.x - claw.x, dy = h.y - CARRIAGE_Y, dz = h.z - claw.z, n = Math.hypot(dx, dy, dz) || 1;
+  const d = [dx / n, dy / n, dz / n];
+  let e1 = [1 - d[0] * d[0], -d[0] * d[1], -d[0] * d[2]];
+  const m = Math.hypot(...e1); e1 = e1.map(v => v / m);
+  const e2 = [d[1] * e1[2] - d[2] * e1[1], d[2] * e1[0] - d[0] * e1[2], d[0] * e1[1] - d[1] * e1[0]];
+  return { d, e1, e2 };
+}
+
+// A point given in the claw's frame: across the cable (u, w) and up from the head (up)
+function clawPoint(f, u, w, up) {
+  const h = claw.head;
+  return [h.x, h.y, h.z].map((v, i) => v + u * f.e1[i] + w * f.e2[i] - up * f.d[i]);
+}
+
+// Each finger lives in its own plane through the cable: pivot → knee → tip.
 // open (0..1) swings it outwards around the pivot.
 function fingers() {
-  const hy = headY(), th = claw.open * .8, c = Math.cos(th), s = Math.sin(th), out = [];
+  const f = clawFrame(), th = claw.open * .8, c = Math.cos(th), s = Math.sin(th), out = [];
   const loc = (u, d) => [.12 + u * c + d * s, -.08 - (-u * s + d * c)];
   for (const a of FINGER_ANGLES) {
     const ca = Math.cos(a), sa = Math.sin(a);
-    const P = ([rr, yy]) => [claw.x + rr * ca, hy + yy, claw.z + rr * sa];
+    const P = ([rr, yy]) => clawPoint(f, rr * ca, rr * sa, yy);
     out.push({ p: P([.12, -.08]), k: P(loc(.26, .32)), t: P(loc(-.1, .72)) });
   }
   return out;
 }
 
 function syncClaw() {
-  const hy = headY();
+  const h = claw.head;
   bridge.position.z = claw.z;
   carriage.position.set(claw.x, CARRIAGE_Y - .04, claw.z);
-  setSeg(cable, [claw.x, CARRIAGE_Y, claw.z], [claw.x, hy, claw.z]);
-  head.position.set(claw.x, hy, claw.z);
+  setSeg(cable, [claw.x, CARRIAGE_Y, claw.z], [h.x, h.y, h.z]);
+  head.position.set(h.x, h.y, h.z);
   fingers().forEach((f, i) => {
     const m = fingerMeshes[i];
     setSeg(m.a, f.p, f.k); setSeg(m.b, f.k, f.t); m.k.position.set(...f.k); m.t.position.set(...f.t);
@@ -341,7 +363,11 @@ function spawn(n, y0) {
 function reset() {
   for (const p of prizes) scene.remove(p.mesh);
   prizes = [];
-  claw = { x: HOME.x, z: HOME.z, len: 0, open: 1, held: null, q: 0, ox: 0, oy: 0, oz: 0, t: 0 };
+  // x, z, vx, vz: the carriage; len: cable paid out; winch: its current speed; head: the hanging claw
+  claw = {
+    x: HOME.x, z: HOME.z, vx: 0, vz: 0, len: L_MIN, winch: 0, dist: L_MIN, open: 1, held: null, q: 0, ox: 0, oy: 0, oz: 0, t: 0,
+    head: { x: HOME.x, y: CARRIAGE_Y - L_MIN, z: HOME.z, vx: 0, vy: 0, vz: 0, r: .17, im: .5 },
+  };
   state = 'idle'; coins = START_COINS; score = 0; won = 0;
   spawn(PRIZE_COUNT, 1);
   for (let i = 0; i < 1200; i++) physics(STEP, true);   // let the pile settle before showing it
@@ -352,16 +378,19 @@ function reset() {
 // ---------- Physics: spheres with gravity, walls, the hole walls and the claw as kinematic spheres ----------
 
 function colliders() {
-  const out = [{ x: claw.x, y: headY(), z: claw.z, r: .17 }];
+  const out = [];
   const mid = (a, b) => a.map((v, i) => (v + b[i]) / 2);
   for (const f of fingers()) for (const q of [mid(f.p, f.k), f.k, mid(f.k, f.t), f.t]) out.push({ x: q[0], y: q[1], z: q[2], r: .06 });
   return out;
 }
 
+// Inverse mass: prizes 1, the claw head .5 (heavier), a held prize 0 (it moves with the claw)
+const imOf = b => b.held ? 0 : (b.im ?? 1);
+
 function collide(a, b) {
   const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, d = Math.hypot(dx, dy, dz), m = a.r + b.r;
   if (d >= m || d === 0) return;
-  const wa = a.held ? 0 : 1, wb = b.held ? 0 : 1, ws = wa + wb;
+  const wa = imOf(a), wb = imOf(b), ws = wa + wb;
   if (!ws) return;
   const nx = dx / d, ny = dy / d, nz = dz / d, p = m - d;
   a.x -= nx * p * wa / ws; a.y -= ny * p * wa / ws; a.z -= nz * p * wa / ws;
@@ -417,7 +446,11 @@ function physics(dt, settling) {
     for (let i = 0; i < prizes.length; i++) {
       const a = prizes[i];
       for (let j = i + 1; j < prizes.length; j++) collide(a, prizes[j]);
-      if (!a.held) { for (const k of kin) pushFrom(a, k.x, k.y, k.z, k.r); bounds(a); }
+      if (!a.held) {
+        if (!settling) collide(a, claw.head);   // the head has weight: it bounces off and sinks into the pile
+        for (const k of kin) pushFrom(a, k.x, k.y, k.z, k.r);
+        bounds(a);
+      }
     }
   }
   for (let i = prizes.length - 1; i >= 0; i--) {
@@ -435,22 +468,66 @@ function startRound() {
 
 function startDrop() {
   if (state !== 'aim') return;
-  state = 'drop'; keys.l = keys.r = keys.u = keys.d = false; sfx('drop');
+  state = 'drop'; claw.winch = 0; keys.l = keys.r = keys.u = keys.d = false; sfx('drop');
 }
 
 // The prize the claw closes on: centred under the head, between the fingers
 function pickGrab() {
-  const hy = headY();
+  const h = claw.head;
   let pick = null, bd = 1e9;
   for (const p of prizes) {
-    const dx = Math.hypot(p.x - claw.x, p.z - claw.z);
-    if (dx < p.r * .8 && p.y < hy && p.y > hy - .5 - p.r && dx < bd) { bd = dx; pick = p; }
+    const dx = Math.hypot(p.x - h.x, p.z - h.z);
+    if (dx < p.r * .8 && p.y < h.y && p.y > h.y - .5 - p.r && dx < bd) { bd = dx; pick = p; }
   }
   if (pick) {
     claw.q = 1 - bd / (pick.r * .8);   // grip quality, 1 = dead centre
-    claw.ox = pick.x - claw.x; claw.oy = pick.y - hy; claw.oz = pick.z - claw.z;
+    // Remember where it sits in the claw's own frame, so it tilts and swings with it
+    const f = clawFrame(), rel = [pick.x - h.x, pick.y - h.y, pick.z - h.z];
+    const dot = v => rel[0] * v[0] + rel[1] * v[1] + rel[2] * v[2];
+    claw.ox = dot(f.e1); claw.oz = dot(f.e2); claw.oy = -dot(f.d);
     claw.held = pick; pick.held = true;
   }
+}
+
+// A prize leaving the claw keeps the claw's velocity, so a swinging claw can fling it
+function letGo(p, jitter) {
+  const h = claw.head;
+  p.held = false; claw.held = null;
+  p.vx = h.vx + (Math.random() - .5) * jitter; p.vy = h.vy; p.vz = h.vz + (Math.random() - .5) * jitter;
+}
+
+// Carriage motor: approach the target velocity with limited acceleration, so it ramps up and brakes
+function driveCarriage(tx, tz, dt) {
+  const c = claw, ax = tx - c.vx, az = tz - c.vz, a = Math.hypot(ax, az), m = ACC * dt;
+  if (a > m) { c.vx += ax / a * m; c.vz += az / a * m; } else { c.vx = tx; c.vz = tz; }
+  c.x += c.vx * dt; c.z += c.vz * dt;
+  if (Math.abs(c.x) > LIMIT.x) { c.x = Math.sign(c.x) * LIMIT.x; c.vx = 0; }
+  if (Math.abs(c.z) > LIMIT.z) { c.z = Math.sign(c.z) * LIMIT.z; c.vz = 0; }
+}
+
+// The head is a point mass on an elastic cable that can only pull (it goes slack when the head lands).
+// Gravity plus the cable make it a pendulum under the carriage. Returns the carriage-to-head distance.
+function swingHead(dt) {
+  const c = claw, h = c.head, mass = 1 + (c.held ? c.held.r ** 3 / .03 : 0);
+  const dx = h.x - c.x, dy = h.y - CARRIAGE_Y, dz = h.z - c.z, dist = Math.hypot(dx, dy, dz);
+  // While closing on a prize the claw rests on it (a held prize doesn't collide with the head)
+  if (state === 'close' && c.held) { h.vx = h.vy = h.vz = 0; return dist; }
+  let ax = 0, ay = -G, az = 0;
+  if (dist > c.len) {
+    const nx = dx / dist, ny = dy / dist, nz = dz / dist;
+    const vrel = (h.vx - c.vx) * nx + h.vy * ny + (h.vz - c.vz) * nz;
+    const f = Math.max(0, ROPE_K * (dist - c.len) + ROPE_C * vrel) / mass;
+    ax -= f * nx; ay -= f * ny; az -= f * nz;
+  }
+  const drag = 1 - SWING_DRAG * dt;
+  h.vx = (h.vx + ax * dt) * drag; h.vy = (h.vy + ay * dt) * drag; h.vz = (h.vz + az * dt) * drag;
+  h.x += h.vx * dt; h.y += h.vy * dt; h.z += h.vz * dt;
+  if (h.y < HEAD_MIN_Y) { h.y = HEAD_MIN_Y; if (h.vy < 0) h.vy *= -.2; h.vx *= .9; h.vz *= .9; }
+  if (h.y > CARRIAGE_Y - .2) { h.y = CARRIAGE_Y - .2; if (h.vy > 0) h.vy = 0; }
+  const bx = BOX.x - .3, bz = BOX.z - .3;
+  if (Math.abs(h.x) > bx) { h.x = Math.sign(h.x) * bx; h.vx *= -.3; }
+  if (Math.abs(h.z) > bz) { h.z = Math.sign(h.z) * bz; h.vz *= -.3; }
+  return dist;
 }
 
 // Off-centre grabs and gold prizes slip more often
@@ -459,8 +536,7 @@ function slip(dt) {
   if (!p || (state === 'lift' && claw.t < .25)) return;
   const rate = (.08 + (1 - claw.q) * .9) * (p.rare ? 1.6 : 1);
   if (Math.random() < rate * dt) {
-    p.held = false; p.vx = (Math.random() - .5) * .6; p.vz = (Math.random() - .5) * .6; p.vy = 0;
-    claw.held = null; claw.open = .5;
+    letGo(p, .6); claw.open = .5;
     sfx('slip'); pop([p.x, p.y + .4, p.z], '¡Uy!', '#fff6e0');
   }
 }
@@ -484,41 +560,60 @@ function pop(pos, text, col) {
 
 function update(dt) {
   const c = claw;
+  // Where the carriage wants to go; it only moves while aiming and on the way back
+  let tx = 0, tz = 0;
+  if (state === 'aim') {
+    tx = ((keys.r ? 1 : 0) - (keys.l ? 1 : 0)) * MOVE;
+    tz = ((keys.d ? 1 : 0) - (keys.u ? 1 : 0)) * MOVE;
+  } else if (state === 'return') {
+    // Brake in time to stop over the hole
+    const dx = HOME.x - c.x, dz = HOME.z - c.z, d = Math.hypot(dx, dz);
+    const s = Math.min(MOVE, Math.sqrt(2 * ACC * .8 * d));
+    if (d > 1e-4) { tx = dx / d * s; tz = dz / d * s; }
+  }
+  driveCarriage(tx, tz, dt);
+
   switch (state) {
-    case 'aim': {
+    case 'aim':
       aimT -= dt;
-      c.x = clamp(c.x + ((keys.r ? 1 : 0) - (keys.l ? 1 : 0)) * MOVE * dt, -LIMIT.x, LIMIT.x);
-      c.z = clamp(c.z + ((keys.d ? 1 : 0) - (keys.u ? 1 : 0)) * MOVE * dt, -LIMIT.z, LIMIT.z);
       if (aimT <= 0) startDrop();
       break;
-    }
-    case 'drop': {
-      c.len += DROP * dt;
-      const hy = headY();
-      let hit = hy <= .75;
-      for (const p of prizes) if (Math.hypot(p.x - c.x, p.z - c.z) < p.r * .7 && hy - .15 <= p.y + p.r) hit = true;
-      if (hit) { state = 'close'; pickGrab(); sfx('clank'); }
+    case 'drop':
+      // The winch pays out cable; the claw falls under gravity and the taut cable holds it back.
+      // When it lands on something the cable goes slack: that's how it "feels" the hit.
+      c.winch = Math.min(DROP, c.winch + WINCH_ACC * dt);
+      c.len = Math.min(L_MAX, c.len + c.winch * dt);
+      if (c.len - c.dist > .06 || c.len >= L_MAX) { state = 'close'; c.winch = 0; pickGrab(); sfx('clank'); }
       break;
-    }
     case 'close':
       c.open = Math.max(0, c.open - dt * 2.2);
       if (c.held) { const k = dt * 6; c.ox *= 1 - k; c.oz *= 1 - k; c.oy += (-.13 - c.held.r - c.oy) * k; }
-      if (c.open <= 0) { if (c.held) sfx('grab'); state = 'lift'; c.t = 0; }
+      if (c.open <= 0) {
+        if (c.held) sfx('grab');
+        state = 'lift'; c.t = 0; c.len = Math.min(c.len, c.dist);   // take up the slack first
+      }
       break;
     case 'lift':
-      c.len = Math.max(0, c.len - LIFT * dt); c.t += dt; slip(dt);
-      if (c.len <= 0) state = 'return';
+      c.winch = Math.min(LIFT, c.winch + WINCH_ACC * dt);
+      c.len = Math.max(L_MIN, c.len - c.winch * dt); c.t += dt; slip(dt);
+      if (c.len <= L_MIN) { state = 'return'; c.winch = 0; sfx('clank'); }
       break;
-    case 'return': {
-      const dx = HOME.x - c.x, dz = HOME.z - c.z, d = Math.hypot(dx, dz), s = Math.min(d, MOVE * dt);
-      if (d > 1e-4) { c.x += dx / d * s; c.z += dz / d * s; }
+    case 'return':
       slip(dt);
-      if (d < .005) state = 'release';
+      if (Math.hypot(HOME.x - c.x, HOME.z - c.z) < .01 && Math.hypot(c.vx, c.vz) < .05) {
+        c.x = HOME.x; c.z = HOME.z; c.vx = c.vz = 0; state = 'settle'; c.t = 0;
+      }
+      break;
+    case 'settle': {
+      // Wait over the hole for the swing to die down (up to a second) before letting go
+      c.t += dt; slip(dt);
+      const h = c.head;
+      if (Math.hypot(h.x - c.x, h.z - c.z) < .05 && Math.hypot(h.vx, h.vz) < .25 || c.t > 1) state = 'release';
       break;
     }
     case 'release':
       c.open = Math.min(1, c.open + dt * 2);
-      if (c.held && c.open > .35) { c.held.held = false; c.held.vx = c.held.vy = c.held.vz = 0; c.held = null; }
+      if (c.held && c.open > .35) letGo(c.held, 0);
       if (c.open >= 1) { state = 'wait'; c.t = 0; }
       break;
     case 'wait':
@@ -532,9 +627,11 @@ function update(dt) {
       }
       break;
   }
+  c.dist = swingHead(dt);
   if (c.held) {
     const p = c.held;
-    p.x = c.x + c.ox; p.y = headY() + c.oy; p.z = c.z + c.oz; p.vx = p.vy = p.vz = 0;
+    [p.x, p.y, p.z] = clawPoint(clawFrame(), c.ox, c.oz, c.oy);
+    p.vx = p.vy = p.vz = 0;
   }
 }
 
