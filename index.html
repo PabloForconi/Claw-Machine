@@ -761,6 +761,8 @@ function physics(dt, settling) {
 
   const cs = findContacts(segs, segVel, MARGIN, !settling);
   solveContacts(cs, dt);
+  // Is the claw (head or fingers) pressing on any prize? (see the drop's landing; walls count too, in swingHead)
+  claw.touching = cs.some(c => c.b === claw.head && c.jn > 0);
 
   const touching = new Set(cs.filter(c => c.jn > 0).map(c => c.a));
   for (const p of prizes) {
@@ -904,7 +906,7 @@ function swingHead(dt) {
   // It comes from friction up at the carriage, which brakes a short pendulum hard and a long one
   // barely (it falls with the square of the cable length): heavy and steady at the top, but the claw
   // keeps the sway it had when it starts going down. A small floor stands for air drag.
-  const k = SWING_DRAG * dt, ks = k * clamp((L_MIN / Math.max(dist, L_MIN)) ** 2, .2, 1);
+  const k = SWING_DRAG * dt, ks = k * clamp((L_MIN / Math.max(dist, L_MIN)) ** 2, .1, 1);
   h.vx += ax * dt - (h.vx - c.vx) * ks; h.vy += ay * dt - h.vy * k * .2; h.vz += az * dt - (h.vz - c.vz) * ks;
   h.x += h.vx * dt; h.y += h.vy * dt; h.z += h.vz * dt;
   // Once it has landed the heavy claw stays where it came down, sinking but not skating sideways
@@ -913,6 +915,7 @@ function swingHead(dt) {
   if (h.y < HEAD_MIN_Y) { h.y = HEAD_MIN_Y; if (h.vy < 0) h.vy *= -.2; h.vx *= .9; h.vz *= .9; }
   // The hole walls stop the claw: it rests on their top edge or slides off their sides
   const s = clawWallPush(), sl = Math.hypot(...s);
+  if (sl > 0) c.touching = true;
   if (sl > 0) {
     h.x += s[0]; h.y += s[1]; h.z += s[2];
     const n = s.map(v => v / sl), vn = h.vx * n[0] + h.vy * n[1] + h.vz * n[2];
@@ -989,7 +992,10 @@ function update(dt) {
       c.t += dt;
       c.winch = Math.min(DROP, c.winch + WINCH_ACC * dt);
       c.len = Math.min(L_MAX, c.len + c.winch * dt, c.dist + DROP_SLACK);
-      if (!c.landed && c.len - c.dist > .03) { c.landed = [c.head.x, c.head.z]; sfx('clank'); }
+      // Landed means the cable is slack because the claw rests on something it touches. Slack alone
+      // isn't enough: a swinging claw slackens its elastic cable for a moment at each end of the swing,
+      // and taking that for a landing pinned it in mid-air and killed the sway.
+      if (!c.landed && c.len - c.dist > .03 && c.touching) { c.landed = [c.head.x, c.head.z]; sfx('clank'); }
       if (c.t >= DROP_TIME + DROP_REST) { state = 'close'; c.winch = 0; pickTarget(); }
       break;
     case 'close': {
