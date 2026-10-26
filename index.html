@@ -116,6 +116,9 @@ const HEAD_MASS = 2.5, ROPE_K = 2200, ROPE_C = 60, SWING_DRAG = 2.5;
 const HEAD_MIN_Y = .72;                                   // the finger tips touch the floor here
 const L_MIN = CARRIAGE_Y - HEAD0, L_MAX = CARRIAGE_Y - HEAD_MIN_Y + .2;
 const DROP_REST = .3;   // after paying out all the cable, the claw sits this long before closing
+// Finger give: how fast a pressed finger swings up (radians per unit of overlap, per step), how far
+// it can, how fast it springs back (radians per second), and the widest a finger can ever swing
+const FLEX_GAIN = 6, FLEX_MAX = .8, FLEX_RETURN = 1.5, FLEX_MAX_ANGLE = 1.4;
 const AIM_TIME = 15, START_COINS = 10, PRIZE_COUNT = 26;
 const COLORS = [0xff5d8f, 0x4cc9f0, 0x80ed99, 0xb388ff, 0xff9f43];
 const FINGER_ANGLES = [-Math.PI / 2, -Math.PI / 2 + 2.094, -Math.PI / 2 + 4.189];
@@ -297,16 +300,45 @@ function clawPoint(f, u, w, up) {
 }
 
 // Each finger lives in its own plane through the cable: pivot → knee → tip.
-// open (0..1) swings it outwards around the pivot.
-function fingers() {
-  const f = clawFrame(), th = claw.open * .8, c = Math.cos(th), s = Math.sin(th), out = [];
-  const loc = (u, d) => [.12 + u * c + d * s, -.08 - (-u * s + d * c)];
-  for (const a of FINGER_ANGLES) {
+// open (0..1) swings them all outwards around the pivot, and each finger's flex (radians) swings it
+// further on its own: a finger pressing on a prize gives way upwards (see flexFingers).
+function fingers(flex = claw.flex) {
+  const f = clawFrame(), out = [];
+  FINGER_ANGLES.forEach((a, i) => {
+    const th = Math.min(FLEX_MAX_ANGLE, claw.open * .8 + flex[i]), c = Math.cos(th), s = Math.sin(th);
+    const loc = (u, d) => [.12 + u * c + d * s, -.08 - (-u * s + d * c)];
     const ca = Math.cos(a), sa = Math.sin(a);
     const P = ([rr, yy]) => clawPoint(f, rr * ca, rr * sa, yy);
     out.push({ p: P([.12, -.08]), k: P(loc(.26, .32)), t: P(loc(-.1, .72)) });
-  }
+  });
   return out;
+}
+
+// How deep a finger digs into the prizes it isn't holding
+function fingerPen(fg) {
+  let m = 0;
+  for (const p of prizes) {
+    if (p.held) continue;
+    for (const [a, b] of [[fg.p, fg.k], [fg.k, fg.t]]) {
+      const q = closestOnSeg([p.x, p.y, p.z], a, b);
+      m = Math.max(m, p.r + FINGER_R - Math.hypot(p.x - q[0], p.y - q[1], p.z - q[2]));
+    }
+  }
+  return m;
+}
+
+// The fingers are hinged with some give: one that presses into a prize the claw isn't holding swings
+// up and out until it rests on it instead of digging in, and springs back once it can.
+function flexFingers(dt) {
+  const fl = claw.flex, now = fingers();
+  for (let i = 0; i < fl.length; i++) {
+    const pen = fingerPen(now[i]);
+    if (pen > .002) { fl[i] = Math.min(FLEX_MAX, fl[i] + pen * FLEX_GAIN); continue; }
+    if (fl[i] <= 0) continue;
+    // Spring back only as far as the finger stays clear
+    const back = fl.slice(); back[i] = Math.max(0, fl[i] - FLEX_RETURN * dt);
+    if (fingerPen(fingers(back)[i]) <= .002) fl[i] = back[i];
+  }
 }
 
 function syncClaw() {
@@ -369,7 +401,7 @@ function reset() {
   prizes = [];
   // x, z, vx, vz: the carriage; len: cable paid out; winch: its current speed; head: the hanging claw
   claw = {
-    x: HOME.x, z: HOME.z, vx: 0, vz: 0, len: L_MIN, winch: 0, dist: L_MIN, open: 1, held: null, q: 0, ox: 0, oy: 0, oz: 0, t: 0,
+    x: HOME.x, z: HOME.z, vx: 0, vz: 0, len: L_MIN, winch: 0, dist: L_MIN, open: 1, flex: [0, 0, 0], held: null, q: 0, ox: 0, oy: 0, oz: 0, t: 0,
     head: { x: HOME.x, y: CARRIAGE_Y - L_MIN, z: HOME.z, vx: 0, vy: 0, vz: 0, r: .17 },
   };
   setMass(claw.head, HEAD_MASS, false);
@@ -833,6 +865,7 @@ function update(dt) {
       break;
   }
   c.dist = swingHead(dt);
+  flexFingers(dt);
   if (c.held) {
     const p = c.held;
     [p.x, p.y, p.z] = clawPoint(clawFrame(), c.ox, c.oz, c.oy);
