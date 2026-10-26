@@ -119,10 +119,11 @@ const DROP_REST = .3;   // after paying out all the cable, the claw sits this lo
 // Finger give: how fast a pressed finger swings up (radians per unit of overlap, per step), how far
 // it can, how fast it springs back (radians per second), and the widest a finger can ever swing
 const FLEX_GAIN = 6, FLEX_MAX = .8, FLEX_RETURN = 1.5, FLEX_MAX_ANGLE = 1.4;
+const SQUEEZE = 1.2;    // how fast (open per second) the fingers keep closing on a prize they carry
 const AIM_TIME = 15, START_COINS = 10;
 // Few enough capsules to leave gaps for the fingers, and sizes close together: a tight carpet of
 // capsules only lets the claw pinch tops, small ones sit too low to reach and big ones squeeze out
-const PRIZE_COUNT = 18, R_MIN = .29, R_MAX = .32, RESTOCK_BELOW = 8;
+const PRIZE_COUNT = 22, R_MIN = .29, R_MAX = .32, RESTOCK_BELOW = 10;
 const COLORS = [0xff5d8f, 0x4cc9f0, 0x80ed99, 0xb388ff, 0xff9f43];
 // Four prongs: with three, the gap between two closed fingers was wide enough for a capsule to slip out
 const FINGER_ANGLES = [Math.PI / 4, 3 * Math.PI / 4, 5 * Math.PI / 4, 7 * Math.PI / 4];
@@ -780,7 +781,7 @@ function slip(dt) {
   const c = claw, p = c.held;
   if (c.slipping) { loosen(dt, .8); return; }
   if (!p || (state === 'lift' && c.t < .25)) return;
-  const rate = (.03 + (1 - c.q) * .2) * (p.rare ? 1.6 : 1);
+  const rate = (.015 + (1 - c.q) * .08) * (p.rare ? 1.6 : 1);
   if (Math.random() < rate * dt) c.slipping = true;
 }
 
@@ -889,7 +890,18 @@ function update(dt) {
   }
   c.dist = swingHead(dt);
   flexFingers(dt);
+  squeeze(dt);
   if (c.held && !stillHeld(c.held)) { c.held = null; c.slipping = false; sfx('slip'); }
+}
+
+// The motor keeps closing power while it carries a prize: as the prize settles into the claw, the
+// fingers follow it in (never digging into it), so a prize hanging from the tips gets cradled instead
+// of sliding out on the jolt of the lift. A slip (the grip giving way) overrides it.
+function squeeze(dt) {
+  const c = claw;
+  if (!c.held || c.slipping || !['lift', 'return', 'settle'].includes(state)) return;
+  const next = Math.max(0, c.open - SQUEEZE * dt);
+  if (Math.max(...fingerPensOn(c.held, next)) < .005) c.open = next;
 }
 
 function gameOver() {
