@@ -690,9 +690,12 @@ function swingHead(dt) {
     const f = Math.max(0, ROPE_K * (dist - c.len) + ROPE_C * vrel) / mass;
     ax -= f * nx; ay -= f * ny; az -= f * nz;
   }
-  // Damping acts on the swing relative to the carriage, so it doesn't make the claw lag while moving
-  const k = SWING_DRAG * dt;
-  h.vx += ax * dt - (h.vx - c.vx) * k; h.vy += ay * dt - h.vy * k * .2; h.vz += az * dt - (h.vz - c.vz) * k;
+  // Damping acts on the swing relative to the carriage, so it doesn't make the claw lag while moving.
+  // It comes from friction up at the carriage, which brakes a short pendulum hard and a long one
+  // barely (it falls with the square of the cable length): heavy and steady at the top, but the claw
+  // keeps the sway it had when it starts going down. A small floor stands for air drag.
+  const k = SWING_DRAG * dt, ks = k * clamp((L_MIN / Math.max(dist, L_MIN)) ** 2, .2, 1);
+  h.vx += ax * dt - (h.vx - c.vx) * ks; h.vy += ay * dt - h.vy * k * .2; h.vz += az * dt - (h.vz - c.vz) * ks;
   h.x += h.vx * dt; h.y += h.vy * dt; h.z += h.vz * dt;
   if (h.y < HEAD_MIN_Y) { h.y = HEAD_MIN_Y; if (h.vy < 0) h.vy *= -.2; h.vx *= .9; h.vz *= .9; }
   // The hole walls stop the claw: it rests on their top edge or slides off their sides
