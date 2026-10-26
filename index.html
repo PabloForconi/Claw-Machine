@@ -110,8 +110,9 @@ const G = 14, STEP = 1 / 120;
 const MOVE = 1.6, DROP = 2.2, LIFT = 1.8;
 // Claw dynamics: the carriage accelerates and brakes, the winch ramps up, and the head is a
 // mass hanging from an elastic cable, so it swings, bounces and goes slack when it lands
-const ACC = 4, WINCH_ACC = 8;
-const ROPE_K = 900, ROPE_C = 20, SWING_DRAG = .6;
+// The head is heavy (HEAD_MASS) and its swing is damped against the carriage, so it sways a little and settles fast
+const ACC = 2.2, WINCH_ACC = 8;
+const HEAD_MASS = 2.5, ROPE_K = 2200, ROPE_C = 60, SWING_DRAG = 2.5;
 const HEAD_MIN_Y = .72;                                   // the finger tips touch the floor here
 const L_MIN = CARRIAGE_Y - HEAD0, L_MAX = CARRIAGE_Y - HEAD_MIN_Y + .2;
 const AIM_TIME = 15, START_COINS = 10, PRIZE_COUNT = 26;
@@ -366,7 +367,7 @@ function reset() {
   // x, z, vx, vz: the carriage; len: cable paid out; winch: its current speed; head: the hanging claw
   claw = {
     x: HOME.x, z: HOME.z, vx: 0, vz: 0, len: L_MIN, winch: 0, dist: L_MIN, open: 1, held: null, q: 0, ox: 0, oy: 0, oz: 0, t: 0,
-    head: { x: HOME.x, y: CARRIAGE_Y - L_MIN, z: HOME.z, vx: 0, vy: 0, vz: 0, r: .17, im: .5 },
+    head: { x: HOME.x, y: CARRIAGE_Y - L_MIN, z: HOME.z, vx: 0, vy: 0, vz: 0, r: .17, im: .3 },
   };
   state = 'idle'; coins = START_COINS; score = 0; won = 0;
   spawn(PRIZE_COUNT, 1);
@@ -384,7 +385,7 @@ function colliders() {
   return out;
 }
 
-// Inverse mass: prizes 1, the claw head .5 (heavier), a held prize 0 (it moves with the claw)
+// Inverse mass: prizes 1, the claw head .3 (heavier), a held prize 0 (it moves with the claw)
 const imOf = b => b.held ? 0 : (b.im ?? 1);
 
 function collide(a, b) {
@@ -508,7 +509,7 @@ function driveCarriage(tx, tz, dt) {
 // The head is a point mass on an elastic cable that can only pull (it goes slack when the head lands).
 // Gravity plus the cable make it a pendulum under the carriage. Returns the carriage-to-head distance.
 function swingHead(dt) {
-  const c = claw, h = c.head, mass = 1 + (c.held ? c.held.r ** 3 / .03 : 0);
+  const c = claw, h = c.head, mass = HEAD_MASS + (c.held ? c.held.r ** 3 / .03 : 0);
   const dx = h.x - c.x, dy = h.y - CARRIAGE_Y, dz = h.z - c.z, dist = Math.hypot(dx, dy, dz);
   // While closing on a prize the claw rests on it (a held prize doesn't collide with the head)
   if (state === 'close' && c.held) { h.vx = h.vy = h.vz = 0; return dist; }
@@ -519,8 +520,9 @@ function swingHead(dt) {
     const f = Math.max(0, ROPE_K * (dist - c.len) + ROPE_C * vrel) / mass;
     ax -= f * nx; ay -= f * ny; az -= f * nz;
   }
-  const drag = 1 - SWING_DRAG * dt;
-  h.vx = (h.vx + ax * dt) * drag; h.vy = (h.vy + ay * dt) * drag; h.vz = (h.vz + az * dt) * drag;
+  // Damping acts on the swing relative to the carriage, so it doesn't make the claw lag while moving
+  const k = SWING_DRAG * dt;
+  h.vx += ax * dt - (h.vx - c.vx) * k; h.vy += ay * dt - h.vy * k * .2; h.vz += az * dt - (h.vz - c.vz) * k;
   h.x += h.vx * dt; h.y += h.vy * dt; h.z += h.vz * dt;
   if (h.y < HEAD_MIN_Y) { h.y = HEAD_MIN_Y; if (h.vy < 0) h.vy *= -.2; h.vx *= .9; h.vz *= .9; }
   if (h.y > CARRIAGE_Y - .2) { h.y = CARRIAGE_Y - .2; if (h.vy > 0) h.vy = 0; }
