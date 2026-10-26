@@ -105,16 +105,15 @@ const WALLS = [   // the clear walls around the hole, as boxes
 ];
 const HOME = { x: (-BOX.x + HOLE.x) / 2, z: (HOLE.z + BOX.z) / 2 };
 const LIMIT = { x: 1.7, z: 1.2 };
-// The claw's body is upright around the head point. Top to bottom: a thin rod the cable hooks onto
-// (up to HOOK_UP), a wide cap, the main cylinder, a wide collar, a narrow stem, and at the bottom three
-// short arms out to the finger hinges (PIVOT_R out, PIVOT_DOWN down), braced by struts from the collar.
-// It collides as a cylinder of radius HUB_R from HUB_DOWN below the head point to HUB_UP above it.
-const HUB_R = .15, HUB_DOWN = .24, HUB_UP = .46, HOOK_UP = HUB_UP + .05;
-// Each finger, closed, in its own plane: (out, down) from its hinge. Three straight parts: out and a
-// little down to a first knee, nearly straight down to a second, then a shorter tip bent in under
-// the claw.
-const FINGER_SHAPE = [[0, 0], [.24, .16], [.22, .5], [0, .66]];
-const PIVOT_R = .26, PIVOT_DOWN = .22, CLOSED_TIP_DOWN = PIVOT_DOWN + FINGER_SHAPE[FINGER_SHAPE.length - 1][1];
+// The claw's body is a small rounded box around the head point, like the carriage: HUB_R out to its
+// sides, from HUB_DOWN below the head point to HUB_UP above it, and it collides as a cylinder that
+// size. The cable hooks onto its top (HOOK_UP), and the fingers hinge at its bottom edge (PIVOT_R
+// out, PIVOT_DOWN down).
+const HUB_R = .17, HUB_DOWN = .14, HUB_UP = .14, HOOK_UP = HUB_UP + .02;
+// Each finger, closed, in its own plane: (out, down) from its hinge. Three straight parts: out and
+// down to a first knee, nearly straight down to a second, then a shorter tip hooked in under the claw.
+const FINGER_SHAPE = [[0, 0], [.24, .18], [.22, .5], [.04, .66]];
+const PIVOT_R = .15, PIVOT_DOWN = .12, CLOSED_TIP_DOWN = PIVOT_DOWN + FINGER_SHAPE[FINGER_SHAPE.length - 1][1];
 // How far (radians) the motor swings the fingers out when fully open, and the deepest a finger point
 // reaches, open or closed
 const OPEN_ANGLE = .5;
@@ -293,37 +292,17 @@ const CABLE_GEO = new THREE.CylinderGeometry(.012, .012, 1, 6), CABLE_MAT = mat(
 const cableSegs = Array.from({ length: CABLE_NODES }, () => {
   const m = new THREE.Mesh(CABLE_GEO, CABLE_MAT); m.castShadow = true; scene.add(m); return m;
 });
-// Body: cylinders stacked along the claw's axis, as [radius, from, to] in heights above the head point
-// (unit-height meshes, stretched by setSeg)
+// Body: a small rounded box standing along the cable
 const CHROME = mat(0xdfe4ee, { metalness: .45, roughness: .28 });   // no environment map, so not too metallic or it goes black
-const BODY_PARTS = [
-  [.025, HUB_UP, HOOK_UP],      // the rod the cable hooks onto
-  [.175, HUB_UP - .07, HUB_UP], // cap
-  [.13, .06, HUB_UP - .07],     // main cylinder
-  [.175, -.01, .06],            // collar
-  [.065, -.2, -.01],            // stem
-];
-const bodyMeshes = BODY_PARTS.map(([r]) => {
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 1, 24), CHROME); m.castShadow = true; scene.add(m); return m;
-});
-const hubBall = new THREE.Mesh(new THREE.SphereGeometry(.07, 14, 10), CHROME);
-hubBall.castShadow = true; scene.add(hubBall);
-// Per finger: a short arm from the bottom of the stem out to its hinge (bending down a little at the
-// end) and a strut from the collar down to the hinge. Points as [out, height].
-const ARM = [[0, -.17], [.15, -.18], [PIVOT_R, -PIVOT_DOWN]], STRUT = [[.16, 0], [PIVOT_R, -PIVOT_DOWN]];
-const ROD = new THREE.CylinderGeometry(.03, .03, 1, 8), THIN_ROD = new THREE.CylinderGeometry(.02, .02, 1, 6);
-const armMeshes = FINGER_ANGLES.map(() => {
-  const m = { arm: ARM.slice(1).map(() => new THREE.Mesh(ROD, CHROME)), strut: new THREE.Mesh(THIN_ROD, CHROME), hinge: new THREE.Mesh(new THREE.SphereGeometry(.045, 10, 8), CHROME) };
-  for (const x of [...m.arm, m.strut, m.hinge]) { x.castShadow = true; scene.add(x); }
-  return m;
-});
-// Each finger: a rod per stretch of FINGER_SHAPE with a ball at every bend, and the last TIP_LEN of
-// it a cone, so the finger ends in a point
-const SEG = new THREE.CylinderGeometry(.04, .04, 1, 10), JOINT = new THREE.SphereGeometry(.04, 10, 8);
-const TIP = new THREE.ConeGeometry(.04, 1, 10), TIP_LEN = .12;
+const bodyBox = new THREE.Mesh(new RoundedBoxGeometry(HUB_R * 2, HUB_DOWN + HUB_UP, HUB_R * 2, 3, .05), CHROME);
+bodyBox.castShadow = true; scene.add(bodyBox);
+// Each finger: a flat plate per stretch of FINGER_SHAPE, narrowing towards the tip (FINGER_W, wide
+// in the finger's own plane, FINGER_T thick), and the last TIP_LEN a flat point
+const PLATE = new THREE.BoxGeometry(1, 1, 1), POINT = new THREE.ConeGeometry(.5, 1, 4);
+const FINGER_W = [.12, .1, .08], FINGER_T = .045, TIP_LEN = .1;
 const fingerMeshes = FINGER_ANGLES.map(() => {
-  const m = { rods: FINGER_SHAPE.slice(1).map(() => new THREE.Mesh(SEG, CHROME)), balls: FINGER_SHAPE.slice(0, -1).map(() => new THREE.Mesh(JOINT, CHROME)), tip: new THREE.Mesh(TIP, CHROME) };
-  for (const x of [...m.rods, ...m.balls, m.tip]) { x.castShadow = true; scene.add(x); }
+  const m = { plates: FINGER_SHAPE.slice(1).map(() => new THREE.Mesh(PLATE, CHROME)), tip: new THREE.Mesh(POINT, CHROME) };
+  for (const x of [...m.plates, m.tip]) { x.castShadow = true; scene.add(x); }
   return m;
 });
 for (const m of [carriage, bridge]) m.castShadow = true;
@@ -410,7 +389,9 @@ function fingers(flex = claw.flex) {
       const rr = PIVOT_R + u * c + d * s, yy = -PIVOT_DOWN - (-u * s + d * c);
       return clawPoint(f, rr * ca, rr * sa, yy);
     });
-    out.push({ pts, p: pts[0], t: pts[pts.length - 1] });
+    // across: the direction through the finger's plane (for drawing it as a flat plate)
+    const across = [0, 1, 2].map(k => -sa * f.e1[k] + ca * f.e2[k]);
+    out.push({ pts, p: pts[0], t: pts[pts.length - 1], across });
   });
   return out;
 }
@@ -466,26 +447,32 @@ function syncClaw() {
   bridge.position.z = claw.z;
   carriage.position.set(claw.x, CARRIAGE_Y - .04, claw.z);
   cableSegs.forEach((m, i) => setSeg(m, [cable[i].x, cable[i].y, cable[i].z], [cable[i + 1].x, cable[i + 1].y, cable[i + 1].z]));
-  // The body stands along the cable; arms and struts are fixed to it, one set per finger
-  const fr = clawFrame(), at = up => clawPoint(fr, 0, 0, up);
-  BODY_PARTS.forEach(([, from, to], i) => setSeg(bodyMeshes[i], at(from), at(to)));
-  hubBall.position.set(...at(-.17));
-  FINGER_ANGLES.forEach((a, i) => {
-    const ca = Math.cos(a), sa = Math.sin(a), P = ([r, up]) => clawPoint(fr, r * ca, r * sa, up), m = armMeshes[i];
-    ARM.slice(1).forEach((q, j) => setSeg(m.arm[j], P(ARM[j]), P(q)));
-    setSeg(m.strut, P(STRUT[0]), P(STRUT[1]));
-    m.hinge.position.set(...P(ARM[ARM.length - 1]));
-  });
+  // The body stands along the cable
+  const fr = clawFrame();
+  bodyBox.position.set(...clawPoint(fr, 0, 0, (HUB_UP - HUB_DOWN) / 2));
+  bodyBox.quaternion.setFromUnitVectors(UP, vA.set(-fr.d[0], -fr.d[1], -fr.d[2]));
   fingers().forEach((f, i) => {
     const m = fingerMeshes[i];
     const rods = fingerRods(f), [a, t] = rods[rods.length - 1];
-    // The last stretch stops TIP_LEN short of the tip, where the cone takes over
+    // The last stretch stops TIP_LEN short of the tip, where the flat point takes over. Each plate
+    // runs a little past its ends so the bends close up.
     const k = Math.min(1, TIP_LEN / Math.hypot(t[0] - a[0], t[1] - a[1], t[2] - a[2]));
     const base = t.map((v, j) => v + (a[j] - v) * k);
-    rods.forEach(([p, q], j) => setSeg(m.rods[j], p, j === rods.length - 1 ? base : q));
-    setSeg(m.tip, base, t);
-    m.balls.forEach((b, j) => b.position.set(...f.pts[j]));
+    rods.forEach(([p, q], j) => setPlate(m.plates[j], p, j === rods.length - 1 ? base : q, FINGER_W[j], f.across, FINGER_W[j] * .6));
+    setPlate(m.tip, base, t, FINGER_W[FINGER_W.length - 1], f.across, 0);
   });
+}
+
+// Lay a unit box (or the flat point) from a to b: its length along a→b, its width w across that
+// within the finger's plane, and its FINGER_T thickness along `across` (through the plane)
+const vX = new THREE.Vector3(), vY = new THREE.Vector3(), vZ = new THREE.Vector3(), basis = new THREE.Matrix4();
+function setPlate(mesh, a, b, w, across, extra) {
+  vY.set(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+  const len = vY.length() || 1e-6; vY.divideScalar(len);
+  vZ.set(...across); vX.crossVectors(vY, vZ).normalize(); vZ.crossVectors(vX, vY);
+  mesh.quaternion.setFromRotationMatrix(basis.makeBasis(vX, vY, vZ));
+  mesh.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
+  mesh.scale.set(w, len + extra, FINGER_T);
 }
 
 // ---------- Prizes ----------
@@ -551,7 +538,7 @@ function reset() {
 
 // ---------- Physics: spheres with gravity, walls, the hole walls and the claw fingers as kinematic segments ----------
 
-const FINGER_R = .04;   // collision radius of a finger segment (the mesh is .035)
+const FINGER_R = .05;   // collision radius of a finger segment (about half the plate's width)
 
 // The two segments of each finger, pivot → knee and knee → tip
 function segments() {
