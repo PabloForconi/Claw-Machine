@@ -57,7 +57,7 @@ The user asked for physically based motion when the claw brakes, drops, etc.
   - The winch keeps letting out up to `DROP_SLACK` of loose cable, which bows out above the resting claw.
   - The first slack plays the landing clank. When lifting, the winch reels the slack in before it pulls (about 0.2 s); stopping at the top (`L_MIN`) makes the head bounce.
 - The visible cable is a simulated rope (`cable`, `cableStep()`). The user found the straight cylinder too rigid (October 2026).
-  - It is a chain of `CABLE_NODES` Verlet point masses with gravity, pinned to the carriage and the hook on top of the claw's body (`HUB_UP` above the head point), with links of `(claw.len - HUB_UP) / CABLE_NODES` held at length (`CABLE_ITERS` passes).
+  - It is a chain of `CABLE_NODES` Verlet point masses with gravity, pinned to the carriage and the hook on top of the claw's body (`HOOK_UP` above the head point), with links of `(claw.len - HOOK_UP) / CABLE_NODES` held at length (`CABLE_ITERS` passes).
   - When the claw is lower than the cable allows, the extra length curves out; a tiny `CABLE_NUDGE` picks the side, or a vertical slack rope would just fold onto itself.
   - It only draws: the claw hangs from the elastic cable model in `swingHead()`, and the rope follows it since both use `claw.len`.
   - Measured: nearly straight while the claw hangs from it (it carries the claw's weight), a bow of about 0.15 with 0.22 of slack while the claw rests on the pile.
@@ -71,9 +71,12 @@ The user asked for physically based motion when the claw brakes, drops, etc.
 ### Fingers and grabbing
 
 The user reported the grab feeling odd several times (October 2026): a "magnet" pulling untouched capsules in, capsules hanging "hooked" off two fingers, capsules dropped right after being caught, and the claw "grabbing" with its fingers still wide open. The current model was arrived at by watching grabs frame by frame with `paused`/`closeUp` and measuring with `step`.
-- The claw's shape follows reference photos the user sent of real crane-game claws, in basic shapes only, as they asked: no linkages or other detail (October 2026).
-  - The body is a chrome cylinder in two steps, a narrower one at the bottom where the fingers hinge (`bodyMain`, `bodyLow`). It stands along the cable. `HEAD0` keeps it just under the carriage at the top.
-  - The fingers are long curved prongs: `FINGER_SHAPE` is the closed profile, (out, down) from the hinge at `PIVOT_R` / `PIVOT_DOWN`. Each bows out and curls its tip back in under the claw, so closed they form a cage. Each stretch is a thin rod with a ball at every bend.
+- The claw's shape follows a flat cartoon claw design the user sent, in its basic shapes but in the game's chrome, not the design's colours (October 2026). It replaced an earlier take on photos of real claws.
+  - The body stands along the cable. `BODY_PARTS` lists cylinders as [radius, from, to] heights above the head point, top to bottom: the rod the cable hooks onto (up to `HOOK_UP`), a wide cap, the main cylinder, a wide collar and a narrow stem.
+  - Under the stem, per finger, a short arm (`ARM`) runs out to the finger's hinge (`PIVOT_R` out, `PIVOT_DOWN` down), braced by a strut (`STRUT`) from the collar. They are only drawn; the body collides as the `HUB_R` cylinder. `HEAD0` keeps the hook just under the carriage at the top.
+  - The fingers are thin and curved: `FINGER_SHAPE` is the closed profile, (out, down) from the hinge. Each bows out a little and curls its tip back in under the claw, so closed they form a cage a capsule fits in. Each stretch is a rod with a ball at every bend, and an elongated pad on the tip.
+  - `OPEN_ANGLE` (0.65 rad) is how far the motor swings the fingers out. With the hinges this far out, 0.8 made the open claw land on too many neighbours and halved catches.
+  - `HEAD_MIN_Y` comes from `FINGER_REACH`, the deepest finger point open or closed.
   - The material is `CHROME`, not too metallic: there is no environment map, so a high metalness renders almost black.
 - The claw has three fingers (`FINGER_ANGLES`, one at the back). It had four for a while, against capsules slipping out between two fingers; the user asked for three again once a caught prize rode in the claw (October 2026).
   - `fingers()` gives each finger's points along `FINGER_SHAPE` (`pts`; `p` is the hinge, `t` the tip). They are rotated by `claw.open` (the motor) plus that finger's own `claw.flex[i]` (its give), capped at `FLEX_MAX_ANGLE`.
@@ -98,7 +101,8 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
 - Measured with 45 rounds aiming at capsules away from the walls:
   - four straight-segment fingers: about 15–17 catches and 17 deliveries;
   - three: 23 and 23;
-  - three curved fingers: 25 catches, 23 of them delivered.
+  - three curved fingers: 25 catches, 23 of them delivered;
+  - the cartoon-style claw (current): 21 catches, all delivered.
   - Fingers dig into the carried prize at most about 0.01 and into neighbours about 0.04.
 
 ### Capsules
