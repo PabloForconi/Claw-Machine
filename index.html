@@ -350,7 +350,9 @@ function mkPrize(x, y, z) {
   g.scale.setScalar(r);
   g.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
   scene.add(g);
-  return { x, y, z, vx: (Math.random() - .5) * .4, vy: 0, vz: (Math.random() - .5) * .4, r, rare, held: false, mesh: g };
+  const p = { x, y, z, vx: (Math.random() - .5) * .4, vy: 0, vz: (Math.random() - .5) * .4, wx: 0, wy: 0, wz: 0, r, rare, held: false, mesh: g };
+  setMass(p, (r / .3) ** 3);   // bigger capsules are heavier
+  return p;
 }
 
 function spawn(n, y0) {
@@ -367,8 +369,10 @@ function reset() {
   // x, z, vx, vz: the carriage; len: cable paid out; winch: its current speed; head: the hanging claw
   claw = {
     x: HOME.x, z: HOME.z, vx: 0, vz: 0, len: L_MIN, winch: 0, dist: L_MIN, open: 1, held: null, q: 0, ox: 0, oy: 0, oz: 0, t: 0,
-    head: { x: HOME.x, y: CARRIAGE_Y - L_MIN, z: HOME.z, vx: 0, vy: 0, vz: 0, r: .17, im: .3 },
+    head: { x: HOME.x, y: CARRIAGE_Y - L_MIN, z: HOME.z, vx: 0, vy: 0, vz: 0, r: .17 },
   };
+  setMass(claw.head, HEAD_MASS, false);
+  lastSegs = lastHeld = null;
   state = 'idle'; coins = START_COINS; score = 0; won = 0;
   spawn(PRIZE_COUNT, 1);
   for (let i = 0; i < 1200; i++) physics(STEP, true);   // let the pile settle before showing it
@@ -387,11 +391,7 @@ function segments() {
   return out;
 }
 
-function closestOnSeg(p, a, b) {
-  const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
-  const t = clamp(((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1] + (p[2] - a[2]) * ab[2]) / (ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2), 0, 1);
-  return [a[0] + ab[0] * t, a[1] + ab[1] * t, a[2] + ab[2] * t];
-}
+const closestOnSeg = (p, a, b) => lerp3(a, b, segParam(p, a, b));
 
 // Would the fingers, opened this much, touch the held prize once it sits centred in the claw?
 function gripTouches(p, open) {
@@ -446,75 +446,181 @@ function tipRadial(open) {
   return .12 - .1 * Math.cos(th) + .72 * Math.sin(th);
 }
 
-// Inverse mass: prizes 1, the claw head .3 (heavier), a held prize 0 (it moves with the claw)
-const imOf = b => b.held ? 0 : (b.im ?? 1);
+// ---------- Contact solver ----------
+// A small rigid-body solver for the spheres, run every STEP:
+//   1. gravity;
+//   2. find contacts, with a small margin so resting contacts are found every step;
+//   3. solve contact impulses SOLVER_ITERS times: normal impulses (with restitution on hard impacts)
+//      and Coulomb friction at the contact point, which also spins the spheres, so they roll, stack
+//      and stop instead of sliding around;
+//   4. move and rotate;
+//   5. push apart whatever still overlaps, without adding velocity.
+// The other side of a contact is another prize, the claw head (dynamic and heavy), a finger segment or
+// the held prize (kinematic: they push with their own velocity), or the floor, glass and hole walls.
 
-function collide(a, b) {
-  const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, d = Math.hypot(dx, dy, dz), m = a.r + b.r;
-  if (d >= m || d === 0) return;
-  const wa = imOf(a), wb = imOf(b), ws = wa + wb;
-  if (!ws) return;
-  const nx = dx / d, ny = dy / d, nz = dz / d, p = m - d;
-  a.x -= nx * p * wa / ws; a.y -= ny * p * wa / ws; a.z -= nz * p * wa / ws;
-  b.x += nx * p * wb / ws; b.y += ny * p * wb / ws; b.z += nz * p * wb / ws;
-  const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny + (b.vz - a.vz) * nz;
-  if (rv < 0) {
-    const j = -1.2 * rv / ws;
-    a.vx -= j * nx * wa; a.vy -= j * ny * wa; a.vz -= j * nz * wa;
-    b.vx += j * nx * wb; b.vy += j * ny * wb; b.vz += j * nz * wb;
+const SOLVER_ITERS = 12, POS_ITERS = 4, MARGIN = .01, SLOP = .003;
+const MU = { prize: .45, claw: .7, floor: .6, glass: .15, wall: .3 };     // friction
+const BOUNCE = { prize: .3, claw: .1, floor: .3, glass: .3, wall: .35 };  // restitution
+const BOUNCE_MIN = .6;   // slower impacts don't bounce, so resting contacts stay calm
+const ROLL_DAMP = 1.2;   // rolling resistance, per second, while touching something
+const ZERO = [0, 0, 0];
+
+// Mass and inverse inertia (solid sphere); bodies that don't spin get iI = 0
+function setMass(b, m, spins = true) { b.im = 1 / m; b.iI = spins ? 1 / (.4 * m * b.r * b.r) : 0; }
+
+// The head rests still on a prize while the claw closes on it. Pushes through the fingers or the held
+// prize (contacts with their own vb) only reach the head in part: the motor is strong and the fingers
+// shove prizes aside instead of the claw riding up on every one they touch.
+const CLAW_FEEDBACK = .3;
+const imOf = (b, c) => (b === claw.head && state === 'close' && claw.held) ? 0 : b.im * (c && c.vb ? CLAW_FEEDBACK : 1);
+
+function segParam(p, a, b) {
+  const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+  return clamp(((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1] + (p[2] - a[2]) * ab[2]) / (ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2), 0, 1);
+}
+const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+
+// n points from the prize a towards the other side; pen > 0 is overlap, pen < 0 a gap.
+// b is the other body, or null for static surfaces. vb, when given, is the other side's velocity at the
+// contact: the fingers and the held prize are part of the claw, so their contacts have b = the head (the
+// reaction pushes the whole claw) but move with their own velocity (closing fingers, the swinging claw).
+function findContacts(segs, segVel, heldVel, margin, withClaw) {
+  const out = [], h = claw.head, held = claw.held;
+  for (let i = 0; i < prizes.length; i++) {
+    const a = prizes[i];
+    if (a.held) continue;
+    const add = (b, nx, ny, nz, pen, kind, vb) => {
+      if (pen > -margin) out.push({ a, b, n: [nx, ny, nz], pen, kind, vb, jn: 0, jt: [0, 0, 0] });
+    };
+    const toPoint = (q, qr, kind, vb, b = null) => {
+      const dx = q[0] - a.x, dy = q[1] - a.y, dz = q[2] - a.z, d = Math.hypot(dx, dy, dz);
+      if (d > 1e-9) add(b, dx / d, dy / d, dz / d, a.r + qr - d, kind, vb);
+    };
+    for (let j = i + 1; j < prizes.length; j++) {
+      const b = prizes[j];
+      if (!b.held) toPoint([b.x, b.y, b.z], b.r, 'prize', null, b);
+    }
+    if (withClaw) {
+      toPoint([h.x, h.y, h.z], h.r, 'claw', null, h);
+      if (held) toPoint([held.x, held.y, held.z], held.r, 'claw', heldVel, h);
+      segs.forEach(([s0, s1], k) => {
+        const t = segParam([a.x, a.y, a.z], s0, s1);
+        toPoint(lerp3(s0, s1, t), FINGER_R, 'claw', segVel ? lerp3(segVel[k][0], segVel[k][1], t) : ZERO, h);
+      });
+    }
+    if (!(a.x < HOLE.x && a.z > HOLE.z)) add(null, 0, -1, 0, a.r - a.y, 'floor', ZERO);   // no floor over the hole
+    add(null, -1, 0, 0, a.r - (a.x + BOX.x), 'glass', ZERO);
+    add(null, 1, 0, 0, a.r - (BOX.x - a.x), 'glass', ZERO);
+    add(null, 0, 0, -1, a.r - (a.z + BOX.z), 'glass', ZERO);
+    add(null, 0, 0, 1, a.r - (BOX.z - a.z), 'glass', ZERO);
+    for (const w of WALLS) {
+      const q = [clamp(a.x, w.min[0], w.max[0]), clamp(a.y, w.min[1], w.max[1]), clamp(a.z, w.min[2], w.max[2])];
+      if (Math.hypot(a.x - q[0], a.y - q[1], a.z - q[2]) > 1e-9) { toPoint(q, 0, 'wall', ZERO); continue; }
+      // The centre is inside the wall: out through the nearest face
+      let best = 1e9, axis = 0, dir = 1;
+      const p = [a.x, a.y, a.z];
+      for (let k = 0; k < 3; k++) for (const [face, sg] of [[w.min[k], -1], [w.max[k], 1]]) {
+        const dist = Math.abs(p[k] - face);
+        if (dist < best) { best = dist; axis = k; dir = sg; }
+      }
+      const n = [0, 0, 0]; n[axis] = -dir;
+      add(null, n[0], n[1], n[2], best + a.r, 'wall', ZERO);
+    }
+  }
+  return out;
+}
+
+// Velocity of the other side relative to the prize, at the contact point
+function relVel(c) {
+  const a = c.a, b = c.b, n = c.n;
+  const rax = n[0] * a.r, ray = n[1] * a.r, raz = n[2] * a.r;
+  const va = [a.vx + a.wy * raz - a.wz * ray, a.vy + a.wz * rax - a.wx * raz, a.vz + a.wx * ray - a.wy * rax];
+  let vb = c.vb;
+  if (!vb) {
+    const rbx = -n[0] * b.r, rby = -n[1] * b.r, rbz = -n[2] * b.r, wx = b.wx || 0, wy = b.wy || 0, wz = b.wz || 0;
+    vb = [b.vx + wy * rbz - wz * rby, b.vy + wz * rbx - wx * rbz, b.vz + wx * rby - wy * rbx];
+  }
+  return [vb[0] - va[0], vb[1] - va[1], vb[2] - va[2]];
+}
+
+// Impulse J on b at its contact point, and -J on a at its own
+function applyImpulse(c, jx, jy, jz) {
+  const a = c.a, b = c.b, n = c.n;
+  a.vx -= jx * a.im; a.vy -= jy * a.im; a.vz -= jz * a.im;
+  const rax = n[0] * a.r, ray = n[1] * a.r, raz = n[2] * a.r;
+  a.wx -= a.iI * (ray * jz - raz * jy); a.wy -= a.iI * (raz * jx - rax * jz); a.wz -= a.iI * (rax * jy - ray * jx);
+  if (!b) return;
+  const im = imOf(b, c);
+  b.vx += jx * im; b.vy += jy * im; b.vz += jz * im;
+  if (b.iI && im && !c.vb) {
+    const rbx = -n[0] * b.r, rby = -n[1] * b.r, rbz = -n[2] * b.r;
+    b.wx += b.iI * (rby * jz - rbz * jy); b.wy += b.iI * (rbz * jx - rbx * jz); b.wz += b.iI * (rbx * jy - rby * jx);
   }
 }
 
-// Push a prize out of a point it overlaps (kr = 0 for box corners) and drop its velocity into it
-function pushFrom(p, cx, cy, cz, kr, bounce = 1) {
-  let dx = p.x - cx, dy = p.y - cy, dz = p.z - cz, d = Math.hypot(dx, dy, dz);
-  const m = p.r + kr;
-  if (d >= m) return;
-  if (d === 0) { dx = 0; dy = 1; dz = 0; d = 1; }
-  const nx = dx / d, ny = dy / d, nz = dz / d;
-  p.x = cx + nx * m; p.y = cy + ny * m; p.z = cz + nz * m;
-  const vn = p.vx * nx + p.vy * ny + p.vz * nz;
-  if (vn < 0) { p.vx -= bounce * vn * nx; p.vy -= bounce * vn * ny; p.vz -= bounce * vn * nz; }
+const dot = (u, v) => u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+
+function solveContacts(cs, dt) {
+  for (const c of cs) {
+    const vn = dot(relVel(c), c.n);
+    // Across a gap the bodies may still approach, just not past touching (no tunnelling, no fake bumps)
+    c.target = c.pen < 0 ? c.pen / dt : (vn < -BOUNCE_MIN ? -BOUNCE[c.kind] * vn : 0);
+  }
+  for (let it = 0; it < SOLVER_ITERS; it++) for (const c of cs) {
+    const a = c.a, b = c.b, n = c.n, imb = b ? imOf(b, c) : 0;
+    // Normal: never pull, only push
+    let v = relVel(c);
+    const jn0 = c.jn;
+    c.jn = Math.max(0, jn0 + (c.target - dot(v, n)) / (a.im + imb));
+    const j = c.jn - jn0;
+    if (j) applyImpulse(c, n[0] * j, n[1] * j, n[2] * j);
+    // Friction: oppose sliding at the contact point, up to MU times the normal impulse
+    v = relVel(c);
+    const vn = dot(v, n), tx = v[0] - vn * n[0], ty = v[1] - vn * n[1], tz = v[2] - vn * n[2];
+    const k = a.im + imb + a.r * a.r * a.iI + (b && imb && !c.vb ? b.r * b.r * (b.iI || 0) : 0);
+    let jt = [c.jt[0] - tx / k, c.jt[1] - ty / k, c.jt[2] - tz / k];
+    const max = MU[c.kind] * c.jn, len = Math.hypot(...jt);
+    if (len > max) jt = jt.map(x => x * max / len);
+    applyImpulse(c, jt[0] - c.jt[0], jt[1] - c.jt[1], jt[2] - c.jt[2]);
+    c.jt = jt;
+  }
 }
 
-function bounds(p) {
-  if (p.x - p.r < -BOX.x) { p.x = -BOX.x + p.r; if (p.vx < 0) p.vx *= -.3; }
-  if (p.x + p.r > BOX.x) { p.x = BOX.x - p.r; if (p.vx > 0) p.vx *= -.3; }
-  if (p.z - p.r < -BOX.z) { p.z = -BOX.z + p.r; if (p.vz < 0) p.vz *= -.3; }
-  if (p.z + p.r > BOX.z) { p.z = BOX.z - p.r; if (p.vz > 0) p.vz *= -.3; }
-  // The floor only exists outside the hole
-  if (!(p.x < HOLE.x && p.z > HOLE.z) && p.y - p.r < 0) {
-    p.y = p.r; if (p.vy < 0) p.vy *= -.2; p.vx *= .96; p.vz *= .96;
-  }
-  for (const w of WALLS) {
-    pushFrom(p, clamp(p.x, w.min[0], w.max[0]), clamp(p.y, w.min[1], w.max[1]), clamp(p.z, w.min[2], w.max[2]), 0, 1.3);
+// Move overlapping bodies apart directly (no velocity change), sharing the push by inverse mass
+function separate(cs) {
+  for (const c of cs) {
+    if (c.pen <= SLOP) continue;
+    const a = c.a, b = c.b, imb = b ? imOf(b, c) : 0, s = (c.pen - SLOP) * .9 / (a.im + imb), n = c.n;
+    a.x -= n[0] * s * a.im; a.y -= n[1] * s * a.im; a.z -= n[2] * s * a.im;
+    if (b && imb) { b.x += n[0] * s * imb; b.y += n[1] * s * imb; b.z += n[2] * s * imb; }
   }
 }
 
+let lastSegs = null, lastHeld = null;   // the claw one step ago, for the velocity it pushes with
 const rollAxis = new THREE.Vector3(), rollQ = new THREE.Quaternion();
 function physics(dt, settling) {
+  for (const p of prizes) if (!p.held) p.vy -= G * dt;
+
+  const segs = segments(), held = claw.held;
+  const segVel = lastSegs ? segs.map((s, i) => s.map((q, j) => q.map((v, k) => (v - lastSegs[i][j][k]) / dt))) : null;
+  lastSegs = segs;
+  let heldVel = ZERO;
+  if (held && lastHeld && lastHeld.p === held) heldVel = [(held.x - lastHeld.x) / dt, (held.y - lastHeld.y) / dt, (held.z - lastHeld.z) / dt];
+  lastHeld = held ? { p: held, x: held.x, y: held.y, z: held.z } : null;
+
+  const cs = findContacts(segs, segVel, heldVel, MARGIN, !settling);
+  solveContacts(cs, dt);
+
+  const touching = new Set(cs.filter(c => c.jn > 0).map(c => c.a));
   for (const p of prizes) {
     if (p.held) continue;
-    p.vy -= G * dt; p.vx *= .998; p.vz *= .998;
     p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
-    const sp = Math.hypot(p.vx, p.vz);
-    if (sp > 1e-3) {
-      rollAxis.set(p.vz / sp, 0, -p.vx / sp);
-      p.mesh.quaternion.premultiply(rollQ.setFromAxisAngle(rollAxis, sp * dt / p.r));
-    }
+    if (touching.has(p)) { const k = 1 - ROLL_DAMP * dt; p.wx *= k; p.wy *= k; p.wz *= k; }
+    const w = Math.hypot(p.wx, p.wy, p.wz);
+    if (w > 1e-4) p.mesh.quaternion.premultiply(rollQ.setFromAxisAngle(rollAxis.set(p.wx / w, p.wy / w, p.wz / w), w * dt));
   }
-  const segs = settling ? [] : segments();
-  for (let it = 0; it < 3; it++) {
-    for (let i = 0; i < prizes.length; i++) {
-      const a = prizes[i];
-      for (let j = i + 1; j < prizes.length; j++) collide(a, prizes[j]);
-      if (!a.held) {
-        if (!settling) collide(a, claw.head);   // the head has weight: it bounces off and sinks into the pile
-        for (const [s0, s1] of segs) { const q = closestOnSeg([a.x, a.y, a.z], s0, s1); pushFrom(a, q[0], q[1], q[2], FINGER_R); }
-        bounds(a);
-      }
-    }
-  }
+  for (let it = 0; it < POS_ITERS; it++) separate(findContacts(segs, null, ZERO, 0, !settling));
+
   for (let i = prizes.length - 1; i >= 0; i--) {
     const p = prizes[i];
     if (!p.held && p.y < -.75) { scene.remove(p.mesh); prizes.splice(i, 1); if (!settling) win(p); }
@@ -534,20 +640,23 @@ function startDrop() {
 }
 
 // The prize the claw closes on: centred under the head, between the fingers
+// It is caught when the closed finger tips end up below the top half of it; the lower they wrap
+// around it, the better the grip, so a claw resting high on a packed pile only pinches the top.
 function pickGrab() {
-  const h = claw.head;
+  const h = claw.head, f = clawFrame(), tipY = clawPoint(f, 0, 0, -.8)[1];
   let pick = null, bd = 1e9;
   for (const p of prizes) {
     const dx = Math.hypot(p.x - h.x, p.z - h.z);
-    if (dx < p.r * .8 && p.y < h.y && p.y > h.y - .5 - p.r && dx < bd) { bd = dx; pick = p; }
+    if (dx < p.r * .8 && p.y < h.y && tipY < p.y + p.r * .5 && dx < bd) { bd = dx; pick = p; }
   }
   if (pick) {
-    claw.q = 1 - bd / (pick.r * .8);   // grip quality, 1 = dead centre
+    const centred = 1 - bd / (pick.r * .8), depth = clamp((pick.y + pick.r * .5 - tipY) / (pick.r * .8), 0, 1);
+    claw.q = centred * (.35 + .65 * depth);   // grip quality, 1 = dead centre and wrapped below the middle
     // Remember where it sits in the claw's own frame, so it tilts and swings with it
-    const f = clawFrame(), rel = [pick.x - h.x, pick.y - h.y, pick.z - h.z];
+    const rel = [pick.x - h.x, pick.y - h.y, pick.z - h.z];
     const dot = v => rel[0] * v[0] + rel[1] * v[1] + rel[2] * v[2];
     claw.ox = dot(f.e1); claw.oz = dot(f.e2); claw.oy = -dot(f.d);
-    claw.held = pick; pick.held = true;
+    claw.held = pick; pick.held = true; pick.wx = pick.wy = pick.wz = 0;
   }
 }
 
@@ -606,7 +715,7 @@ function slip(dt) {
   const c = claw, p = c.held;
   if (c.slipping) { loosen(dt, .8); return; }
   if (!p || (state === 'lift' && c.t < .25)) return;
-  const rate = (.08 + (1 - c.q) * .9) * (p.rare ? 1.6 : 1);
+  const rate = (.06 + (1 - c.q) * .5) * (p.rare ? 1.6 : 1);
   if (Math.random() < rate * dt) c.slipping = true;
 }
 
@@ -832,7 +941,7 @@ function frame(now) {
 }
 
 // Handle for poking at the game from the console
-window.game = { get state() { return state; }, get claw() { return claw; }, get prizes() { return prizes; }, get score() { return score; }, startRound, startDrop };
+window.game = { get state() { return state; }, get claw() { return claw; }, get prizes() { return prizes; }, get score() { return score; }, startRound, startDrop, segments };
 
 reset();
 fit();
