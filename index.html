@@ -405,6 +405,41 @@ function gripTouches(p, open) {
   return hit;
 }
 
+// The push that gets the whole claw (head, sampled finger segments and a held prize) out of the
+// hole's clear walls. The claw is rigid, so every point moves by the same push.
+function clawWallPush() {
+  const h = claw.head, pts = [[h.x, h.y, h.z, h.r]];
+  for (const [a, b] of segments()) for (let i = 0; i <= 6; i++) {
+    const t = i / 6;
+    pts.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, FINGER_R]);
+  }
+  if (claw.held) pts.push([claw.held.x, claw.held.y, claw.held.z, claw.held.r]);
+  const s = [0, 0, 0];
+  for (const w of WALLS) for (const [x0, y0, z0, r] of pts) {
+    const p = [x0 + s[0], y0 + s[1], z0 + s[2]];
+    const q = p.map((v, i) => clamp(v, w.min[i], w.max[i]));
+    const d = Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+    if (d >= r) continue;
+    if (d > 0) { for (let i = 0; i < 3; i++) s[i] += (p[i] - q[i]) / d * (r - d); continue; }
+    // The point is inside the wall: out through the nearest face
+    let best = 1e9, axis = 0, dir = 1;
+    for (let i = 0; i < 3; i++) for (const [face, sg] of [[w.min[i], -1], [w.max[i], 1]]) {
+      const dist = Math.abs(p[i] - face) + r;
+      if (dist < best) { best = dist; axis = i; dir = sg; }
+    }
+    s[axis] += dir * best;
+  }
+  return s;
+}
+
+// Would the fingers, opened this much, run into a hole wall?
+function wallBlocks(open) {
+  const was = claw.open; claw.open = open;
+  const blocked = Math.hypot(...clawWallPush()) > .005;
+  claw.open = was;
+  return blocked;
+}
+
 // How far the finger tips are from the claw's axis at a given opening; a prize falls out once this passes its radius
 function tipRadial(open) {
   const th = open * .8;
@@ -551,6 +586,13 @@ function swingHead(dt) {
   h.vx += ax * dt - (h.vx - c.vx) * k; h.vy += ay * dt - h.vy * k * .2; h.vz += az * dt - (h.vz - c.vz) * k;
   h.x += h.vx * dt; h.y += h.vy * dt; h.z += h.vz * dt;
   if (h.y < HEAD_MIN_Y) { h.y = HEAD_MIN_Y; if (h.vy < 0) h.vy *= -.2; h.vx *= .9; h.vz *= .9; }
+  // The hole walls stop the claw: it rests on their top edge or slides off their sides
+  const s = clawWallPush(), sl = Math.hypot(...s);
+  if (sl > 0) {
+    h.x += s[0]; h.y += s[1]; h.z += s[2];
+    const n = s.map(v => v / sl), vn = h.vx * n[0] + h.vy * n[1] + h.vz * n[2];
+    if (vn < 0) { h.vx -= 1.2 * vn * n[0]; h.vy -= 1.2 * vn * n[1]; h.vz -= 1.2 * vn * n[2]; }
+  }
   if (h.y > CARRIAGE_Y - .2) { h.y = CARRIAGE_Y - .2; if (h.vy > 0) h.vy = 0; }
   const bx = BOX.x - .3, bz = BOX.z - .3;
   if (Math.abs(h.x) > bx) { h.x = Math.sign(h.x) * bx; h.vx *= -.3; }
@@ -623,12 +665,13 @@ function update(dt) {
       if (c.len - c.dist > .06 || c.len >= L_MAX) { state = 'close'; c.winch = 0; pickGrab(); sfx('clank'); }
       break;
     case 'close': {
-      // The fingers close until they touch the prize (pulling it to the centre), or all the way if empty
+      // The fingers close until they touch the prize (pulling it to the centre) or a hole wall,
+      // or all the way if empty
       if (c.held) { const k = dt * 6; c.ox *= 1 - k; c.oz *= 1 - k; c.oy += (-.13 - c.held.r - c.oy) * k; }
       const next = Math.max(0, c.open - dt * 2.2);
-      const gripped = c.held && gripTouches(c.held, next);
-      if (!gripped) c.open = next;
-      if (gripped || c.open <= 0) {
+      const stopped = (c.held && gripTouches(c.held, next)) || wallBlocks(next);
+      if (!stopped) c.open = next;
+      if (stopped || c.open <= 0) {
         if (c.held) sfx('grab');
         state = 'lift'; c.t = 0; c.len = Math.min(c.len, c.dist);   // take up the slack first
       }
