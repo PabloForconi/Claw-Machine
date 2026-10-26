@@ -105,7 +105,14 @@ const WALLS = [   // the clear walls around the hole, as boxes
 ];
 const HOME = { x: (-BOX.x + HOLE.x) / 2, z: (HOLE.z + BOX.z) / 2 };
 const LIMIT = { x: 1.7, z: 1.2 };
-const CARRIAGE_Y = 4.3, HEAD0 = 4.0;
+// The claw's body is an upright cylinder (two steps, a narrow one at the bottom) around the head
+// point: from HUB_DOWN below it to HUB_UP above it, radius HUB_R. The cable hooks onto its top.
+const HUB_R = .14, HUB_DOWN = .14, HUB_UP = .44;
+// Each finger, closed, in its own plane: (out, down) from its hinge on the body, which sits PIVOT_R
+// out and PIVOT_DOWN down from the head point. A long prong that bows out and curls back in at the tip.
+const FINGER_SHAPE = [[0, 0], [.16, .1], [.26, .3], [.25, .52], [.12, .7], [-.07, .79]];
+const PIVOT_R = .12, PIVOT_DOWN = .08, CLOSED_TIP_DOWN = PIVOT_DOWN + FINGER_SHAPE[FINGER_SHAPE.length - 1][1];
+const CARRIAGE_Y = 4.3, HEAD0 = CARRIAGE_Y - HUB_UP - .16;   // at the top the body sits just under the carriage
 const G = 14, STEP = 1 / 120;
 const MOVE = 1.6, DROP = 2.2, LIFT = 1.8;
 // Claw dynamics: the carriage accelerates and brakes, the winch ramps up, and the head is a
@@ -279,15 +286,19 @@ const CABLE_GEO = new THREE.CylinderGeometry(.012, .012, 1, 6), CABLE_MAT = mat(
 const cableSegs = Array.from({ length: CABLE_NODES }, () => {
   const m = new THREE.Mesh(CABLE_GEO, CABLE_MAT); m.castShadow = true; scene.add(m); return m;
 });
-const head = new THREE.Mesh(new THREE.SphereGeometry(.17, 20, 14), GOLD);
-scene.add(head);
-const SEG = new THREE.CylinderGeometry(.035, .035, 1, 8), JOINT = new THREE.SphereGeometry(.05, 10, 8);
+// Body: a main chrome cylinder and a narrower one under it (unit-height, stretched by setSeg)
+const CHROME = mat(0xdfe4ee, { metalness: .45, roughness: .28 });   // no environment map, so not too metallic or it goes black
+const bodyMain = new THREE.Mesh(new THREE.CylinderGeometry(HUB_R, HUB_R, 1, 24), CHROME);
+const bodyLow = new THREE.Mesh(new THREE.CylinderGeometry(HUB_R * .65, HUB_R * .65, 1, 20), CHROME);
+scene.add(bodyMain, bodyLow);
+// Each finger: a thin rod per stretch of FINGER_SHAPE, with a ball at every bend to round it off
+const SEG = new THREE.CylinderGeometry(.032, .032, 1, 8), JOINT = new THREE.SphereGeometry(.032, 8, 6);
 const fingerMeshes = FINGER_ANGLES.map(() => {
-  const m = { a: new THREE.Mesh(SEG, METAL), b: new THREE.Mesh(SEG, METAL), k: new THREE.Mesh(JOINT, METAL), t: new THREE.Mesh(JOINT, METAL) };
-  for (const x of Object.values(m)) { x.castShadow = true; scene.add(x); }
+  const m = { rods: FINGER_SHAPE.slice(1).map(() => new THREE.Mesh(SEG, CHROME)), balls: FINGER_SHAPE.map(() => new THREE.Mesh(JOINT, CHROME)) };
+  for (const x of [...m.rods, ...m.balls]) { x.castShadow = true; scene.add(x); }
   return m;
 });
-for (const m of [carriage, head, bridge]) m.castShadow = true;
+for (const m of [carriage, bodyMain, bodyLow, bridge]) m.castShadow = true;
 
 const UP = new THREE.Vector3(0, 1, 0), vA = new THREE.Vector3(), vB = new THREE.Vector3();
 function setSeg(mesh, a, b) {
@@ -305,7 +316,8 @@ function setSeg(mesh, a, b) {
 // swingHead(), which this rope follows, since both use claw.len.
 const cable = Array.from({ length: CABLE_NODES + 1 }, () => ({ x: 0, y: 0, z: 0, px: 0, py: 0, pz: 0 }));
 
-function cableEnds() { const h = claw.head; return [[claw.x, CARRIAGE_Y, claw.z], [h.x, h.y, h.z]]; }
+// From the carriage to the hook on top of the claw's body
+function cableEnds() { return [[claw.x, CARRIAGE_Y, claw.z], clawPoint(clawFrame(), 0, 0, HUB_UP)]; }
 
 function resetCable() {
   const [a, b] = cableEnds();
@@ -316,7 +328,7 @@ function resetCable() {
 }
 
 function cableStep(dt) {
-  const n = CABLE_NODES, link = Math.max(claw.len, .05) / n, [a, b] = cableEnds();
+  const n = CABLE_NODES, link = Math.max(claw.len - HUB_UP, .05) / n, [a, b] = cableEnds();
   for (let i = 1; i < n; i++) {
     const p = cable[i];
     const vx = (p.x - p.px) * CABLE_DAMP, vy = (p.y - p.py) * CABLE_DAMP, vz = (p.z - p.pz) * CABLE_DAMP;
@@ -357,25 +369,31 @@ function clawPoint(f, u, w, up) {
   return [h.x, h.y, h.z].map((v, i) => v + u * f.e1[i] + w * f.e2[i] - up * f.d[i]);
 }
 
-// Each finger lives in its own plane through the cable: pivot → knee → tip.
-// open (0..1) swings them all outwards around the pivot, and each finger's flex (radians) swings it
-// further on its own: a finger pressing on a prize gives way upwards (see flexFingers).
+// Each finger lives in its own plane through the cable, along FINGER_SHAPE from its hinge (p) to its
+// tip (t); pts holds every bend. open (0..1) swings them all outwards around the hinge, and each
+// finger's flex (radians) swings it further on its own: a finger pressing on a prize gives way
+// upwards (see flexFingers).
 function fingers(flex = claw.flex) {
   const f = clawFrame(), out = [];
   FINGER_ANGLES.forEach((a, i) => {
     const th = Math.min(FLEX_MAX_ANGLE, claw.open * .8 + flex[i]), c = Math.cos(th), s = Math.sin(th);
-    const loc = (u, d) => [.12 + u * c + d * s, -.08 - (-u * s + d * c)];
     const ca = Math.cos(a), sa = Math.sin(a);
-    const P = ([rr, yy]) => clawPoint(f, rr * ca, rr * sa, yy);
-    out.push({ p: P([.12, -.08]), k: P(loc(.26, .32)), t: P(loc(-.1, .72)) });
+    const pts = FINGER_SHAPE.map(([u, d]) => {
+      const rr = PIVOT_R + u * c + d * s, yy = -PIVOT_DOWN - (-u * s + d * c);
+      return clawPoint(f, rr * ca, rr * sa, yy);
+    });
+    out.push({ pts, p: pts[0], t: pts[pts.length - 1] });
   });
   return out;
 }
 
+// The straight stretches of a finger, hinge to tip
+const fingerRods = fg => fg.pts.slice(1).map((q, i) => [fg.pts[i], q]);
+
 // How deep a finger digs into a prize (negative: the gap left)
 function fingerPenOn(fg, p) {
   let m = -1e9;
-  for (const [a, b] of [[fg.p, fg.k], [fg.k, fg.t]]) {
+  for (const [a, b] of fingerRods(fg)) {
     const q = closestOnSeg([p.x, p.y, p.z], a, b);
     m = Math.max(m, p.r + FINGER_R - Math.hypot(p.x - q[0], p.y - q[1], p.z - q[2]));
   }
@@ -420,10 +438,14 @@ function syncClaw() {
   bridge.position.z = claw.z;
   carriage.position.set(claw.x, CARRIAGE_Y - .04, claw.z);
   cableSegs.forEach((m, i) => setSeg(m, [cable[i].x, cable[i].y, cable[i].z], [cable[i + 1].x, cable[i + 1].y, cable[i + 1].z]));
-  head.position.set(h.x, h.y, h.z);
+  // The body stands along the cable: the narrow step from the bottom up to the hinges, then the main one
+  const fr = clawFrame(), at = up => clawPoint(fr, 0, 0, up);
+  setSeg(bodyLow, at(-HUB_DOWN), at(-PIVOT_DOWN + .1));
+  setSeg(bodyMain, at(-PIVOT_DOWN + .1), at(HUB_UP));
   fingers().forEach((f, i) => {
     const m = fingerMeshes[i];
-    setSeg(m.a, f.p, f.k); setSeg(m.b, f.k, f.t); m.k.position.set(...f.k); m.t.position.set(...f.t);
+    fingerRods(f).forEach(([a, b], j) => setSeg(m.rods[j], a, b));
+    f.pts.forEach((q, j) => m.balls[j].position.set(...q));
   });
 }
 
@@ -476,7 +498,7 @@ function reset() {
   // x, z, vx, vz: the carriage; len: cable paid out; winch: its current speed; head: the hanging claw
   claw = {
     x: HOME.x, z: HOME.z, vx: 0, vz: 0, len: L_MIN, winch: 0, dist: L_MIN, open: 1, flex: FINGER_ANGLES.map(() => 0), held: null, q: 0, t: 0,
-    head: { x: HOME.x, y: CARRIAGE_Y - L_MIN, z: HOME.z, vx: 0, vy: 0, vz: 0, r: .17 },
+    head: { x: HOME.x, y: CARRIAGE_Y - L_MIN, z: HOME.z, vx: 0, vy: 0, vz: 0, r: HUB_R },
   };
   setMass(claw.head, HEAD_MASS, false);
   lastSegs = null;
@@ -495,7 +517,7 @@ const FINGER_R = .04;   // collision radius of a finger segment (the mesh is .03
 // The two segments of each finger, pivot → knee and knee → tip
 function segments() {
   const out = [];
-  for (const f of fingers()) out.push([f.p, f.k], [f.k, f.t]);
+  for (const f of fingers()) out.push(...fingerRods(f));
   return out;
 }
 
@@ -504,7 +526,7 @@ const closestOnSeg = (p, a, b) => lerp3(a, b, segParam(p, a, b));
 // The push that gets the whole claw (head, sampled finger segments and a held prize) out of the
 // hole's clear walls. The claw is rigid, so every point moves by the same push.
 function clawWallPush() {
-  const h = claw.head, pts = [[h.x, h.y, h.z, h.r]];
+  const h = claw.head, fr = clawFrame(), pts = [-HUB_DOWN + h.r, HUB_UP - h.r].map(up => [...clawPoint(fr, 0, 0, up), h.r]);
   for (const [a, b] of segments()) for (let i = 0; i <= 6; i++) {
     const t = i / 6;
     pts.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, FINGER_R]);
@@ -599,7 +621,7 @@ function findContacts(segs, segVel, margin, withClaw) {
       // The head collides as a short upright cylinder: landing on a capsule it presses straight down
       // instead of squirting it sideways out from under the claw, as a ball would
       const dx = a.x - h.x, dz = a.z - h.z, dxz = Math.hypot(dx, dz), s = dxz > h.r ? h.r / dxz : 1;
-      toPoint([h.x + dx * s, clamp(a.y, h.y - h.r, h.y + h.r), h.z + dz * s], 0, 'claw', null, h);
+      toPoint([h.x + dx * s, clamp(a.y, h.y - HUB_DOWN, h.y + HUB_UP), h.z + dz * s], 0, 'claw', null, h);
       segs.forEach(([s0, s1], k) => {
         const t = segParam([a.x, a.y, a.z], s0, s1);
         toPoint(lerp3(s0, s1, t), FINGER_R, 'claw', segVel ? lerp3(segVel[k][0], segVel[k][1], t) : ZERO, h);
@@ -739,7 +761,7 @@ function startDrop() {
 // When the claw starts closing, pickTarget() notes the prize right under it whose top half the closed
 // tips could reach. It stays loose while the fingers close around it; grabTarget() decides at the end.
 function pickTarget() {
-  const h = claw.head, tipY = clawPoint(clawFrame(), 0, 0, -.8)[1];
+  const h = claw.head, tipY = clawPoint(clawFrame(), 0, 0, -CLOSED_TIP_DOWN)[1];
   let pick = null, bd = 1e9;
   for (const p of prizes) {
     const dx = Math.hypot(p.x - h.x, p.z - h.z);
@@ -748,37 +770,50 @@ function pickTarget() {
   claw.target = pick;
 }
 
-// The finger angle (all fingers alike) at which they rest on a prize of radius r centred on the claw's
-// axis at depth oy, or null if that isn't a cradle: the tips would end up above its middle.
-function cradleAngle(r, oy) {
-  const c = clawPoint(clawFrame(), 0, 0, oy), ball = { x: c[0], y: c[1], z: c[2], r };
+// How a prize of radius r, centred on the claw's axis at height oy (claw frame), sits in the claw with
+// all fingers at one angle: { angle, oy } for where it rests, or null if it isn't held.
+// - The closed fingers would press into it: they rest on it, a little open (the angle), which holds it
+//   only if the tips end up under its middle.
+// - It fits loose inside the closed claw (the curved fingers make a cage): it settles down onto the
+//   inward-curling tips (the oy it drops to), unless it would drop right through between them.
+function cradle(r, oy) {
+  const fr = clawFrame();
   const at = th => fingers(FINGER_ANGLES.map(() => th - claw.open * .8));
-  const pen = th => Math.max(...at(th).map(fg => fingerPenOn(fg, ball)));
-  let lo = 0, hi = FLEX_MAX_ANGLE;
-  if (pen(hi) > 0) return null;
-  if (pen(lo) <= 0) return null;   // it would fit inside the closed claw: nothing to rest on
-  for (let i = 0; i < 20; i++) { const m = (lo + hi) / 2; if (pen(m) > 0) lo = m; else hi = m; }
-  if (Math.max(...at(hi).map(fg => fg.t[1])) > c[1] - r * .1) return null;
-  return hi;
+  const ball = up => { const c = clawPoint(fr, 0, 0, up); return { x: c[0], y: c[1], z: c[2], r }; };
+  const pen = (th, up) => Math.max(...at(th).map(fg => fingerPenOn(fg, ball(up))));
+  const tipsUnder = (th, up) => Math.max(...at(th).map(fg => fg.t[1])) < ball(up).y - r * .1;
+  if (pen(0, oy) > 0) {
+    let lo = 0, hi = FLEX_MAX_ANGLE;
+    if (pen(hi, oy) > 0) return null;
+    for (let i = 0; i < 20; i++) { const m = (lo + hi) / 2; if (pen(m, oy) > 0) lo = m; else hi = m; }
+    return tipsUnder(hi, oy) ? { angle: hi, oy } : null;
+  }
+  let lo = oy, hi = oy - .6;   // heights: lower is more negative
+  if (pen(0, hi) <= 0) return null;
+  for (let i = 0; i < 20; i++) { const m = (lo + hi) / 2; if (pen(0, m) > 0) hi = m; else lo = m; }
+  return tipsUnder(0, lo) ? { angle: 0, oy: lo } : null;
 }
 
-// When closing is done: the prize is caught only if it really is cradled. At least three fingers lie
-// against it, and with the fingers evened out around it the tips are under its middle. A prize only
-// pinched at the top isn't caught: the claw rises without it. Once caught it rides in the claw
-// (claw.hold): the fingers even out to the cradle angle and the prize slides to the middle sideways
-// only, never up (no magnet), as the linked fingers would push it.
+// When closing is done: the prize is caught only if it really is held (see cradle). If the fingers
+// rest on it, all but one must touch it; if it sits loose in the closed cage, all fingers but one must
+// have closed round it. One left splayed on a neighbour closes in once the claw lifts off the pile (the
+// others' tips hold the prize meanwhile); two would leave too wide a gap. A prize only pinched at
+// the top isn't caught: the claw rises without it. Once caught it rides in the claw (claw.hold): the
+// fingers even out to the cradle angle, and the prize slides to the middle sideways and settles down
+// onto the fingers, never up (no magnet).
 function grabTarget() {
   const p = claw.target, h = claw.head;
   claw.target = null;
-  if (!p || fingersOn(p, .02) < FINGER_ANGLES.length - 1) return;
+  if (!p) return;
   const dx = Math.hypot(p.x - h.x, p.z - h.z);
   if (dx > p.r * .8) return;
   const f = clawFrame(), rel = [p.x - h.x, p.y - h.y, p.z - h.z];
   const dot = v => rel[0] * v[0] + rel[1] * v[1] + rel[2] * v[2];
-  const oy = -dot(f.d), angle = cradleAngle(p.r, oy);
-  if (angle === null) return;
+  const oy = -dot(f.d), cr = cradle(p.r, oy);
+  if (!cr) return;
+  if (cr.angle > 0 ? fingersOn(p, .02) < FINGER_ANGLES.length - 1 : claw.flex.filter(fl => fl > .3).length > 1) return;
   claw.q = 1 - dx / (p.r * .8);   // grip quality, 1 = dead centre
-  claw.hold = { ox: dot(f.e1), oz: dot(f.e2), oy, flex: angle - claw.open * .8 };
+  claw.hold = { ox: dot(f.e1), oz: dot(f.e2), oy, restOy: cr.oy, flex: cr.angle - claw.open * .8 };
   claw.held = p; p.held = true; p.wx = p.wy = p.wz = 0;
 }
 
@@ -795,7 +830,7 @@ function detach() {
 function carry(dt) {
   const c = claw, p = c.held, hd = c.hold, k = Math.min(1, HOLD_SETTLE * dt);
   if (!p) return;
-  hd.ox *= 1 - k; hd.oz *= 1 - k;
+  hd.ox *= 1 - k; hd.oz *= 1 - k; hd.oy += (hd.restOy - hd.oy) * k;
   // Even out to the cradle angle, but a finger still pressing on a neighbour (lifting off the pile)
   // gives way to it rather than digging in
   const now = fingers();
@@ -849,7 +884,8 @@ function swingHead(dt) {
     const n = s.map(v => v / sl), vn = h.vx * n[0] + h.vy * n[1] + h.vz * n[2];
     if (vn < 0) { h.vx -= 1.2 * vn * n[0]; h.vy -= 1.2 * vn * n[1]; h.vz -= 1.2 * vn * n[2]; }
   }
-  if (h.y > CARRIAGE_Y - .2) { h.y = CARRIAGE_Y - .2; if (h.vy > 0) h.vy = 0; }
+  const top = CARRIAGE_Y - HUB_UP - .1;   // the body never rides up into the carriage
+  if (h.y > top) { h.y = top; if (h.vy > 0) h.vy = 0; }
   const bx = BOX.x - .3, bz = BOX.z - .3;
   if (Math.abs(h.x) > bx) { h.x = Math.sign(h.x) * bx; h.vx *= -.3; }
   if (Math.abs(h.z) > bz) { h.z = Math.sign(h.z) * bz; h.vz *= -.3; }

@@ -33,7 +33,7 @@ The pane only repaints while its tab is fronted (`tabs_select`); otherwise scree
 - Each step: gravity, then `findContacts()` (with `MARGIN`, so resting contacts are found every step). `solveContacts()` runs `SOLVER_ITERS` passes of normal impulses (restitution `BOUNCE` only above `BOUNCE_MIN`, gaps allowed to close but not overshoot) and Coulomb friction (`MU`) at the contact point. Then the bodies move and spin, and `separate()` runs `POS_ITERS` passes that push apart what still overlaps, without adding velocity.
 - Prizes have real mass (by volume, `setMass()`) and angular velocity (`wx, wy, wz`). Friction spins them, the mesh rotates from that, and `ROLL_DAMP` is rolling resistance, so they roll, stack and come to rest.
 - Contact kinds (`MU` and `BOUNCE` keys): `prize`, `claw`, `floor` (absent over the hole), `glass` and `wall` (the hole walls).
-- The claw head is a dynamic body (`HEAD_MASS`, no spin) and collides as a short upright cylinder. A sphere would squirt a capsule sideways out from under the claw when landing slightly off centre.
+- The claw head is a dynamic body (`HEAD_MASS`, no spin) and collides as its body: an upright cylinder of radius `HUB_R` from `HUB_DOWN` below the head point to `HUB_UP` above it. An earlier spherical head squirted capsules sideways out from under the claw when it landed slightly off centre.
 - The finger segments (`segments()`, radius `FINGER_R`) are part of the claw. Their contacts have `b` = the head, and `vb` is their own motion relative to the head (finite differences of `lastSegs`, stored relative to the head). In `relVel()` their velocity is the head's current velocity plus `vb`, so when a contact brakes the claw the fingers brake with it.
   - An earlier version used their absolute pre-contact velocity, which kept pushing and launched the claw upwards at up to 1.4 on landing.
   - Their reaction reaches the head only in small part (`CLAW_FEEDBACK` = 0.05). At 0.3 the claw stood on its open fingertips on the neighbours, about 0.5 too high to reach the capsule under it.
@@ -57,7 +57,7 @@ The user asked for physically based motion when the claw brakes, drops, etc.
   - The winch keeps letting out up to `DROP_SLACK` of loose cable, which bows out above the resting claw.
   - The first slack plays the landing clank. When lifting, the winch reels the slack in before it pulls (about 0.2 s); stopping at the top (`L_MIN`) makes the head bounce.
 - The visible cable is a simulated rope (`cable`, `cableStep()`). The user found the straight cylinder too rigid (October 2026).
-  - It is a chain of `CABLE_NODES` Verlet point masses with gravity, pinned to the carriage and the head, with links of `claw.len / CABLE_NODES` held at length (`CABLE_ITERS` passes).
+  - It is a chain of `CABLE_NODES` Verlet point masses with gravity, pinned to the carriage and the hook on top of the claw's body (`HUB_UP` above the head point), with links of `(claw.len - HUB_UP) / CABLE_NODES` held at length (`CABLE_ITERS` passes).
   - When the claw is lower than the cable allows, the extra length curves out; a tiny `CABLE_NUDGE` picks the side, or a vertical slack rope would just fold onto itself.
   - It only draws: the claw hangs from the elastic cable model in `swingHead()`, and the rope follows it since both use `claw.len`.
   - Measured: nearly straight while the claw hangs from it (it carries the claw's weight), a bow of about 0.15 with 0.22 of slack while the claw rests on the pile.
@@ -71,25 +71,35 @@ The user asked for physically based motion when the claw brakes, drops, etc.
 ### Fingers and grabbing
 
 The user reported the grab feeling odd several times (October 2026): a "magnet" pulling untouched capsules in, capsules hanging "hooked" off two fingers, capsules dropped right after being caught, and the claw "grabbing" with its fingers still wide open. The current model was arrived at by watching grabs frame by frame with `paused`/`closeUp` and measuring with `step`.
-- The claw has three fingers (`FINGER_ANGLES`, one at the back). It had four for a while, against capsules slipping out between two fingers; the user asked for three again once a caught prize rode in the claw (October 2026). `fingers()` gives each one's pivot, knee and tip from `claw.open` (the motor) plus that finger's own `claw.flex[i]` (its give), capped at `FLEX_MAX_ANGLE`. `syncClaw()` places the cylinder meshes between them. Code that loops over fingers uses `FINGER_ANGLES.length`.
+- The claw's shape follows reference photos the user sent of real crane-game claws, in basic shapes only, as they asked: no linkages or other detail (October 2026).
+  - The body is a chrome cylinder in two steps, a narrower one at the bottom where the fingers hinge (`bodyMain`, `bodyLow`). It stands along the cable. `HEAD0` keeps it just under the carriage at the top.
+  - The fingers are long curved prongs: `FINGER_SHAPE` is the closed profile, (out, down) from the hinge at `PIVOT_R` / `PIVOT_DOWN`. Each bows out and curls its tip back in under the claw, so closed they form a cage. Each stretch is a thin rod with a ball at every bend.
+  - The material is `CHROME`, not too metallic: there is no environment map, so a high metalness renders almost black.
+- The claw has three fingers (`FINGER_ANGLES`, one at the back). It had four for a while, against capsules slipping out between two fingers; the user asked for three again once a caught prize rode in the claw (October 2026).
+  - `fingers()` gives each finger's points along `FINGER_SHAPE` (`pts`; `p` is the hinge, `t` the tip). They are rotated by `claw.open` (the motor) plus that finger's own `claw.flex[i]` (its give), capped at `FLEX_MAX_ANGLE`.
+  - `fingerRods()` gives the straight stretches, used for collisions and drawing.
+  - Code that loops over fingers uses `FINGER_ANGLES.length`.
 - Finger give (`flexFingers()`, every step while not carrying):
   - A finger pressing into a prize, the one under the claw included, swings up and out (`FLEX_GAIN` per unit of overlap, up to `FLEX_MAX`) until it rests on it instead of digging in.
   - It springs back at `FLEX_RETURN` only as far as it stays clear, and not while a prize slips out or the claw lets go.
   - So during the drop the fingers ride up over neighbours and the head reaches the capsule under it. When closing, the motor closes all the way (`open` → 0) and every finger ends up lying against whatever it met.
   - `FLEX_GAIN` 6 and `FLEX_MAX` 1.1 grab best. A faster or larger give left fingers splayed too wide to cradle, roughly halving catches, though fingers then dig into neighbours a bit less (up to about 0.07 now, rarely).
 - `pickTarget()`, when closing starts, notes `claw.target`: the prize under the head (within 0.8 of its radius) whose top half the closed tips could reach.
-- `grabTarget()`, when closing is done, catches it only if it is really cradled:
-  - all fingers but one touch it (`fingersOn()`);
-  - it is within 0.8 of its radius from the axis;
-  - `cradleAngle()` finds a common finger angle at which the fingers rest on it with the tips under its middle.
+- `grabTarget()`, when closing is done, catches it only if it is really held, judged by `cradle()` with all fingers at one angle and the prize centred. The prize must also be within 0.8 of its radius from the axis. There are two ways to be held:
+  - The closed fingers would press into it: they rest on it a little open (the cradle angle), which holds it only if the tips end up under its middle. All fingers but one must touch it (`fingersOn()`).
+  - It fits loose inside the closed cage (the usual case with the curved fingers): it settles down onto the inward-curling tips, unless it would drop right through. All fingers but one must have closed round it. One left splayed on a neighbour closes in as the claw lifts off the pile; two would leave too wide a gap.
   - A prize only pinched at the top isn't caught: the claw rises without it. Before this rule, such prizes were carried hanging off the tips and dropped on the jolt of the lift.
-- Once caught, the prize rides in the claw (`claw.hold`: its offset in the claw frame and the cradle flex). `carry()` evens the fingers out to the cradle angle and slides the prize to the middle, sideways only, never up, at `HOLD_SETTLE`. That is what linked fingers would do, and it isn't a magnet, since only prizes already wrapped by the fingers get there. A finger still pressing on a neighbour while lifting off the pile gives way to it.
+- Once caught, the prize rides in the claw (`claw.hold`: its offset in the claw frame, the height it settles to and the cradle flex). `carry()` evens the fingers out and slides the prize to the middle sideways and down onto the fingers, never up, at `HOLD_SETTLE`. That is what linked fingers and gravity would do, and it isn't a magnet, since only prizes already enclosed get there. A finger still pressing on a neighbour while lifting off the pile gives way to it.
 - `claw.q` is the grip quality (1 = dead centre). `slip()` uses it (rate `.015 + (1 - q) * .08` per second, gold prizes 1.6×).
   - A slip `detach()`es the prize, making it a loose body with the claw's velocity, and sets `claw.slipping` to it.
   - The fingers ease open (`loosen()`) until the tips clear it (`tipsClear()`).
   - There is no on-screen text for a slip: the user asked to remove the old "¡Uy!" pop and the claw's sudden half-open snap (October 2026).
 - Releasing over the hole detaches the prize the same way; the `settle` state first waits (up to 1 s) for the swing to die down, since a released prize keeps the claw's velocity.
-- Measured with 45 rounds aiming at capsules away from the walls: with four fingers about 15–17 catches and 17 deliveries; with three, 23 catches and 23 deliveries. Some deliveries are capsules nudged into the hole. Every carried prize sat centred in the fingers, 5–20% of its radius off the axis.
+- Measured with 45 rounds aiming at capsules away from the walls:
+  - four straight-segment fingers: about 15–17 catches and 17 deliveries;
+  - three: 23 and 23;
+  - three curved fingers: 25 catches, 23 of them delivered.
+  - Fingers dig into the carried prize at most about 0.01 and into neighbours about 0.04.
 
 ### Capsules
 
