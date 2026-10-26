@@ -53,9 +53,14 @@ The user asked for physically based motion when the claw brakes, drops, etc.
 - The drop is timed, not stopped by contact. The user asked for this because the claw used to close the moment a finger touched the top of a capsule, and bounced back up without really closing (October 2026).
   - It always lasts `DROP_TIME` (what paying out the whole cable takes) plus `DROP_REST`, then the claw closes.
   - Whatever the claw lands on, it rests there with its weight and sinks as it pushes prizes aside.
-  - The winch never lets out more than `DROP_SLACK` of loose cable. With all the cable out, the claw slid 0.2–0.5 sideways off the round top of a capsule before closing.
-  - Once landed (`claw.landed`, where it came down) the claw is held there sideways and only sinks.
-  - The first slack plays the landing clank. Lifting first takes up the slack; stopping at the top (`L_MIN`) makes the head bounce.
+  - Once landed (`claw.landed`, where it came down) the claw is held there sideways and only sinks. Before this, with loose cable, it slid 0.2–0.5 sideways off the round top of a capsule before closing.
+  - The winch keeps letting out up to `DROP_SLACK` of loose cable, which bows out above the resting claw.
+  - The first slack plays the landing clank. When lifting, the winch reels the slack in before it pulls (about 0.2 s); stopping at the top (`L_MIN`) makes the head bounce.
+- The visible cable is a simulated rope (`cable`, `cableStep()`). The user found the straight cylinder too rigid (October 2026).
+  - It is a chain of `CABLE_NODES` Verlet point masses with gravity, pinned to the carriage and the head, with links of `claw.len / CABLE_NODES` held at length (`CABLE_ITERS` passes).
+  - When the claw is lower than the cable allows, the extra length curves out; a tiny `CABLE_NUDGE` picks the side, or a vertical slack rope would just fold onto itself.
+  - It only draws: the claw hangs from the elastic cable model in `swingHead()`, and the rope follows it since both use `claw.len`.
+  - Measured: nearly straight while the claw hangs from it (it carries the claw's weight), a bow of about 0.15 with 0.22 of slack while the claw rests on the pile.
 - The claw is drawn tilted along the cable: `clawFrame()` gives the cable direction and two axes across it, and `clawPoint()` maps claw-frame offsets to the world (the fingers and the held prize use it).
 - The whole claw collides with the hole's clear walls (`clawWallPush()`: the head, points sampled along every finger segment and a held prize, pushed out as one rigid body in `swingHead()`).
   - Landing on a wall's top edge rests the claw there.
@@ -66,7 +71,7 @@ The user asked for physically based motion when the claw brakes, drops, etc.
 ### Fingers and grabbing
 
 The user reported the grab feeling odd several times (October 2026): a "magnet" pulling untouched capsules in, capsules hanging "hooked" off two fingers, capsules dropped right after being caught, and the claw "grabbing" with its fingers still wide open. The current model was arrived at by watching grabs frame by frame with `paused`/`closeUp` and measuring with `step`.
-- The claw has four fingers (`FINGER_ANGLES`, at 45° to the axes); `fingers()` gives each one's pivot, knee and tip from `claw.open` (the motor) plus that finger's own `claw.flex[i]` (its give), capped at `FLEX_MAX_ANGLE`. `syncClaw()` places the cylinder meshes between them. Code that loops over fingers uses `FINGER_ANGLES.length`.
+- The claw has three fingers (`FINGER_ANGLES`, one at the back). It had four for a while, against capsules slipping out between two fingers; the user asked for three again once a caught prize rode in the claw (October 2026). `fingers()` gives each one's pivot, knee and tip from `claw.open` (the motor) plus that finger's own `claw.flex[i]` (its give), capped at `FLEX_MAX_ANGLE`. `syncClaw()` places the cylinder meshes between them. Code that loops over fingers uses `FINGER_ANGLES.length`.
 - Finger give (`flexFingers()`, every step while not carrying):
   - A finger pressing into a prize, the one under the claw included, swings up and out (`FLEX_GAIN` per unit of overlap, up to `FLEX_MAX`) until it rests on it instead of digging in.
   - It springs back at `FLEX_RETURN` only as far as it stays clear, and not while a prize slips out or the claw lets go.
@@ -74,17 +79,17 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
   - `FLEX_GAIN` 6 and `FLEX_MAX` 1.1 grab best. A faster or larger give left fingers splayed too wide to cradle, roughly halving catches, though fingers then dig into neighbours a bit less (up to about 0.07 now, rarely).
 - `pickTarget()`, when closing starts, notes `claw.target`: the prize under the head (within 0.8 of its radius) whose top half the closed tips could reach.
 - `grabTarget()`, when closing is done, catches it only if it is really cradled:
-  - at least three fingers touch it (`fingersOn()`);
+  - all fingers but one touch it (`fingersOn()`);
   - it is within 0.8 of its radius from the axis;
   - `cradleAngle()` finds a common finger angle at which the fingers rest on it with the tips under its middle.
   - A prize only pinched at the top isn't caught: the claw rises without it. Before this rule, such prizes were carried hanging off the tips and dropped on the jolt of the lift.
-- Once caught, the prize rides in the claw (`claw.hold`: its offset in the claw frame and the cradle flex). `carry()` evens the fingers out to the cradle angle and slides the prize to the middle, sideways only, never up, at `HOLD_SETTLE`. That is what linked fingers would do, and it isn't a magnet, since only prizes already wrapped by three fingers get there. A finger still pressing on a neighbour while lifting off the pile gives way to it.
+- Once caught, the prize rides in the claw (`claw.hold`: its offset in the claw frame and the cradle flex). `carry()` evens the fingers out to the cradle angle and slides the prize to the middle, sideways only, never up, at `HOLD_SETTLE`. That is what linked fingers would do, and it isn't a magnet, since only prizes already wrapped by the fingers get there. A finger still pressing on a neighbour while lifting off the pile gives way to it.
 - `claw.q` is the grip quality (1 = dead centre). `slip()` uses it (rate `.015 + (1 - q) * .08` per second, gold prizes 1.6×).
   - A slip `detach()`es the prize, making it a loose body with the claw's velocity, and sets `claw.slipping` to it.
   - The fingers ease open (`loosen()`) until the tips clear it (`tipsClear()`).
   - There is no on-screen text for a slip: the user asked to remove the old "¡Uy!" pop and the claw's sudden half-open snap (October 2026).
 - Releasing over the hole detaches the prize the same way; the `settle` state first waits (up to 1 s) for the swing to die down, since a released prize keeps the claw's velocity.
-- Measured with 45 rounds aiming at capsules away from the walls: about 15–17 catches and 17 deliveries (some deliveries are capsules nudged into the hole). Every carried prize sat in all four fingers, 5–20% of its radius off the axis.
+- Measured with 45 rounds aiming at capsules away from the walls: with four fingers about 15–17 catches and 17 deliveries; with three, 23 catches and 23 deliveries. Some deliveries are capsules nudged into the hole. Every carried prize sat centred in the fingers, 5–20% of its radius off the axis.
 
 ### Capsules
 
@@ -94,7 +99,7 @@ Capsule count and sizes are tuned to the claw. The user noticed small capsules e
 - Big ones squeezed out sideways: 10 of 12 grabs.
 - Between two closed fingers of three there was a gap of about 0.44–0.6, enough for a 0.58-wide capsule.
 
-Now there are four fingers (gap about 0.34–0.48) and radius `R_MIN`–`R_MAX` (0.29–0.32). `PRIZE_COUNT` is 22, after the user asked for more capsules; with 26 the floor is a tight carpet again. When fewer than `RESTOCK_BELOW` remain, enough fall from the top to get back to `PRIZE_COUNT`.
+Now the radius is `R_MIN`–`R_MAX` (0.29–0.32). `PRIZE_COUNT` is 22, after the user asked for more capsules; with 26 the floor is a tight carpet again. When fewer than `RESTOCK_BELOW` remain, enough fall from the top to get back to `PRIZE_COUNT`.
 
 ### Scoring and the rest
 
