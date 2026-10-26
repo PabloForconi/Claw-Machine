@@ -376,13 +376,39 @@ function reset() {
   hud();
 }
 
-// ---------- Physics: spheres with gravity, walls, the hole walls and the claw as kinematic spheres ----------
+// ---------- Physics: spheres with gravity, walls, the hole walls and the claw fingers as kinematic segments ----------
 
-function colliders() {
+const FINGER_R = .04;   // collision radius of a finger segment (the mesh is .035)
+
+// The two segments of each finger, pivot → knee and knee → tip
+function segments() {
   const out = [];
-  const mid = (a, b) => a.map((v, i) => (v + b[i]) / 2);
-  for (const f of fingers()) for (const q of [mid(f.p, f.k), f.k, mid(f.k, f.t), f.t]) out.push({ x: q[0], y: q[1], z: q[2], r: .06 });
+  for (const f of fingers()) out.push([f.p, f.k], [f.k, f.t]);
   return out;
+}
+
+function closestOnSeg(p, a, b) {
+  const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+  const t = clamp(((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1] + (p[2] - a[2]) * ab[2]) / (ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2), 0, 1);
+  return [a[0] + ab[0] * t, a[1] + ab[1] * t, a[2] + ab[2] * t];
+}
+
+// Would the fingers, opened this much, touch the held prize once it sits centred in the claw?
+function gripTouches(p, open) {
+  const was = claw.open; claw.open = open;
+  const c = clawPoint(clawFrame(), 0, 0, -.13 - p.r);
+  const hit = segments().some(([a, b]) => {
+    const q = closestOnSeg(c, a, b);
+    return Math.hypot(q[0] - c[0], q[1] - c[1], q[2] - c[2]) < p.r + FINGER_R;
+  });
+  claw.open = was;
+  return hit;
+}
+
+// How far the finger tips are from the claw's axis at a given opening; a prize falls out once this passes its radius
+function tipRadial(open) {
+  const th = open * .8;
+  return .12 - .1 * Math.cos(th) + .72 * Math.sin(th);
 }
 
 // Inverse mass: prizes 1, the claw head .3 (heavier), a held prize 0 (it moves with the claw)
@@ -442,14 +468,14 @@ function physics(dt, settling) {
       p.mesh.quaternion.premultiply(rollQ.setFromAxisAngle(rollAxis, sp * dt / p.r));
     }
   }
-  const kin = settling ? [] : colliders();
+  const segs = settling ? [] : segments();
   for (let it = 0; it < 3; it++) {
     for (let i = 0; i < prizes.length; i++) {
       const a = prizes[i];
       for (let j = i + 1; j < prizes.length; j++) collide(a, prizes[j]);
       if (!a.held) {
         if (!settling) collide(a, claw.head);   // the head has weight: it bounces off and sinks into the pile
-        for (const k of kin) pushFrom(a, k.x, k.y, k.z, k.r);
+        for (const [s0, s1] of segs) { const q = closestOnSeg([a.x, a.y, a.z], s0, s1); pushFrom(a, q[0], q[1], q[2], FINGER_R); }
         bounds(a);
       }
     }
@@ -469,7 +495,7 @@ function startRound() {
 
 function startDrop() {
   if (state !== 'aim') return;
-  state = 'drop'; claw.winch = 0; keys.l = keys.r = keys.u = keys.d = false; sfx('drop');
+  state = 'drop'; claw.winch = 0; claw.slipping = false; keys.l = keys.r = keys.u = keys.d = false; sfx('drop');
 }
 
 // The prize the claw closes on: centred under the head, between the fingers
@@ -532,14 +558,23 @@ function swingHead(dt) {
   return dist;
 }
 
-// Off-centre grabs and gold prizes slip more often
+// Off-centre grabs and gold prizes slip more often. A slip doesn't snap the claw open:
+// the grip gives way gradually (see loosen) until the prize passes between the tips.
 function slip(dt) {
-  const p = claw.held;
-  if (!p || (state === 'lift' && claw.t < .25)) return;
-  const rate = (.08 + (1 - claw.q) * .9) * (p.rare ? 1.6 : 1);
-  if (Math.random() < rate * dt) {
-    letGo(p, .6); claw.open = .5;
-    sfx('slip'); pop([p.x, p.y + .4, p.z], '¡Uy!', '#fff6e0');
+  const c = claw, p = c.held;
+  if (c.slipping) { loosen(dt, .8); return; }
+  if (!p || (state === 'lift' && c.t < .25)) return;
+  const rate = (.08 + (1 - c.q) * .9) * (p.rare ? 1.6 : 1);
+  if (Math.random() < rate * dt) c.slipping = true;
+}
+
+// Open the fingers at this rate; the held prize drops once the tips clear it
+function loosen(dt, rate) {
+  const c = claw;
+  c.open = Math.min(1, c.open + rate * dt);
+  if (c.held && tipRadial(c.open) >= c.held.r + FINGER_R) {
+    if (c.slipping) sfx('slip');
+    letGo(c.held, 0); c.slipping = false;
   }
 }
 
@@ -587,14 +622,18 @@ function update(dt) {
       c.len = Math.min(L_MAX, c.len + c.winch * dt);
       if (c.len - c.dist > .06 || c.len >= L_MAX) { state = 'close'; c.winch = 0; pickGrab(); sfx('clank'); }
       break;
-    case 'close':
-      c.open = Math.max(0, c.open - dt * 2.2);
+    case 'close': {
+      // The fingers close until they touch the prize (pulling it to the centre), or all the way if empty
       if (c.held) { const k = dt * 6; c.ox *= 1 - k; c.oz *= 1 - k; c.oy += (-.13 - c.held.r - c.oy) * k; }
-      if (c.open <= 0) {
+      const next = Math.max(0, c.open - dt * 2.2);
+      const gripped = c.held && gripTouches(c.held, next);
+      if (!gripped) c.open = next;
+      if (gripped || c.open <= 0) {
         if (c.held) sfx('grab');
         state = 'lift'; c.t = 0; c.len = Math.min(c.len, c.dist);   // take up the slack first
       }
       break;
+    }
     case 'lift':
       c.winch = Math.min(LIFT, c.winch + WINCH_ACC * dt);
       c.len = Math.max(L_MIN, c.len - c.winch * dt); c.t += dt; slip(dt);
@@ -614,8 +653,8 @@ function update(dt) {
       break;
     }
     case 'release':
-      c.open = Math.min(1, c.open + dt * 2);
-      if (c.held && c.open > .35) letGo(c.held, 0);
+      c.slipping = false;
+      loosen(dt, 2);
       if (c.open >= 1) { state = 'wait'; c.t = 0; }
       break;
     case 'wait':
