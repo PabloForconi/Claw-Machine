@@ -115,6 +115,7 @@ const ACC = 2.2, WINCH_ACC = 8;
 const HEAD_MASS = 2.5, ROPE_K = 2200, ROPE_C = 60, SWING_DRAG = 2.5;
 const HEAD_MIN_Y = .72;                                   // the finger tips touch the floor here
 const L_MIN = CARRIAGE_Y - HEAD0, L_MAX = CARRIAGE_Y - HEAD_MIN_Y + .2;
+const DROP_REST = .3;   // after paying out all the cable, the claw sits this long before closing
 const AIM_TIME = 15, START_COINS = 10, PRIZE_COUNT = 26;
 const COLORS = [0xff5d8f, 0x4cc9f0, 0x80ed99, 0xb388ff, 0xff9f43];
 const FINGER_ANGLES = [-Math.PI / 2, -Math.PI / 2 + 2.094, -Math.PI / 2 + 4.189];
@@ -460,7 +461,7 @@ function tipRadial(open) {
 
 const SOLVER_ITERS = 12, POS_ITERS = 4, MARGIN = .01, SLOP = .003;
 const MU = { prize: .45, claw: .7, floor: .6, glass: .15, wall: .3 };     // friction
-const BOUNCE = { prize: .3, claw: .1, floor: .3, glass: .3, wall: .35 };  // restitution
+const BOUNCE = { prize: .3, claw: 0, floor: .3, glass: .3, wall: .35 };   // restitution (the claw lands dead)
 const BOUNCE_MIN = .6;   // slower impacts don't bounce, so resting contacts stay calm
 const ROLL_DAMP = 1.2;   // rolling resistance, per second, while touching something
 const ZERO = [0, 0, 0];
@@ -481,9 +482,10 @@ function segParam(p, a, b) {
 const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
 // n points from the prize a towards the other side; pen > 0 is overlap, pen < 0 a gap.
-// b is the other body, or null for static surfaces. vb, when given, is the other side's velocity at the
-// contact: the fingers and the held prize are part of the claw, so their contacts have b = the head (the
-// reaction pushes the whole claw) but move with their own velocity (closing fingers, the swinging claw).
+// b is the other body, or null for static surfaces (then vb is their velocity, zero). The fingers and the
+// held prize are part of the claw: their contacts have b = the head, so the reaction pushes the whole claw,
+// and vb is their own motion relative to the head (closing, tilting). Their velocity is the head's current
+// velocity plus that, so when a contact brakes the claw the fingers brake with it instead of pushing on.
 function findContacts(segs, segVel, heldVel, margin, withClaw) {
   const out = [], h = claw.head, held = claw.held;
   for (let i = 0; i < prizes.length; i++) {
@@ -536,7 +538,8 @@ function relVel(c) {
   const rax = n[0] * a.r, ray = n[1] * a.r, raz = n[2] * a.r;
   const va = [a.vx + a.wy * raz - a.wz * ray, a.vy + a.wz * rax - a.wx * raz, a.vz + a.wx * ray - a.wy * rax];
   let vb = c.vb;
-  if (!vb) {
+  if (b && vb) vb = [b.vx + vb[0], b.vy + vb[1], b.vz + vb[2]];
+  else if (b) {
     const rbx = -n[0] * b.r, rby = -n[1] * b.r, rbz = -n[2] * b.r, wx = b.wx || 0, wy = b.wy || 0, wz = b.wz || 0;
     vb = [b.vx + wy * rbz - wz * rby, b.vy + wz * rbx - wx * rbz, b.vz + wx * rby - wy * rbx];
   }
@@ -596,17 +599,21 @@ function separate(cs) {
   }
 }
 
-let lastSegs = null, lastHeld = null;   // the claw one step ago, for the velocity it pushes with
+// The claw parts one step ago, relative to the head, for their own motion (closing fingers, tilting)
+let lastSegs = null, lastHeld = null;
 const rollAxis = new THREE.Vector3(), rollQ = new THREE.Quaternion();
 function physics(dt, settling) {
   for (const p of prizes) if (!p.held) p.vy -= G * dt;
 
-  const segs = segments(), held = claw.held;
-  const segVel = lastSegs ? segs.map((s, i) => s.map((q, j) => q.map((v, k) => (v - lastSegs[i][j][k]) / dt))) : null;
-  lastSegs = segs;
+  const segs = segments(), held = claw.held, h = claw.head;
+  const rel = q => [q[0] - h.x, q[1] - h.y, q[2] - h.z];
+  const segsRel = segs.map(s => s.map(rel));
+  const segVel = lastSegs ? segsRel.map((s, i) => s.map((q, j) => q.map((v, k) => (v - lastSegs[i][j][k]) / dt))) : null;
+  lastSegs = segsRel;
+  const heldRel = held && rel([held.x, held.y, held.z]);
   let heldVel = ZERO;
-  if (held && lastHeld && lastHeld.p === held) heldVel = [(held.x - lastHeld.x) / dt, (held.y - lastHeld.y) / dt, (held.z - lastHeld.z) / dt];
-  lastHeld = held ? { p: held, x: held.x, y: held.y, z: held.z } : null;
+  if (held && lastHeld && lastHeld.p === held) heldVel = heldRel.map((v, k) => (v - lastHeld.rel[k]) / dt);
+  lastHeld = held ? { p: held, rel: heldRel } : null;
 
   const cs = findContacts(segs, segVel, heldVel, MARGIN, !settling);
   solveContacts(cs, dt);
@@ -636,7 +643,7 @@ function startRound() {
 
 function startDrop() {
   if (state !== 'aim') return;
-  state = 'drop'; claw.winch = 0; claw.slipping = false; keys.l = keys.r = keys.u = keys.d = false; sfx('drop');
+  state = 'drop'; claw.winch = 0; claw.t = 0; claw.landed = false; claw.slipping = false; keys.l = keys.r = keys.u = keys.d = false; sfx('drop');
 }
 
 // The prize the claw closes on: centred under the head, between the fingers
@@ -770,11 +777,13 @@ function update(dt) {
       if (aimT <= 0) startDrop();
       break;
     case 'drop':
-      // The winch pays out cable; the claw falls under gravity and the taut cable holds it back.
-      // When it lands on something the cable goes slack: that's how it "feels" the hit.
+      // The winch pays out the whole cable in a fixed time, as on a real machine: touching a prize on
+      // the way doesn't stop it. Whatever the claw lands on, it rests there with its weight (the cable
+      // goes slack) and sinks into the pile; once the time is up and it has settled, it closes.
       c.winch = Math.min(DROP, c.winch + WINCH_ACC * dt);
       c.len = Math.min(L_MAX, c.len + c.winch * dt);
-      if (c.len - c.dist > .06 || c.len >= L_MAX) { state = 'close'; c.winch = 0; pickGrab(); sfx('clank'); }
+      if (!c.landed && c.len - c.dist > .06) { c.landed = true; sfx('clank'); }
+      if (c.len >= L_MAX && (c.t += dt) >= DROP_REST) { state = 'close'; c.winch = 0; pickGrab(); }
       break;
     case 'close': {
       // The fingers close until they touch the prize (pulling it to the centre) or a hole wall,
