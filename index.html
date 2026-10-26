@@ -327,16 +327,29 @@ function fingerPenOn(fg, p) {
 // The prize the claw is closing on doesn't count: the fingers grip it instead of giving way
 function fingerPen(fg) {
   let m = 0;
-  for (const p of prizes) if (!p.held && p !== claw.target) m = Math.max(m, fingerPenOn(fg, p));
+  for (const p of prizes) if (p !== claw.target && p !== claw.held) m = Math.max(m, fingerPenOn(fg, p));
   return m;
 }
 
-// How many fingers, opened this much, touch the prize (within gap)
-function fingersOn(p, open, gap = .004) {
+// How deep each finger, opened this much, is into the prize (negative: the gap left)
+function fingerPensOn(p, open) {
   const was = claw.open; claw.open = open;
-  const n = fingers().filter(fg => fingerPenOn(fg, p) > -gap).length;
+  const pens = fingers().map(fg => fingerPenOn(fg, p));
   claw.open = was;
-  return n;
+  return pens;
+}
+
+// How many fingers, opened this much, touch the prize (within gap)
+const fingersOn = (p, open, gap = .004) => fingerPensOn(p, open).filter(d => d > -gap).length;
+
+// Done closing on the prize: all three fingers on it, or every finger that isn't has given way on
+// something else (a neighbour, a wall) and two are on it, or it is jammed and a finger starts to dig in.
+// Until then the fingers that touch it keep pushing it towards the others, which centres it.
+function gripDone(p, open) {
+  const pens = fingerPensOn(p, open), on = pens.map(d => d > -.004);
+  if (Math.max(...pens) > .03) return true;
+  const n = on.filter(Boolean).length;
+  return n === 3 || (n >= 2 && on.every((o, i) => o || claw.flex[i] > .05));
 }
 
 // The fingers are hinged with some give: one that presses into a prize the claw isn't holding swings
@@ -413,11 +426,11 @@ function reset() {
   prizes = [];
   // x, z, vx, vz: the carriage; len: cable paid out; winch: its current speed; head: the hanging claw
   claw = {
-    x: HOME.x, z: HOME.z, vx: 0, vz: 0, len: L_MIN, winch: 0, dist: L_MIN, open: 1, flex: [0, 0, 0], held: null, q: 0, ox: 0, oy: 0, oz: 0, t: 0,
+    x: HOME.x, z: HOME.z, vx: 0, vz: 0, len: L_MIN, winch: 0, dist: L_MIN, open: 1, flex: [0, 0, 0], held: null, q: 0, t: 0,
     head: { x: HOME.x, y: CARRIAGE_Y - L_MIN, z: HOME.z, vx: 0, vy: 0, vz: 0, r: .17 },
   };
   setMass(claw.head, HEAD_MASS, false);
-  lastSegs = lastHeld = null;
+  lastSegs = null;
   state = 'idle'; coins = START_COINS; score = 0; won = 0;
   spawn(PRIZE_COUNT, 1);
   for (let i = 0; i < 1200; i++) physics(STEP, true);   // let the pile settle before showing it
@@ -446,7 +459,6 @@ function clawWallPush() {
     const t = i / 6;
     pts.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, FINGER_R]);
   }
-  if (claw.held) pts.push([claw.held.x, claw.held.y, claw.held.z, claw.held.r]);
   const s = [0, 0, 0];
   for (const w of WALLS) for (const [x0, y0, z0, r] of pts) {
     const p = [x0 + s[0], y0 + s[1], z0 + s[2]];
@@ -520,11 +532,10 @@ const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, 
 // held prize are part of the claw: their contacts have b = the head, so the reaction pushes the whole claw,
 // and vb is their own motion relative to the head (closing, tilting). Their velocity is the head's current
 // velocity plus that, so when a contact brakes the claw the fingers brake with it instead of pushing on.
-function findContacts(segs, segVel, heldVel, margin, withClaw) {
-  const out = [], h = claw.head, held = claw.held;
+function findContacts(segs, segVel, margin, withClaw) {
+  const out = [], h = claw.head;
   for (let i = 0; i < prizes.length; i++) {
     const a = prizes[i];
-    if (a.held) continue;
     const add = (b, nx, ny, nz, pen, kind, vb) => {
       if (pen > -margin) out.push({ a, b, n: [nx, ny, nz], pen, kind, vb, jn: 0, jt: [0, 0, 0] });
     };
@@ -534,11 +545,10 @@ function findContacts(segs, segVel, heldVel, margin, withClaw) {
     };
     for (let j = i + 1; j < prizes.length; j++) {
       const b = prizes[j];
-      if (!b.held) toPoint([b.x, b.y, b.z], b.r, 'prize', null, b);
+      toPoint([b.x, b.y, b.z], b.r, 'prize', null, b);
     }
     if (withClaw) {
       toPoint([h.x, h.y, h.z], h.r, 'claw', null, h);
-      if (held) toPoint([held.x, held.y, held.z], held.r, 'claw', heldVel, h);
       segs.forEach(([s0, s1], k) => {
         const t = segParam([a.x, a.y, a.z], s0, s1);
         toPoint(lerp3(s0, s1, t), FINGER_R, 'claw', segVel ? lerp3(segVel[k][0], segVel[k][1], t) : ZERO, h);
@@ -633,38 +643,32 @@ function separate(cs) {
   }
 }
 
-// The claw parts one step ago, relative to the head, for their own motion (closing fingers, tilting)
-let lastSegs = null, lastHeld = null;
+// The finger segments one step ago, relative to the head, for their own motion (closing, tilting)
+let lastSegs = null;
 const rollAxis = new THREE.Vector3(), rollQ = new THREE.Quaternion();
 function physics(dt, settling) {
-  for (const p of prizes) if (!p.held) p.vy -= G * dt;
+  for (const p of prizes) p.vy -= G * dt;
 
-  const segs = segments(), held = claw.held, h = claw.head;
-  const rel = q => [q[0] - h.x, q[1] - h.y, q[2] - h.z];
-  const segsRel = segs.map(s => s.map(rel));
+  const segs = segments(), h = claw.head;
+  const segsRel = segs.map(s => s.map(q => [q[0] - h.x, q[1] - h.y, q[2] - h.z]));
   const segVel = lastSegs ? segsRel.map((s, i) => s.map((q, j) => q.map((v, k) => (v - lastSegs[i][j][k]) / dt))) : null;
   lastSegs = segsRel;
-  const heldRel = held && rel([held.x, held.y, held.z]);
-  let heldVel = ZERO;
-  if (held && lastHeld && lastHeld.p === held) heldVel = heldRel.map((v, k) => (v - lastHeld.rel[k]) / dt);
-  lastHeld = held ? { p: held, rel: heldRel } : null;
 
-  const cs = findContacts(segs, segVel, heldVel, MARGIN, !settling);
+  const cs = findContacts(segs, segVel, MARGIN, !settling);
   solveContacts(cs, dt);
 
   const touching = new Set(cs.filter(c => c.jn > 0).map(c => c.a));
   for (const p of prizes) {
-    if (p.held) continue;
     p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
     if (touching.has(p)) { const k = 1 - ROLL_DAMP * dt; p.wx *= k; p.wy *= k; p.wz *= k; }
     const w = Math.hypot(p.wx, p.wy, p.wz);
     if (w > 1e-4) p.mesh.quaternion.premultiply(rollQ.setFromAxisAngle(rollAxis.set(p.wx / w, p.wy / w, p.wz / w), w * dt));
   }
-  for (let it = 0; it < POS_ITERS; it++) separate(findContacts(segs, null, ZERO, 0, !settling));
+  for (let it = 0; it < POS_ITERS; it++) separate(findContacts(segs, null, 0, !settling));
 
   for (let i = prizes.length - 1; i >= 0; i--) {
     const p = prizes[i];
-    if (!p.held && p.y < -.75) { scene.remove(p.mesh); prizes.splice(i, 1); if (!settling) win(p); }
+    if (p.y < -.75) { scene.remove(p.mesh); prizes.splice(i, 1); if (!settling) win(p); }
   }
 }
 
@@ -708,18 +712,16 @@ function grabTarget() {
   if (dx > p.r * .8 || tipY > p.y + p.r * .5) return;
   const centred = 1 - dx / (p.r * .8), depth = clamp((p.y + p.r * .5 - tipY) / (p.r * .8), 0, 1);
   claw.q = centred * (.35 + .65 * depth);   // grip quality, 1 = dead centre and wrapped below the middle
-  // Remember where it sits in the claw's own frame, so it tilts and swings with it
-  const f = clawFrame(), rel = [p.x - h.x, p.y - h.y, p.z - h.z];
-  const dot = v => rel[0] * v[0] + rel[1] * v[1] + rel[2] * v[2];
-  claw.ox = dot(f.e1); claw.oz = dot(f.e2); claw.oy = -dot(f.d);
-  claw.held = p; p.held = true; p.wx = p.wy = p.wz = 0;
+  // It stays a loose body resting on the fingers: it settles into the cradle as the claw lifts, a
+  // finger that sprang back off a neighbour pushes it to the middle, and it sways with the claw
+  claw.held = p;
 }
 
-// A prize leaving the claw keeps the claw's velocity, so a swinging claw can fling it
-function letGo(p, jitter) {
+// The held prize is still in the claw while it rests in the cage under the head; if it falls out
+// (a poor grip, a swing), the claw has lost it
+function stillHeld(p) {
   const h = claw.head;
-  p.held = false; claw.held = null;
-  p.vx = h.vx + (Math.random() - .5) * jitter; p.vy = h.vy; p.vz = h.vz + (Math.random() - .5) * jitter;
+  return Math.hypot(p.x - h.x, p.z - h.z) < p.r + .2 && p.y < h.y && p.y > h.y - 1.4;
 }
 
 // Carriage motor: approach the target velocity with limited acceleration, so it ramps up and brakes
@@ -767,23 +769,24 @@ function swingHead(dt) {
   return dist;
 }
 
-// Off-centre grabs and gold prizes slip more often. A slip doesn't snap the claw open:
+// On top of the physics (a prize only pinched at the top just falls out as the claw lifts), the grip
+// sometimes gives way: more often off centre and for gold prizes. A slip doesn't snap the claw open:
 // the grip gives way gradually (see loosen) until the prize passes between the tips.
 function slip(dt) {
   const c = claw, p = c.held;
   if (c.slipping) { loosen(dt, .8); return; }
   if (!p || (state === 'lift' && c.t < .25)) return;
-  const rate = (.06 + (1 - c.q) * .5) * (p.rare ? 1.6 : 1);
+  const rate = (.03 + (1 - c.q) * .2) * (p.rare ? 1.6 : 1);
   if (Math.random() < rate * dt) c.slipping = true;
 }
 
-// Open the fingers at this rate; the held prize drops once the tips clear it
+// Open the fingers at this rate; the held prize falls out on its own once the tips clear it
 function loosen(dt, rate) {
   const c = claw;
   c.open = Math.min(1, c.open + rate * dt);
   if (c.held && tipRadial(c.open) >= c.held.r + FINGER_R) {
     if (c.slipping) sfx('slip');
-    letGo(c.held, 0); c.slipping = false;
+    c.held = null; c.slipping = false;
   }
 }
 
@@ -834,10 +837,10 @@ function update(dt) {
       if (c.len >= L_MAX && (c.t += dt) >= DROP_REST) { state = 'close'; c.winch = 0; pickTarget(); }
       break;
     case 'close': {
-      // The fingers close until two of them pinch the prize under the claw, or they run into a hole
-      // wall, or all the way if there is nothing
+      // The fingers close until they cradle the prize under the claw (gripDone), or they run into a
+      // hole wall, or all the way if there is nothing
       const next = Math.max(0, c.open - dt * 2.2);
-      const stopped = (c.target && fingersOn(c.target, next) >= 2) || wallBlocks(next);
+      const stopped = (c.target && gripDone(c.target, next)) || wallBlocks(next);
       if (!stopped) c.open = next;
       if (stopped || c.open <= 0) {
         grabTarget();
@@ -882,11 +885,7 @@ function update(dt) {
   }
   c.dist = swingHead(dt);
   flexFingers(dt);
-  if (c.held) {
-    const p = c.held;
-    [p.x, p.y, p.z] = clawPoint(clawFrame(), c.ox, c.oz, c.oy);
-    p.vx = p.vy = p.vz = 0;
-  }
+  if (c.held && !stillHeld(c.held)) { c.held = null; c.slipping = false; sfx('slip'); }
 }
 
 function gameOver() {
