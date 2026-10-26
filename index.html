@@ -109,10 +109,10 @@ const LIMIT = { x: 1.7, z: 1.2 };
 // (up to HOOK_UP), a wide cap, the main cylinder, a wide collar, a narrow stem, and at the bottom three
 // short arms out to the finger hinges (PIVOT_R out, PIVOT_DOWN down), braced by struts from the collar.
 // It collides as a cylinder of radius HUB_R from HUB_DOWN below the head point to HUB_UP above it.
-const HUB_R = .15, HUB_DOWN = .24, HUB_UP = .46, HOOK_UP = HUB_UP + .14;
-// Each finger, closed, in its own plane: (out, down) from its hinge. A thin finger that bows out a
-// little and curls its tip back in under the claw, so closed they make a cage a capsule fits in.
-const FINGER_SHAPE = [[0, 0], [.07, .12], [.11, .28], [.1, .44], [.02, .58], [-.12, .68], [-.2, .72]];
+const HUB_R = .15, HUB_DOWN = .24, HUB_UP = .46, HOOK_UP = HUB_UP + .05;
+// Each finger, closed, in its own plane: (out, down) from its hinge. Two straight parts: out and a
+// little down to a knee, then down and in to a point under the claw.
+const FINGER_SHAPE = [[0, 0], [.2, .2], [-.2, .7]];
 const PIVOT_R = .26, PIVOT_DOWN = .22, CLOSED_TIP_DOWN = PIVOT_DOWN + FINGER_SHAPE[FINGER_SHAPE.length - 1][1];
 // How far (radians) the motor swings the fingers out when fully open, and the deepest a finger point
 // reaches, open or closed
@@ -316,12 +316,13 @@ const armMeshes = FINGER_ANGLES.map(() => {
   for (const x of [...m.arm, m.strut, m.hinge]) { x.castShadow = true; scene.add(x); }
   return m;
 });
-// Each finger: a thin rod per stretch of FINGER_SHAPE, with a ball at every bend to round it off,
-// and an elongated pad on the tip
-const SEG = new THREE.CylinderGeometry(.03, .03, 1, 8), JOINT = new THREE.SphereGeometry(.03, 8, 6), PAD = new THREE.SphereGeometry(1, 12, 10);
+// Each finger: a rod per stretch of FINGER_SHAPE with a ball at every bend, and the last TIP_LEN of
+// it a cone, so the finger ends in a point
+const SEG = new THREE.CylinderGeometry(.04, .04, 1, 10), JOINT = new THREE.SphereGeometry(.04, 10, 8);
+const TIP = new THREE.ConeGeometry(.04, 1, 10), TIP_LEN = .12;
 const fingerMeshes = FINGER_ANGLES.map(() => {
-  const m = { rods: FINGER_SHAPE.slice(1).map(() => new THREE.Mesh(SEG, CHROME)), balls: FINGER_SHAPE.map(() => new THREE.Mesh(JOINT, CHROME)), pad: new THREE.Mesh(PAD, CHROME) };
-  for (const x of [...m.rods, ...m.balls, m.pad]) { x.castShadow = true; scene.add(x); }
+  const m = { rods: FINGER_SHAPE.slice(1).map(() => new THREE.Mesh(SEG, CHROME)), balls: FINGER_SHAPE.slice(0, -1).map(() => new THREE.Mesh(JOINT, CHROME)), tip: new THREE.Mesh(TIP, CHROME) };
+  for (const x of [...m.rods, ...m.balls, m.tip]) { x.castShadow = true; scene.add(x); }
   return m;
 });
 for (const m of [carriage, bridge]) m.castShadow = true;
@@ -476,13 +477,13 @@ function syncClaw() {
   });
   fingers().forEach((f, i) => {
     const m = fingerMeshes[i];
-    fingerRods(f).forEach(([a, b], j) => setSeg(m.rods[j], a, b));
-    f.pts.forEach((q, j) => m.balls[j].position.set(...q));
-    // The pad lies along the last stretch, ending at the tip
-    const n = f.pts.length, a = f.pts[n - 2], t = f.t;
-    vA.set(t[0] - a[0], t[1] - a[1], t[2] - a[2]).normalize();
-    m.pad.position.set(t[0] - vA.x * .05, t[1] - vA.y * .05, t[2] - vA.z * .05);
-    m.pad.quaternion.setFromUnitVectors(UP, vA); m.pad.scale.set(.045, .085, .045);
+    const rods = fingerRods(f), [a, t] = rods[rods.length - 1];
+    // The last stretch stops TIP_LEN short of the tip, where the cone takes over
+    const k = Math.min(1, TIP_LEN / Math.hypot(t[0] - a[0], t[1] - a[1], t[2] - a[2]));
+    const base = t.map((v, j) => v + (a[j] - v) * k);
+    rods.forEach(([p, q], j) => setSeg(m.rods[j], p, j === rods.length - 1 ? base : q));
+    setSeg(m.tip, base, t);
+    m.balls.forEach((b, j) => b.position.set(...f.pts[j]));
   });
 }
 

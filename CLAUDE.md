@@ -74,7 +74,7 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
 - The claw's shape follows a flat cartoon claw design the user sent, in its basic shapes but in the game's chrome, not the design's colours (October 2026). It replaced an earlier take on photos of real claws.
   - The body stands along the cable. `BODY_PARTS` lists cylinders as [radius, from, to] heights above the head point, top to bottom: the rod the cable hooks onto (up to `HOOK_UP`), a wide cap, the main cylinder, a wide collar and a narrow stem.
   - Under the stem, per finger, a short arm (`ARM`) runs out to the finger's hinge (`PIVOT_R` out, `PIVOT_DOWN` down), braced by a strut (`STRUT`) from the collar. They are only drawn; the body collides as the `HUB_R` cylinder. `HEAD0` keeps the hook just under the carriage at the top.
-  - The fingers are thin and curved: `FINGER_SHAPE` is the closed profile, (out, down) from the hinge. Each bows out a little and curls its tip back in under the claw, so closed they form a cage a capsule fits in. Each stretch is a rod with a ball at every bend, and an elongated pad on the tip.
+  - The fingers are simple and angular, from a third, flat-icon design the user sent; for that one they asked to change only the fingers and to shorten the rod up to the cable (October 2026). `FINGER_SHAPE` is the closed profile, (out, down) from the hinge, in two straight parts: out and a little down to a knee, then down and in to a point under the claw. Each part is a rod with a ball at the knee, and the last `TIP_LEN` is a cone, so the finger ends in a point. Earlier takes used long curved prongs that closed into a cage.
   - `OPEN_ANGLE` (0.65 rad) is how far the motor swings the fingers out. With the hinges this far out, 0.8 made the open claw land on too many neighbours and halved catches.
   - `HEAD_MIN_Y` comes from `FINGER_REACH`, the deepest finger point open or closed.
   - The material is `CHROME`, not too metallic: there is no environment map, so a high metalness renders almost black.
@@ -102,7 +102,8 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
   - four straight-segment fingers: about 15–17 catches and 17 deliveries;
   - three: 23 and 23;
   - three curved fingers: 25 catches, 23 of them delivered;
-  - the cartoon-style claw (current): 21 catches, all delivered.
+  - the cartoon-style claw with curved fingers: 21 catches, all delivered;
+  - the angular fingers (current): 29 catches, 28 delivered. They usually hold by resting on the capsule below its middle, rather than caging it.
   - Fingers dig into the carried prize at most about 0.01 and into neighbours about 0.04.
 
 ### Capsules
