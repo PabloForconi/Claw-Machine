@@ -72,9 +72,9 @@ The user asked for physically based motion when the claw brakes, drops, etc.
 
 The user reported the grab feeling odd several times (October 2026): a "magnet" pulling untouched capsules in, capsules hanging "hooked" off two fingers, capsules dropped right after being caught, and the claw "grabbing" with its fingers still wide open. The current model was arrived at by watching grabs frame by frame with `paused`/`closeUp` and measuring with `step`.
 - The claw's shape is deliberately simple, in the game's chrome. The user went through several reference designs (photos of real claws, then flat cartoon and icon designs) and finally asked for something simpler, with the mechanism above the fingers back to a little box like at the start (October 2026). Don't add detail back unless asked.
-  - The body is a small rounded box (`bodyBox`) standing along the cable, `HUB_R` out to its sides, from `HUB_DOWN` below the head point to `HUB_UP` above it. It collides as a cylinder that size. The cable hooks onto its top (`HOOK_UP`); `HEAD0` keeps it just under the carriage at the top.
-  - The fingers hinge at the box's bottom edge (`PIVOT_R` out, `PIVOT_DOWN` down). `FINGER_SHAPE` is the closed profile, (out, down) from the hinge, in three straight parts with the tip part the shortest, as the user asked: out and down to a first knee, nearly straight down to a second, then a short tip hooked in under the claw.
-  - Each part is drawn as a flat plate (`setPlate()`): `FINGER_W` wide within the finger's plane, narrowing towards the tip, and `FINGER_T` thick through it (`across`, from `fingers()`). The last `TIP_LEN` is a flat point. `FINGER_R` (the collision radius) is about half the plate width.
+  - The body is a small plain box (`bodyBox`, no rounding: the user asked for sharp edges, and the carriage is a plain box too) standing along the cable, `HUB_R` out to its sides, from `HUB_DOWN` below the head point to `HUB_UP` above it. It collides as a cylinder that size. The cable hooks onto its top (`HOOK_UP`); `HEAD0` keeps it just under the carriage at the top.
+  - The fingers hinge at the box's bottom edge (`PIVOT_R` out, `PIVOT_DOWN` down). `FINGER_SHAPE` is the closed profile, (out, down) from the hinge, in three straight parts, as the user asked: out and down to a first knee, a longer middle part nearly straight down, then the shortest part, the tip, hooked in under the claw.
+  - Each finger is one flat piece (`FINGER_GEO`): `fingerOutline()` offsets the centre line by half of `FINGER_W` with mitred corners at the knees and a square-cut end, and it is extruded `FINGER_T` thick. It is built once in the finger's own plane and only moved to the hinge and turned each frame in `syncClaw()`. Earlier, per-part plates overlapping at the knees and cone points at the tips looked messy; the user asked for clean geometric shapes. `FINGER_R` (the collision radius) is about half the width.
   - Closed, the fingers leave room for a capsule, which settles onto the tips.
   - `OPEN_ANGLE` (0.5 rad) is how far the motor swings the fingers out. The wider the open claw, the more neighbours it lands on and the fewer catches; with the second knee far out, 0.65 gave 14 deliveries in 45 rounds and 0.5 gave 18.
   - `HEAD_MIN_Y` comes from `FINGER_REACH`, the deepest finger point open or closed.
@@ -106,7 +106,8 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
   - the cartoon-style claw with curved fingers: 21 catches, all delivered;
   - two-part angular fingers: 29 catches, 28 delivered;
   - three-part fingers with a short tip: 19 catches, 18 delivered;
-  - the simple box body with flat fingers (current): 22 catches, 20 delivered.
+  - the simple box body with flat fingers: 22 catches, 20 delivered;
+  - one-piece wider fingers with a longer middle part (current): 19 catches, 18 delivered.
   - Fingers dig into the carried prize at most about 0.01 and into neighbours about 0.04.
 
 ### Capsules
