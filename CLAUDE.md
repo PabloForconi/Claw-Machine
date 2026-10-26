@@ -74,8 +74,8 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
 - The claw's shape follows a flat cartoon claw design the user sent, in its basic shapes but in the game's chrome, not the design's colours (October 2026). It replaced an earlier take on photos of real claws.
   - The body stands along the cable. `BODY_PARTS` lists cylinders as [radius, from, to] heights above the head point, top to bottom: the rod the cable hooks onto (up to `HOOK_UP`), a wide cap, the main cylinder, a wide collar and a narrow stem.
   - Under the stem, per finger, a short arm (`ARM`) runs out to the finger's hinge (`PIVOT_R` out, `PIVOT_DOWN` down), braced by a strut (`STRUT`) from the collar. They are only drawn; the body collides as the `HUB_R` cylinder. `HEAD0` keeps the hook just under the carriage at the top.
-  - The fingers are simple and angular, from a third, flat-icon design the user sent; for that one they asked to change only the fingers and to shorten the rod up to the cable (October 2026). `FINGER_SHAPE` is the closed profile, (out, down) from the hinge, in two straight parts: out and a little down to a knee, then down and in to a point under the claw. Each part is a rod with a ball at the knee, and the last `TIP_LEN` is a cone, so the finger ends in a point. Earlier takes used long curved prongs that closed into a cage.
-  - `OPEN_ANGLE` (0.65 rad) is how far the motor swings the fingers out. With the hinges this far out, 0.8 made the open claw land on too many neighbours and halved catches.
+  - The fingers are simple and angular, from a third, flat-icon design the user sent; for that one they asked to change only the fingers and to shorten the rod up to the cable (October 2026). `FINGER_SHAPE` is the closed profile, (out, down) from the hinge. It has three straight parts, as the user asked next, with the tip part shorter than the other two: out and a little down to a first knee, nearly straight down to a second, then a short tip bent in under the claw. Each part is a rod with a ball at every knee, and the last `TIP_LEN` is a cone, so the finger ends in a point. Closed, the fingers leave room for a capsule, which settles onto the tips. Earlier takes used long curved prongs, then two straight parts.
+  - `OPEN_ANGLE` (0.5 rad) is how far the motor swings the fingers out. The wider the open claw, the more neighbours it lands on and the fewer catches; with the second knee far out, 0.65 gave 14 deliveries in 45 rounds and 0.5 gave 18.
   - `HEAD_MIN_Y` comes from `FINGER_REACH`, the deepest finger point open or closed.
   - The material is `CHROME`, not too metallic: there is no environment map, so a high metalness renders almost black.
 - The claw has three fingers (`FINGER_ANGLES`, one at the back). It had four for a while, against capsules slipping out between two fingers; the user asked for three again once a caught prize rode in the claw (October 2026).
@@ -90,7 +90,7 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
 - `pickTarget()`, when closing starts, notes `claw.target`: the prize under the head (within 0.8 of its radius) whose top half the closed tips could reach.
 - `grabTarget()`, when closing is done, catches it only if it is really held, judged by `cradle()` with all fingers at one angle and the prize centred. The prize must also be within 0.8 of its radius from the axis. There are two ways to be held:
   - The closed fingers would press into it: they rest on it a little open (the cradle angle), which holds it only if the tips end up under its middle. All fingers but one must touch it (`fingersOn()`).
-  - It fits loose inside the closed cage (the usual case with the curved fingers): it settles down onto the inward-curling tips, unless it would drop right through. All fingers but one must have closed round it. One left splayed on a neighbour closes in as the claw lifts off the pile; two would leave too wide a gap.
+  - It fits loose inside the closed fingers: it settles down onto the inward-bent tips, unless it would drop right through. `cradle()` lowers it in small steps to find where it first touches. A single deep probe misread short tips: past them the capsule touches nothing. All fingers but one must have closed round it. One left splayed on a neighbour closes in as the claw lifts off the pile; two would leave too wide a gap.
   - A prize only pinched at the top isn't caught: the claw rises without it. Before this rule, such prizes were carried hanging off the tips and dropped on the jolt of the lift.
 - Once caught, the prize rides in the claw (`claw.hold`: its offset in the claw frame, the height it settles to and the cradle flex). `carry()` evens the fingers out and slides the prize to the middle sideways and down onto the fingers, never up, at `HOLD_SETTLE`. That is what linked fingers and gravity would do, and it isn't a magnet, since only prizes already enclosed get there. A finger still pressing on a neighbour while lifting off the pile gives way to it.
 - `claw.q` is the grip quality (1 = dead centre). `slip()` uses it (rate `.015 + (1 - q) * .08` per second, gold prizes 1.6×).
@@ -103,7 +103,8 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
   - three: 23 and 23;
   - three curved fingers: 25 catches, 23 of them delivered;
   - the cartoon-style claw with curved fingers: 21 catches, all delivered;
-  - the angular fingers (current): 29 catches, 28 delivered. They usually hold by resting on the capsule below its middle, rather than caging it.
+  - two-part angular fingers: 29 catches, 28 delivered;
+  - three-part fingers with a short tip (current): 19 catches, 18 delivered.
   - Fingers dig into the carried prize at most about 0.01 and into neighbours about 0.04.
 
 ### Capsules

@@ -110,13 +110,14 @@ const LIMIT = { x: 1.7, z: 1.2 };
 // short arms out to the finger hinges (PIVOT_R out, PIVOT_DOWN down), braced by struts from the collar.
 // It collides as a cylinder of radius HUB_R from HUB_DOWN below the head point to HUB_UP above it.
 const HUB_R = .15, HUB_DOWN = .24, HUB_UP = .46, HOOK_UP = HUB_UP + .05;
-// Each finger, closed, in its own plane: (out, down) from its hinge. Two straight parts: out and a
-// little down to a knee, then down and in to a point under the claw.
-const FINGER_SHAPE = [[0, 0], [.2, .2], [-.2, .7]];
+// Each finger, closed, in its own plane: (out, down) from its hinge. Three straight parts: out and a
+// little down to a first knee, nearly straight down to a second, then a shorter tip bent in under
+// the claw.
+const FINGER_SHAPE = [[0, 0], [.24, .16], [.22, .5], [0, .66]];
 const PIVOT_R = .26, PIVOT_DOWN = .22, CLOSED_TIP_DOWN = PIVOT_DOWN + FINGER_SHAPE[FINGER_SHAPE.length - 1][1];
 // How far (radians) the motor swings the fingers out when fully open, and the deepest a finger point
 // reaches, open or closed
-const OPEN_ANGLE = .65;
+const OPEN_ANGLE = .5;
 const FINGER_REACH = PIVOT_DOWN + Math.max(...FINGER_SHAPE.flatMap(([u, d]) => [d, -u * Math.sin(OPEN_ANGLE) + d * Math.cos(OPEN_ANGLE)]));
 const CARRIAGE_Y = 4.3, HEAD0 = CARRIAGE_Y - HOOK_UP - .12;   // at the top the hook sits just under the carriage
 const G = 14, STEP = 1 / 120;
@@ -826,10 +827,12 @@ function cradle(r, oy) {
     for (let i = 0; i < 20; i++) { const m = (lo + hi) / 2; if (pen(m, oy) > 0) lo = m; else hi = m; }
     return tipsUnder(hi, oy) ? { angle: hi, oy } : null;
   }
-  let lo = oy, hi = oy - .6;   // heights: lower is more negative
-  if (pen(0, hi) <= 0) return null;
-  for (let i = 0; i < 20; i++) { const m = (lo + hi) / 2; if (pen(0, m) > 0) hi = m; else lo = m; }
-  return tipsUnder(0, lo) ? { angle: 0, oy: lo } : null;
+  // Lower it bit by bit until it first touches a finger (heights: lower is more negative). Too far
+  // down it would be past the tips and touch nothing, so a single deep probe can't tell.
+  for (let up = oy - .01; up > oy - .6; up -= .01) {
+    if (pen(0, up) > 0) return tipsUnder(0, up + .01) ? { angle: 0, oy: up + .01 } : null;
+  }
+  return null;   // it would drop right through
 }
 
 // When closing is done: the prize is caught only if it really is held (see cradle). If the fingers
