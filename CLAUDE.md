@@ -257,7 +257,7 @@ The user asked for collectable characters as a metagame (October 2026), differen
   - Legendary capsules slip 1.6× more (`p.rare`).
 - Characters: `tools/cut-characters.mjs` cuts the user's concept sheets (`concept/<world>.png`, 5 × 4, transparent) into `assets/chars/<world>/<row><col>.png`.
   - Each cut is 220 px square, with its soft shadow. Every character's base (the bottom of its solid part) is at `BASE` (88%) of the height, so they all stand at the same level on the shelves. `tools/png.mjs` reads and writes PNGs with Node's zlib only.
-  - The sheet's row is the rarity, as the user chose: row 1 common … row 4 legendary. The names are in `WORLDS[w].chars`.
+  - The sheet's row is the rarity, as the user chose: row 1 common … row 4 legendary. The names are in `WORLDS[w].chars`, the user's own (October 2026; they replaced the ones I first made up).
 - `winBall()`: every world capsule won counts (`meta.balls`, ever) and adds to its colour's counter (`meta.prog`).
   - Every `CHAR_EVERY` of them complete that colour's card once. It is designed as 10, but for now it is 1: the user asked for a character with every capsule, to test (October 2026). `meta.prog` keeps counting, so a card can be complete several times over.
   - A card just completed pops up at the top (`#toast`, `cardToast()`, `sfx('prize')`). It is counted on the level's card (`newCards`, `cardsHtml()`, with a button to Cápsulas), and the gallery button gets a dot.
@@ -275,7 +275,7 @@ The user asked for collectable characters as a metagame (October 2026), differen
   - The carousels' mouse drag only starts after 6 px of movement, so a click on a card still reaches it.
   - It replaced the earlier seasons (Clásicas/Rayadas/Lunares), since the finishes now mean rarity.
 - The exhibitor (`#chars`, `#charBtn` with the bear, top left after the gallery button) has a page per world. Each page has four shelves (`.rack`, one per rarity, wooden board; gold for legendary) of five characters.
-  - Each character stands on the board (its picture sinks into it by `margin-bottom: -11%`, so the base at 88% of the cut and its shadow rest on the board; the user sent a picture of them floating above it), with its name over it, as the user asked (October 2026). Owned characters show their picture, name and ×n when repeated. The rest are black silhouettes with "?".
+  - Each character stands on the board (its picture sinks into it by `margin-bottom: -15%`, so the base at 88% of the cut sits a little into the board; at -9% and -11% the user still saw them floating above it), with its name over it, as the user asked (October 2026). Owned characters show their picture, name and ×n when repeated. The rest are dark grey silhouettes (`brightness(0) invert(.2)`) with "?".
 - Both screens are carousels (`carousel()`: `.pages`, one full-width page each, scroll snap), as the user asked.
   - Swipe, drag with the mouse (it settles on the next or previous page past 40 px), or use the arrows and dots.
   - No scroll bars: the user asked for the mouse to work like a finger. Dragged up or down it scrolls the page (the levels list too), and the wheel scrolls it as usual. The drag picks its direction from the first 6 px of movement.

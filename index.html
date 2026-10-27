@@ -102,8 +102,8 @@
      its name over it */
   .toy { position: relative; display: flex; flex-direction: column; align-items: center; font-size: clamp(14px, 2.4vw, 20px); line-height: 1.1; text-align: center; }
   .toy > span { min-height: 2.2em; display: flex; align-items: flex-end; justify-content: center; }
-  .toy img { width: 100%; aspect-ratio: 1; object-fit: contain; pointer-events: none; margin-bottom: -11%; }
-  .toy.none img { filter: brightness(0); opacity: .35; }
+  .toy img { width: 100%; aspect-ratio: 1; object-fit: contain; pointer-events: none; margin-bottom: -15%; }
+  .toy.none img { filter: brightness(0) invert(.2); }   /* (a dark grey silhouette) */
   .toy.none span { opacity: .5; }
   .toy b { position: absolute; top: 2.4em; right: 0; padding: 0 5px; border-radius: 8px; font-size: 13px; background: var(--pink); color: var(--ink); }
   /* A character just won, at the top of the screen for a moment */
@@ -383,7 +383,8 @@ const SETTLE_STEPS = 600;   // physics steps (5 s) run at a reset so the pile is
 // capsule's finish (TIERS: plain, striped, dotted, metallic) and in how often it turns up (w, the share
 // of the capsules made at random). Every 10 capsules of a colour won give a character of its rarity
 // (the rainbow ones: of any rarity, mostly the commoner ones), a row of the world's concept sheet each:
-// row 1 common, row 4 legendary, as the user chose. See the metagame further down (winBall).
+// row 1 common, row 4 legendary, as the user chose; the names are the user's (October 2026). See the
+// metagame further down (winBall).
 const TIERS = [
   { name: 'Común', design: 'plain', w: .45, css: '#c9cfdb' },
   { name: 'Infrecuente', design: 'stripes', w: .28, css: '#80ed99' },
@@ -393,13 +394,13 @@ const TIERS = [
 ];
 const WORLDS = [
   { id: 'animales', name: 'Animales', balls: [['Marrón', '#9b5d34'], ['Crema', '#f1dcb0'], ['Naranja', '#ff9640'], ['Gris', '#a3aab5'], ['Rosa', '#ff9fbd'], ['Celeste', '#6fc2f0'], ['Verde', '#7fd66b'], ['Dorada', '#ffd23f']],
-    chars: ['Oso', 'Conejo', 'Panda', 'Gatito', 'Perrito', 'Pingüino', 'Pollito', 'Hámster', 'Panda rojo', 'Vaca', 'León', 'Tigre', 'Elefante', 'Koala', 'Mono', 'Zorro', 'Mapache', 'Búho', 'Oveja', 'Dino'] },
+    chars: ['Teddy', 'Bunni', 'Pandu', 'Mishi', 'Waffles', 'Pingu', 'Chicky', 'Mochi', 'Reddy', 'MooMoo', 'Lenny', 'Tiggy', 'Dumbo', 'Koko', 'Momo', 'Foxy', 'Bandit', 'Hooty', 'Wooly', 'Dino'] },
   { id: 'monstruos', name: 'Monstruos', balls: [['Violeta', '#a974ff'], ['Lima', '#a6e35a'], ['Rosa', '#ff6fb5'], ['Turquesa', '#2fd3c6'], ['Naranja', '#ff8a3d'], ['Azul', '#4a86ff'], ['Roja', '#ff4057'], ['Amarilla', '#ffd23f']],
-    chars: ['Cíclope', 'Antenitas', 'Pinchitos', 'Cornudo', 'Rulito', 'Ojos saltones', 'Erizo', 'Aletas', 'Peludo', 'Tuerto', 'Crestón', 'Alitas', 'Antenas', 'Tres ojos', 'Murcielaguito', 'Espinas', 'Dragoncito', 'Bolitas', 'Colmillos', 'Rojito'] },
+    chars: ['Reddy', 'Blobby', 'Spike', 'Violett', 'Sunny', 'Pinky', 'Chompy', 'Bloop', 'Fuzzy', 'Cyclo', 'Grumpy', 'Zappy', 'Bubbles', 'Triple', 'Flappy', 'Zippy', 'Spiky', 'Wobble', 'Horny', 'Boingo'] },
   { id: 'halloween', name: 'Halloween', balls: [['Calabaza', '#ff8a1f'], ['Hueso', '#eee3c8'], ['Violeta', '#8f52e0'], ['Moco', '#93dc3c'], ['Fantasma', '#cfe3ff'], ['Sangre', '#d9283a'], ['Dorada', '#ffd23f'], ['Plateada', '#c8d0de']],
-    chars: ['Vampiro', 'Fantasma', 'Calabaza', 'Momia', 'Franki', 'Bruja', 'Gato negro', 'Esqueleto', 'Diablito', 'Ojo', 'Hombre lobo', 'Murciélago', 'Zombi', 'La Parca', 'Caramelo', 'Caldero', 'Calabaza oscura', 'Fantasmita', 'Araña', 'Calabaza feliz'] },
+    chars: ['Vampi', 'Fanty', 'Pumpi', 'Mumi', 'Franki', 'Witchi', 'Gati', 'Skully', 'Devily', 'Oculi', 'Lobin', 'Batty', 'Zombi', 'Reap', 'Candy', 'Caldi', 'Shadow', 'Boozy', 'Spidey', 'Jacky'] },
   { id: 'navidad', name: 'Navidad', balls: [['Roja', '#e0323c'], ['Verde', '#2fa64b'], ['Nieve', '#f7f7fb'], ['Jengibre', '#b46a38'], ['Hielo', '#9fd8ff'], ['Caramelo', '#ff7aa0'], ['Dorada', '#ffd23f'], ['Plateada', '#c8d0de']],
-    chars: ['Papá Noel', 'Reno', 'Muñeco de nieve', 'Galletita', 'Duende', 'Oso polar', 'Pingüino', 'Arbolito', 'Regalo', 'Bastón', 'Bola de nieve', 'Muérdago', 'Adorno', 'Estrella', 'Campana', 'Budín', 'Copo de nieve', 'Renito', 'Gorrito', 'Corona'] },
+    chars: ['Santy', 'Ruddy', 'Snowy', 'Gingy', 'Elfi', 'Polar', 'Pengu', 'Treely', 'Giftie', 'Candy', 'Globie', 'Holly', 'Orbi', 'Twinkle', 'Jingly', 'Puddi', 'Flaky', 'Jingle', 'Santaball', 'Wreathy'] },
 ];
 // A world's nine kinds of capsule: b0–b7, two per rarity, then b8, the rainbow one
 const worldKinds = w => [...WORLDS[w].balls.map(([name, css], i) => ({ key: 'b' + i, name, css, tier: i >> 1 })), { key: 'b8', name: 'Arcoíris', css: '#ff9fbd', tier: 4 }];
