@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import { readPng, writePng } from './png.mjs';
 
-const WORLDS = ['animales', 'monstruos', 'halloween', 'navidad'], SIZE = 220, PAD = .06;
+const WORLDS = ['animales', 'monstruos', 'halloween', 'navidad'], SIZE = 220, PAD = .06, BASE = .88;
 
 for (const world of WORLDS) {
   const img = readPng(fs.readFileSync(`concept/${world}.png`)), { w, h, px } = img;
@@ -35,10 +35,12 @@ for (const world of WORLDS) {
   }
   fs.mkdirSync(`assets/chars/${world}`, { recursive: true });
   cells.forEach((b, k) => {
-    // The box: the solid blob, with room under it for the shadow and a little all round, made square
+    // The box: the solid blob, with room under it for the shadow and a little all round, made square.
+    // Every character's base (the bottom of its solid part) is at BASE of the height, so they all stand
+    // at the same level on the collection's shelves.
     const bw = b.x1 - b.x0 + 1, bh = b.y1 - b.y0 + 1, shadow = Math.round(bh * .1);
     const side = Math.round(Math.max(bw, bh + shadow) * (1 + 2 * PAD));
-    const cx = (b.x0 + b.x1) / 2, top = b.y0 - (side - bh - shadow) / 2;
+    const cx = (b.x0 + b.x1) / 2, top = b.y1 + 1 - side * BASE;
     const out = Buffer.alloc(SIZE * SIZE * 4), scale = side / SIZE;
     // Area-averaged downscale with premultiplied alpha (the transparent pixels carry junk colours);
     // only this blob's own solid pixels and the faint ones around it count, not a neighbour's

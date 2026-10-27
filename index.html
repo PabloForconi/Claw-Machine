@@ -57,7 +57,7 @@
   /* (the title on top and the buttons at the bottom stay put; only what is between them scrolls, as in
      the maze game: the user asked for it, October 2026) */
   .screen { position: fixed; inset: 0; overflow: hidden; touch-action: pan-y; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
-    background: radial-gradient(ellipse at 50% 0%, #3a2366, var(--bg) 70%); display: flex; flex-direction: column; align-items: center; }
+    background: #000; display: flex; flex-direction: column; align-items: center; }   /* (black, as the user asked) */
   .screen > * { flex: none; }
   .screen h2 { margin: 6px 0 0; font-size: 38px; color: var(--gold); text-shadow: 0 3px 0 var(--pink-dark); }
   .screen .sub { margin: 0 0 18px; font-size: 20px; opacity: .85; text-align: center; }
@@ -95,14 +95,14 @@
   .rack .rtitle { display: block; margin: 0 6px 2px; font-size: 16px; }
   .rack.t0 .rtitle { color: #c9cfdb; } .rack.t1 .rtitle { color: #80ed99; } .rack.t2 .rtitle { color: #4cc9f0; } .rack.t3 .rtitle { color: #ffd23f; }
   .row5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: end; gap: 4px; padding: 6px 6px 0; border-radius: 14px 14px 0 0;
-    background: linear-gradient(rgba(255, 255, 255, .04), rgba(255, 255, 255, .09)); border-bottom: 12px solid #7a4a2a;
+    border-bottom: 12px solid #7a4a2a;
     box-shadow: 0 6px 0 #4a2a16, 0 12px 14px rgba(0, 0, 0, .35); }
   .rack.t3 .row5 { border-bottom-color: #c99a1c; box-shadow: 0 6px 0 #7a5a0a, 0 12px 14px rgba(0, 0, 0, .35); }
   /* Each character stands on the board (its picture has a little room and its shadow under it), with
      its name over it */
   .toy { position: relative; display: flex; flex-direction: column; align-items: center; font-size: clamp(14px, 2.4vw, 20px); line-height: 1.1; text-align: center; }
   .toy > span { min-height: 2.2em; display: flex; align-items: flex-end; justify-content: center; }
-  .toy img { width: 100%; aspect-ratio: 1; object-fit: contain; pointer-events: none; margin-bottom: -9%; }
+  .toy img { width: 100%; aspect-ratio: 1; object-fit: contain; pointer-events: none; margin-bottom: -11%; }
   .toy.none img { filter: brightness(0); opacity: .35; }
   .toy.none span { opacity: .5; }
   .toy b { position: absolute; top: 2.4em; right: 0; padding: 0 5px; border-radius: 8px; font-size: 13px; background: var(--pink); color: var(--ink); }
@@ -122,7 +122,7 @@
   .slot .open { margin: 2px 0; padding: 3px 10px; border-radius: 12px; background: var(--gold); color: #3a1f00; font-size: 16px; white-space: nowrap; }
   /* Opening a card: its capsule shakes, splits in two halves flying apart, and the character pops out
      of a glow in its rarity's colour */
-  #reveal { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; background: rgba(10, 5, 25, .8); padding: 16px; }
+  #reveal { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .85); padding: 16px; }
   #revealStage { position: relative; width: 200px; height: 200px; margin: 0 auto 6px; }
   #revealStage > * { position: absolute; inset: 0; margin: auto; }
   #revealStage img { width: 190px; height: 190px; transform: scale(0); }
@@ -204,7 +204,7 @@
   .card .row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
   .card button.alt { background: var(--panel); color: var(--ink); border-color: var(--gold); }
   .card .goal { display: inline-flex; align-items: center; gap: 4px; margin: 0 6px; }
-  #opts { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(10, 5, 25, .65); padding: 16px; }
+  #opts { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .7); padding: 16px; }
   .opt { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 6px 0 20px; font-size: 22px; text-align: left; cursor: pointer; }
   .opt input { width: 26px; height: 26px; accent-color: var(--gold); cursor: pointer; }
   #controls button {
@@ -216,7 +216,7 @@
     width: 120px; height: 120px; border-radius: 50%; font-size: 26px;
     background: var(--gold); color: #3a1f00; border-color: #a8740a; box-shadow: 0 6px 0 #a8740a;
   }
-  #over { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(10, 5, 25, .65); padding: 16px; }
+  #over { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .7); padding: 16px; }
   .card { background: var(--panel); border: 5px solid var(--gold); border-radius: 22px; padding: 22px 30px; text-align: center; max-width: 360px; width: 100%; }
   .card h2 { margin: 0 0 8px; font-size: 34px; color: var(--gold); }
   .card p { margin: 0 0 18px; font-size: 22px; line-height: 1.4; }
