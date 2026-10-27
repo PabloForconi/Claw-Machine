@@ -129,7 +129,12 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
   - Before this, the fingers gave way by up to `CLOSE_GIVE` against neighbours while carrying. For a while there was also a `sag()`: the prize's weight pushed the closed fingers open about 0.17 rad so it sank onto the tips. That answered the user seeing the capsule "stuck to the top of the claw", but they then asked for the claw to stay closed.
   - With the fingers shut, a capsule about as wide as the closed claw rests where it first touches them, about 0.1 under the box.
   - Deliveries: 11 of 40 rounds, against 14 of 40 for the version just before. That is within noise; batches of 10 ranged from 1 to 7.
-- `claw.q` is the grip quality (1 = dead centre). `slip()` uses it (rate `.015 + (1 - q) * .08` per second, gold prizes 1.6×).
+- `claw.q` is the grip quality (1 = dead centre). When a catch is made, `grabTarget()` draws whether it will be lost (`claw.lose`).
+  - The chance is `LOSE_BASE + (1 - q) * LOSE_OFF`, with gold prizes 1.6×, about what the old per-second slips added up to over a carry. `LOSE_TEST` (0.6 for now, for testing, as the user asked) overrides it; set it to `null` for the normal chance.
+  - A lost catch goes one of two ways, half each. The claw never opens while it rises. The user asked for these two (October 2026); a slip used to be able to start at any moment, mid-rise included, which they found odd.
+    - `'top'`: the stop at the top (the end of `lift`) shakes it loose, and the fingers open at `LOSE_TOP_RATE`.
+    - `'early'`: on the way back the claw lets go once the prize, flying on with the claw's speed as it falls (fall time plus `LOSE_EARLY_LAG`), would land `LOSE_EARLY_DIST` from the hole's middle. Measured, it lands about 0.9–1.2 from it. Going by plain distance it was let go too late and still flew in. When the catch was made close to the hole, the trip is short and it may still roll in; the user is fine with that.
+  - After a lost catch the claw arrives already open, so `settle` skips the release motor and goes straight to the open hold.
   - A slip sets `claw.slipping` to the prize. The fingers ease open (`loosen()`), and the prize stays in the claw until the tips clear it (`tipsClear()`). Only then does `detach()` make it a loose body with the claw's velocity, so it drops straight out.
   - It used to come loose as soon as the fingers started opening, lie on them, and get flung as they swung out and up. The user saw prizes "thrown" into the hole (October 2026).
   - There is no on-screen text for a slip: the user asked to remove the old "¡Uy!" pop and the claw's sudden half-open snap (October 2026).
