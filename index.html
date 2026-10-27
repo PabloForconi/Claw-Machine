@@ -507,29 +507,20 @@ const vX = new THREE.Vector3(), vY = new THREE.Vector3(), vZ = new THREE.Vector3
 
 const HEMI_TOP = new THREE.SphereGeometry(1, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2);
 const HEMI_BOT = new THREE.SphereGeometry(1, 28, 14, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
-const BAND = new THREE.TorusGeometry(1, .04, 6, 32);
-const TOY = new THREE.SphereGeometry(.42, 16, 12), EYE = new THREE.SphereGeometry(.07, 8, 6), STAR = new THREE.OctahedronGeometry(.45);
-const CLEAR = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: .32, roughness: .05, clearcoat: 1, depthWrite: false });
-const DARK = mat(0x1b1430), BAND_MAT = mat(0x3a2a55);
+const BAND = new THREE.TorusGeometry(1, .04, 6, 32), BAND_MAT = mat(0x2a1d40);
 const colorMats = new Map();
 const colorMat = c => colorMats.get(c) || colorMats.set(c, mat(c, { roughness: .35 })).get(c);
-const GOLD_SHELL = mat(0xffd23f, { metalness: .6, roughness: .25 }), STAR_MAT = mat(0xff9f1c, { emissive: 0x552200 });
+const GOLD_SHELL = mat(0xffd23f, { metalness: .6, roughness: .25 });
 
+// A capsule: two solid halves of one colour (gold for the rare ones) with a dark band where they meet
 function mkPrize(x, y, z) {
   const rare = Math.random() < .12, col = COLORS[Math.random() * COLORS.length | 0];
   const r = R_MIN + Math.random() * (R_MAX - R_MIN);
-  const g = new THREE.Group();
-  const bot = new THREE.Mesh(HEMI_BOT, rare ? GOLD_SHELL : colorMat(col));
-  const topM = new THREE.Mesh(HEMI_TOP, CLEAR);
+  const g = new THREE.Group(), shell = rare ? GOLD_SHELL : colorMat(col);
+  const halves = [new THREE.Mesh(HEMI_TOP, shell), new THREE.Mesh(HEMI_BOT, shell)];
+  for (const m of halves) m.castShadow = m.receiveShadow = true;
   const band = new THREE.Mesh(BAND, BAND_MAT); band.rotation.x = Math.PI / 2;
-  bot.castShadow = bot.receiveShadow = true;
-  g.add(bot, band);
-  if (rare) { const s = new THREE.Mesh(STAR, STAR_MAT); s.position.y = .4; g.add(s); }
-  else {
-    const toy = new THREE.Mesh(TOY, colorMat(col)); toy.position.y = .38; g.add(toy);
-    for (const sx of [-1, 1]) { const e = new THREE.Mesh(EYE, DARK); e.position.set(sx * .15, .48, .36); g.add(e); }
-  }
-  g.add(topM);
+  g.add(...halves, band);
   g.scale.setScalar(r);
   g.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
   scene.add(g);

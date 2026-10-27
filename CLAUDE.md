@@ -128,7 +128,7 @@ Capsule count and sizes are tuned to the claw. The user noticed small capsules e
 - Big ones squeezed out sideways: 10 of 12 grabs.
 - Between two closed fingers of three there was a gap of about 0.44–0.6, enough for a 0.58-wide capsule.
 
-Now the radius is `R_MIN`–`R_MAX` (0.29–0.32). `PRIZE_COUNT` is 66: the user asked for three times the 22 there were (October 2026).
+Each capsule (`mkPrize()`) is two solid halves of one colour, gold for the rare ones, with a dark band where they meet. The user asked to drop the clear top half and the little toy inside it (October 2026). Now the radius is `R_MIN`–`R_MAX` (0.29–0.32). `PRIZE_COUNT` is 66: the user asked for three times the 22 there were (October 2026).
 - They no longer fit in one layer and heap up like in a real machine: about 1.1 high on average, up to about 1.8, over the hole walls' 1.1. `spawn()` drops them in layers of a dozen. A reset settles them for `SETTLE_STEPS` (about 0.7 s of work), and now and then one tips into the hole while settling.
 - `findContacts()` uses a grid (`prizeGrid()`, cells of `CELL`) so each prize is only checked against its neighbours. A physics step takes about 1.7 ms with 66.
 - With the heap, about 30% of rounds aiming at capsules deliver one (8 catches in 24 rounds).
