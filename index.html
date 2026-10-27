@@ -90,7 +90,7 @@ const FINGER_SHAPE = [[0, 0], [.26, .18], [.25, .58], [.06, .74]];
 const PIVOT_R = .15, PIVOT_DOWN = .12, CLOSED_TIP_DOWN = PIVOT_DOWN + FINGER_SHAPE[FINGER_SHAPE.length - 1][1];
 // How far (radians) the motor swings the fingers out when fully open, and the deepest a finger point
 // reaches, open or closed
-const OPEN_ANGLE = .5;
+const OPEN_ANGLE = .4;
 const FINGER_REACH = PIVOT_DOWN + Math.max(...FINGER_SHAPE.flatMap(([u, d]) => [d, -u * Math.sin(OPEN_ANGLE) + d * Math.cos(OPEN_ANGLE)]));
 const CARRIAGE_Y = 4.3, HEAD0 = CARRIAGE_Y - HOOK_UP - .12;   // at the top the hook sits just under the carriage
 const G = 14, STEP = 1 / 120;
