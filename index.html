@@ -44,8 +44,7 @@
 </style>
 <script type="importmap">
 { "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"
 } }
 </script>
 </head>
@@ -68,7 +67,6 @@
 </div>
 <script type="module">
 import * as THREE from 'three';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 // World units: the glass box is 4 wide (x), 3 deep (z), the floor is y = 0.
 // The prize hole is the front-left corner: x < HOLE.x and z > HOLE.z.
@@ -190,8 +188,10 @@ const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, rough
 const PINK = mat(0xe8457a, { roughness: .4 }), PINK_DARK = mat(0x8a1f48), METAL = mat(0xd5dbe8, { metalness: .8, roughness: .3 });
 const GOLD = mat(0xf4c430, { metalness: .7, roughness: .3 });
 
-function box(w, h, d, material, x, y, z, rounded = false) {
-  const m = new THREE.Mesh(rounded ? new RoundedBoxGeometry(w, h, d, 3, Math.min(w, h, d) * .2) : new THREE.BoxGeometry(w, h, d), material);
+// The machine is all plain boxes with sharp edges, the same flat, simple look as the claw. The user
+// asked for fewer polygons (October 2026): the base, pillars and roof used to have rounded edges.
+function box(w, h, d, material, x, y, z) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
   m.position.set(x, y, z); scene.add(m); return m;
 }
 
@@ -225,7 +225,7 @@ box(.35, .62, 3.7, PINK, BOX.x + .175, -.29, 0);
 box(.35, .62, 3.7, PINK, -BOX.x - .175, -.29, 0);
 const holeIn = box(.88, .6, .88, new THREE.MeshStandardMaterial({ color: 0x120a20, side: THREE.BackSide }), HOME.x, -.3, HOME.z);
 holeIn.receiveShadow = true;
-box(4.7, 1.1, 3.7, PINK, 0, -1.15, 0, true);
+box(4.7, 1.1, 3.7, PINK, 0, -1.15, 0);
 
 // Scoreboard on the front of the base: coins, points, time, and the hint while idle. It is part of the
 // machine (a canvas texture, repainted by hud() when something changes) so the screen above is all game.
@@ -247,8 +247,8 @@ const boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(BOARD_W, BOARD_H), new 
 boardMesh.position.set(0, -1.15, 1.86); scene.add(boardMesh);
 
 // Pillars, roof, back wall, glass
-for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(.35, 4.6, .35, PINK, sx * (BOX.x + .175), 2.3, sz * (BOX.z + .175), true);
-box(4.7, .3, 3.7, PINK, 0, 4.75, 0, true);
+for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(.35, 4.6, .35, PINK, sx * (BOX.x + .175), 2.3, sz * (BOX.z + .175));
+box(4.7, .3, 3.7, PINK, 0, 4.75, 0);
 const backTex = dots('#2e2058'); backTex.repeat.set(6, 7);
 const back = new THREE.Mesh(new THREE.PlaneGeometry(BOX.x * 2, 4.6), mat(0xffffff, { map: backTex }));
 back.position.set(0, 2.3, -BOX.z); back.receiveShadow = true; scene.add(back);
@@ -279,8 +279,9 @@ document.fonts.load('700 120px Kalam').then(() => { marqueeTex.repaint(); boardT
 box(4.7, MARQUEE_H, .3, [PINK, PINK, PINK, PINK, new THREE.MeshBasicMaterial({ map: marqueeTex }), PINK], 0, MARQUEE_Y, BOX.z + .2);
 const bulbs = [];
 const BULB_ON = new THREE.MeshBasicMaterial({ color: 0xfff3b0 }), BULB_OFF = new THREE.MeshBasicMaterial({ color: 0x8a6a2a });
+const BULB_GEO = new THREE.BoxGeometry(.075, .075, .04);   // little square lights, like the rest of the machine
 for (let i = 0; i < 22; i++) for (const y of [MARQUEE_Y - MARQUEE_H / 2 + .02, MARQUEE_Y + MARQUEE_H / 2 - .02]) {
-  const b = new THREE.Mesh(new THREE.SphereGeometry(.045, 10, 8), BULB_OFF);
+  const b = new THREE.Mesh(BULB_GEO, BULB_OFF);
   b.position.set(-2.2 + i * 4.4 / 21, y, BOX.z + .37); scene.add(b); bulbs.push([b, i]);
 }
 

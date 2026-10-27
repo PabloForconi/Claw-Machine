@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Browser 3D game prototype: a claw machine full of capsule toys. The user asked for it in 3D (an earlier 2D canvas version was replaced). All the code lives in `index.html` (inline CSS and an inline ES module, no build step). External resources: Three.js 0.170.0 from jsDelivr through an import map (`three` and `three/addons/`, only `RoundedBoxGeometry` is used from the addons), and the Google Fonts font Kalam (bold, 700) with a cursive fallback, the same UI font as the sibling prototype `../Laberinto` (Maze Mouse). UI text is in Spanish (rioplatense: "Tocá", "querés").
+Browser 3D game prototype: a claw machine full of capsule toys. The user asked for it in 3D (an earlier 2D canvas version was replaced). All the code lives in `index.html` (inline CSS and an inline ES module, no build step). External resources: Three.js 0.170.0 from jsDelivr through an import map (`three` only, no addons), and the Google Fonts font Kalam (bold, 700) with a cursive fallback, the same UI font as the sibling prototype `../Laberinto` (Maze Mouse). UI text is in Spanish (rioplatense: "Tocá", "querés").
 
 To run it, open `index.html` in a browser; it needs internet for Three.js and the font. It is published with GitHub Pages from `main` (the repo is public, like `../Laberinto`): https://pabloforconi.github.io/Claw-Machine/. Every push to `main` redeploys it in about a minute.
 
@@ -23,7 +23,7 @@ The pane only repaints while its tab is fronted (`tabs_select`); otherwise scree
 ## How the game works
 
 - World units: the glass box is x ∈ [-2, 2], z ∈ [-1.5, 1.5] (z+ is towards the camera), floor at y = 0. The prize hole is the front-left corner (`HOLE`: x < -1.1 and z > 0.6), fenced by two clear walls (`WALLS`, axis-aligned boxes). The claw returns to `HOME`, the centre of the hole.
-- The machine is built from plain boxes in the "Machine" section; the floor slab is two boxes forming an L so the hole stays open, and `holeIn` is a back-side box that shows the dark inside of the hole. The marquee and the scoreboard are canvas textures, repainted once Kalam loads.
+- The machine is built from plain boxes in the "Machine" section, all with sharp edges, and the marquee lights are little square boxes. The user asked for fewer polygons to match the claw's flat, simple look (October 2026); the base, pillars and roof used to be rounded and the lights were spheres. The capsules keep their round shape, and the shadows are unchanged. the floor slab is two boxes forming an L so the hole stays open, and `holeIn` is a back-side box that shows the dark inside of the hole. The marquee and the scoreboard are canvas textures, repainted once Kalam loads.
 - Screen layout (the user asked for more view of the game, October 2026):
   - There is no HTML HUD at the top. Coins, points, time and the idle hint are a scoreboard on the front of the machine's base (`board`, `boardTex`, where a "PREMIOS" door label used to be). `hud()` repaints it only when a value changes. Only the controls and the game-over card are HTML.
   - The marquee is a thin strip (`MARQUEE_H`).
