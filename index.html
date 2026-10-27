@@ -115,6 +115,9 @@ const DROP_TIME = (L_MAX - L_MIN) / DROP + DROP / (2 * WINCH_ACC), DROP_REST = .
 // Finger give: how fast a pressed finger swings up (radians per unit of overlap, per step), how far
 // it can, how fast it springs back (radians per second), and the widest a finger can ever swing
 const FLEX_GAIN = 6, FLEX_MAX = 1.1, FLEX_RETURN = 1.5, FLEX_MAX_ANGLE = 1.6;
+// ...the fastest a finger can be pushed open (radians per second), and how much of the most-opened
+// finger's give the others follow while the claw comes down (see flexFingers)
+const FLEX_RATE = 1.8, FLEX_LINK = .8;
 const HOLD_SETTLE = 6;   // how fast (per second) a caught prize slides to the middle and the fingers even out
 const CLOSE_GIVE = .03;  // while closing, how far a finger digs into a jammed prize before it gives way
 const CLOSE_HOLD = .35;  // seconds the motor keeps squeezing once fully closed, before lifting
@@ -460,17 +463,25 @@ const fingersOn = (p, gap = .004) => fingers().filter(fg => fingerPenOn(fg, p) >
 // ended up wider than the open claw; and with the soft give back on after closing, they swung open
 // again by up to 0.5 rad as the claw started to lift.
 const gripFirm = () => ['close', 'lift', 'return', 'settle'].includes(state);
+// A finger never swings out faster than FLEX_RATE: hit faster than that, it pushes the prize instead
+// of flicking open. And while the claw comes down open, the fingers are linked (FLEX_LINK): when one
+// is pushed open the others follow part of the way, so the whole claw opens wider on landing rather
+// than one finger snapping open on its own.
 function flexFingers(dt) {
   const fl = claw.flex, now = fingers(), firm = gripFirm(), give = firm ? CLOSE_GIVE : .002;
   for (let i = 0; i < fl.length; i++) {
     const pen = fingerPen(now[i]);
-    if (pen > give) { fl[i] = Math.min(FLEX_MAX, fl[i] + (pen - give) * FLEX_GAIN); continue; }
+    if (pen > give) { fl[i] = Math.min(FLEX_MAX, fl[i] + Math.min((pen - give) * FLEX_GAIN, FLEX_RATE * dt)); continue; }
     // No springing back while a prize slips out or the claw lets go, or it would fight the opening
     if (fl[i] <= 0 || claw.slipping || state === 'release') continue;
     // Spring back as far as it stays clear; with a firm grip the motor drives it back in even
     // against the prizes around it, up to the same give
     const back = fl.slice(); back[i] = Math.max(0, fl[i] - FLEX_RETURN * (firm ? 2 : 1) * dt);
     if (fingerPen(fingers(back)[i]) <= give) fl[i] = back[i];
+  }
+  if (state === 'drop') {
+    const top = Math.max(...fl);
+    for (let i = 0; i < fl.length; i++) fl[i] = Math.max(fl[i], top * FLEX_LINK);
   }
 }
 

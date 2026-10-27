@@ -91,6 +91,9 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
 - Finger give (`flexFingers()`, every step while not carrying):
   - A finger pressing into a prize, the one under the claw included, swings up and out (`FLEX_GAIN` per unit of overlap, up to `FLEX_MAX`) until it rests on it instead of digging in.
   - It springs back at `FLEX_RETURN` only as far as it stays clear, and not while a prize slips out or the claw lets go.
+  - A finger is never pushed open faster than `FLEX_RATE`. While the claw comes down, the fingers are linked: each follows at least `FLEX_LINK` of the most-opened one.
+    - The user saw a single finger flick open out of nowhere during the drop (October 2026). Hitting a capsule at drop speed, one finger used to give way about 0.4 rad in a tenth of a second while the others stayed put.
+    - Now nothing snaps and no finger sits more than 0.3 rad wider than both others. Catches may be a little lower (about 31% vs 44% in small samples with a looser link).
   - So during the drop the fingers ride up over neighbours and the head reaches the capsule under it. When closing, the motor closes all the way (`open` → 0) and every finger ends up lying against whatever it met.
   - From closing until letting go (`gripFirm()`: close, lift, return, settle), the motor is strong. A finger only gives way once it digs `CLOSE_GIVE` into something, so it shoves loose prizes aside instead. It springs back against prizes up to that same give, twice as fast; `carry()` uses the same give. Once fully closed, the motor keeps squeezing for `CLOSE_HOLD` before lifting.
     - At first the firm grip only applied while closing. As the claw began to lift, the soft give came back and the fingers swung open again by up to 0.5 rad, which the user saw as the claw reopening at the bottom (October 2026).
