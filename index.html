@@ -121,6 +121,9 @@ const FLEX_RATE = 1.8, FLEX_LINK = .8;
 const HOLD_SETTLE = 6;   // how fast (per second) a caught prize slides to the middle and the fingers even out
 const CLOSE_GIVE = .03;  // while closing, how far a finger digs into a jammed prize before it gives way
 const CLOSE_HOLD = .35;  // seconds the motor keeps squeezing once fully closed, before lifting
+// How far (radians) a caught prize's weight can push the fingers open as it sinks onto them, and how
+// far under its middle the tips must stay (in radii) for it to sit there (see sag)
+const SAG_GIVE = .18, SAG_TIPS = .35;
 // Rope: velocity kept per step, link passes per step, and the sideways nudge that lets slack bow out
 const CABLE_DAMP = .995, CABLE_ITERS = 30, CABLE_NUDGE = 2e-5;
 const AIM_TIME = 15, START_COINS = 10;
@@ -843,16 +846,27 @@ function pickTarget() {
 //   only if the tips end up under its middle.
 // - It fits loose inside the closed claw (the curved fingers make a cage): it settles down onto the
 //   inward-curling tips (the oy it drops to), unless it would drop right through between them.
-function cradle(r, oy) {
+// The fingers all at angle th against a prize of radius r on the claw's axis at height up (claw frame):
+// how far they press into it, the smallest angle in [lo, hi] at which they don't (hi if none), and
+// whether the tips are under its middle (by at least m radii).
+function cradleProbe(r) {
   const fr = clawFrame();
   const at = th => fingers(FINGER_ANGLES.map(() => th - claw.open * OPEN_ANGLE));
   const ball = up => { const c = clawPoint(fr, 0, 0, up); return { x: c[0], y: c[1], z: c[2], r }; };
   const pen = (th, up) => Math.max(...at(th).map(fg => fingerPenOn(fg, ball(up))));
-  const tipsUnder = (th, up) => Math.max(...at(th).map(fg => fg.t[1])) < ball(up).y - r * .1;
+  const fit = (lo, hi, up) => {
+    for (let i = 0; i < 20; i++) { const m = (lo + hi) / 2; if (pen(m, up) > 0) lo = m; else hi = m; }
+    return hi;
+  };
+  const tipsUnder = (th, up, m = .1) => Math.max(...at(th).map(fg => fg.t[1])) < ball(up).y - r * m;
+  return { pen, fit, tipsUnder };
+}
+
+function cradle(r, oy) {
+  const { pen, fit, tipsUnder } = cradleProbe(r);
   if (pen(0, oy) > 0) {
-    let lo = 0, hi = FLEX_MAX_ANGLE;
-    if (pen(hi, oy) > 0) return null;
-    for (let i = 0; i < 20; i++) { const m = (lo + hi) / 2; if (pen(m, oy) > 0) lo = m; else hi = m; }
+    if (pen(FLEX_MAX_ANGLE, oy) > 0) return null;
+    const hi = fit(0, FLEX_MAX_ANGLE, oy);
     return tipsUnder(hi, oy) ? { angle: hi, oy } : null;
   }
   // Lower it bit by bit until it first touches a finger (heights: lower is more negative). Too far
@@ -861,6 +875,23 @@ function cradle(r, oy) {
     if (pen(0, up) > 0) return tipsUnder(0, up + .01) ? { angle: 0, oy: up + .01 } : null;
   }
   return null;   // it would drop right through
+}
+
+// Where a caught prize ends up once the claw lifts it: its weight pushes the closed fingers open a
+// little (an arcade claw's grip is weak) and it sinks down onto their lower parts and tips. Without
+// this a capsule about as wide as the closed claw stayed wedged at its widest point, right up under
+// the box. It sinks as far as the fingers can give, keeping the tips well under its middle.
+function sag(r, rest) {
+  const { pen, fit, tipsUnder } = cradleProbe(r);
+  let best = rest;
+  for (let up = rest.oy - .01; up > rest.oy - .4; up -= .01) {
+    const lo = best.angle, hi = rest.angle + SAG_GIVE;
+    if (pen(hi, up) > 0) break;
+    const th = pen(lo, up) > 0 ? fit(lo, hi, up) : lo;
+    if (!tipsUnder(th, up, SAG_TIPS)) break;
+    best = { angle: th, oy: up };
+  }
+  return best;
 }
 
 // When closing is done: the prize is caught only if it really is held (see cradle). If the fingers
@@ -882,7 +913,8 @@ function grabTarget() {
   if (!cr) return;
   if (cr.angle > 0 ? fingersOn(p, .02) < FINGER_ANGLES.length - 1 : claw.flex.filter(fl => fl > .3).length > 1) return;
   claw.q = 1 - dx / (p.r * .8);   // grip quality, 1 = dead centre
-  claw.hold = { ox: dot(f.e1), oz: dot(f.e2), oy, restOy: cr.oy, flex: cr.angle - claw.open * OPEN_ANGLE };
+  const rest = sag(p.r, cr);
+  claw.hold = { ox: dot(f.e1), oz: dot(f.e2), oy, restOy: rest.oy, flex: rest.angle - claw.open * OPEN_ANGLE };
   claw.held = p; p.held = true; p.wx = p.wy = p.wz = 0;
 }
 
