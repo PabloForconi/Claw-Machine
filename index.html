@@ -129,11 +129,13 @@ const CLOSE_SPEED = 5, CLOSE_ACC = 22;
 const OPEN_RATE = 2.5;
 const RELEASE_SPEED = 4, RELEASE_ACC = 16, OPEN_HOLD = .5, JOLT = .9;
 // Losing a catch on purpose (see slip): the chance (LOSE_BASE, plus LOSE_OFF the further off centre it
-// was caught; gold ones 1.6 times as often), how fast the fingers open when the stop at the top shakes
-// it loose, and, for the other kind, how far from the hole's middle the prize should land, how long
-// the fingers take to let it out once they start opening, and how fast they open
-const LOSE_BASE = .045, LOSE_OFF = .24, LOSE_TOP_RATE = 2.5, TOP_SHUT_IN = .25;
-const LOSE_EARLY_DIST = 1.25, LOSE_EARLY_LAG = .2, LOSE_EARLY_RATE = 3;
+// was caught; gold ones 1.6 times as often); how fast the fingers fly open when the stop at the top
+// shakes it loose (a snap: it opens because it hit) and how long before the motor shuts them again;
+// and for the other kind, how close to the hole the moving claw lets go, how fast it opens, and how
+// much of the claw's speed the prize keeps as it slides off the opening fingers (with all of it, it
+// flew on into the hole)
+const LOSE_BASE = .045, LOSE_OFF = .24, LOSE_TOP_RATE = 12, TOP_SHUT_IN = .3;
+const LOSE_EARLY_AT = 1.1, LOSE_EARLY_RATE = 4, LOSE_EARLY_CARRY = .3;
 // For testing (the user asked for it, October 2026): catches go round this pattern, one lost on the
 // way to the hole, one shaken loose at the top, one carried home, whatever the grip. Only catches
 // count, never a round where the claw came up empty. Set to null for the normal chance above.
@@ -1077,11 +1079,12 @@ function slip(dt) {
   const c = claw, p = c.held;
   if (c.slipping) { loosen(dt, c.slipRate); return; }
   if (!p || c.lose !== 'early' || state !== 'return') return;
-  // Letting go early, the prize flies on with the claw's speed while it falls, so the claw lets go
-  // once the prize would land just short of the hole (within LOSE_EARLY_DIST of its middle). It then
-  // stays open the rest of the way and shuts over the hole.
-  const T = Math.sqrt(2 * Math.max(0, p.y - p.r) / G) + LOSE_EARLY_LAG;
-  if (Math.hypot(HOME.x - c.x - c.vx * T, HOME.z - c.z - c.vz * T) < LOSE_EARLY_DIST) { c.slipping = p; c.slipRate = LOSE_EARLY_RATE; }
+  // Letting go early: on the way, just before the hole (within LOSE_EARLY_AT of it), while the claw is
+  // still moving. The prize slides off the opening fingers keeping only LOSE_EARLY_CARRY of the
+  // claw's speed (see loosen), so it drops just short of the hole and now and then bounces in. The
+  // claw stays open the rest of the way and shuts over the hole. (Going by where a prize with all the
+  // claw's speed would land, it had to let go right as the claw set off, which looked wrong.)
+  if (Math.hypot(c.vx, c.vz) > .3 && Math.hypot(HOME.x - c.x, HOME.z - c.z) < LOSE_EARLY_AT) { c.slipping = p; c.slipRate = LOSE_EARLY_RATE; }
 }
 
 // A catch shaken loose by the stop at the top ('top'): the claw stays put, the fingers spring open
@@ -1106,7 +1109,8 @@ function loosen(dt, rate) {
   c.open = Math.min(1, c.open + rate * dt);
   if (c.held && (tipsClear(c.held) || c.open >= 1)) {
     if (c.slipping) sfx('slip');
-    detach(); c.slipping = null;
+    const early = c.slipping && c.lose === 'early', p = detach(); c.slipping = null;
+    if (early) { p.vx *= LOSE_EARLY_CARRY; p.vz *= LOSE_EARLY_CARRY; }   // slid off the fingers (see slip)
   }
 }
 
