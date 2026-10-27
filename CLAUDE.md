@@ -23,7 +23,11 @@ The pane only repaints while its tab is fronted (`tabs_select`); otherwise scree
 ## How the game works
 
 - World units: the glass box is x ∈ [-2, 2], z ∈ [-1.5, 1.5] (z+ is towards the camera), floor at y = 0. The prize hole is the front-left corner (`HOLE`: x < -1.1 and z > 0.6), fenced by two clear walls (`WALLS`, axis-aligned boxes). The claw returns to `HOME`, the centre of the hole.
-- The machine is built from plain boxes in the "Machine" section; the floor slab is two boxes forming an L so the hole stays open, and `holeIn` is a back-side box that shows the dark inside of the hole. Marquee and prize door labels are canvas textures, repainted once Kalam loads.
+- The machine is built from plain boxes in the "Machine" section; the floor slab is two boxes forming an L so the hole stays open, and `holeIn` is a back-side box that shows the dark inside of the hole. The marquee and the scoreboard are canvas textures, repainted once Kalam loads.
+- Screen layout (the user asked for more view of the game, October 2026):
+  - There is no HTML HUD at the top. Coins, points, time and the idle hint are a scoreboard on the front of the machine's base (`board`, `boardTex`, where a "PREMIOS" door label used to be). `hud()` repaints it only when a value changes. Only the controls and the game-over card are HTML.
+  - The marquee is a thin strip (`MARQUEE_H`).
+  - The camera sits about 20° above level (`CAM_DIR`; it was 30°).
 - `update()` is the claw state machine: `idle` → `aim` (costs one coin, `AIM_TIME` seconds, moves in x and z, auto-drops when time runs out) → `drop` → `close` → `lift` → `return` → `settle` → `release` → `wait` → `idle`, or `over` when the coins run out.
 - A straight-down shadow-casting light (`top`) puts the claw's shadow right under it; that shadow is how the player judges depth, so keep it if the lighting changes.
 
@@ -125,7 +129,7 @@ Now the radius is `R_MIN`–`R_MAX` (0.29–0.32). `PRIZE_COUNT` is 22, after th
 ### Scoring and the rest
 
 - A prize that falls below y = -0.75 counts in `win()`: 1 point, 5 for a gold (rare) one.
-- `fit()` backs the camera off until the machine fits between the HUD and the controls and centres it there with `setViewOffset`; on wide screens (`body.wide`) the controls go to the bottom corners.
+- `fit()` frames the machine by projecting the cabinet's corners (`FIT_CORNERS`). It searches for the camera distance at which they just fit between the top of the screen and the controls, then centres them there with `setViewOffset`. This works for any camera angle and screen shape. On wide screens (`body.wide`) the controls go to the bottom corners and take no height. A fixed half-height guess stopped fitting when the camera was lowered, since the near base looks bigger.
 - The best score is kept in `localStorage` under `clawMachine.best` (wrapped in try/catch).
 - Sounds are synthesised with WebAudio in `sfx()`; there are no audio files yet.
 
