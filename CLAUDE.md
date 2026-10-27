@@ -110,7 +110,10 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
   - It fits loose inside the closed fingers: it settles down onto the inward-bent tips, unless it would drop right through. `cradle()` lowers it in small steps to find where it first touches. A single deep probe misread short tips: past them the capsule touches nothing. All fingers but one must have closed round it. One left splayed on a neighbour closes in as the claw lifts off the pile; two would leave too wide a gap.
   - A prize only pinched at the top isn't caught: the claw rises without it. Before this rule, such prizes were carried hanging off the tips and dropped on the jolt of the lift.
 - Once caught, the prize rides in the claw (`claw.hold`: its offset in the claw frame, where it started, the height it rests at (`cradle()`'s) and the cradle flex). It never moves up in the claw, so it isn't a magnet. `carry()` keeps it where it lay on the pile while the claw finishes closing and reels in its slack. Then, as the claw rises, the fingers come up under it and lift it once it is at its rest height.
-  - On the way the fingers push it in towards the middle, only in proportion to how far they have risen.
+  - On the way the fingers push it in towards the middle, only in proportion to how far they have risen, and never faster than `CENTER_SPEED`.
+    - Tied to the rise alone, a capsule with little or no drop onto the fingers was snapped to the middle at up to 30 m/s. Its neighbours took that speed and flew nearly to the roof (the user saw it, October 2026).
+    - Once lifted, its place in the claw is kept (`hold.ox`/`oz`), no longer measured from where it is in the world. Measured, it fell behind a claw moving sideways by a step's worth each step, until it hung 0.6 off to the side and dropped on the way back.
+    - Now, over 24 rounds, 10 of 11 catches were delivered and no neighbour went faster than about 2.5 upwards.
   - Its velocity is its actual motion, so it is zero until it is lifted.
   - Earlier, `carry()` slid it down and to the middle at a steady rate from the moment it was caught. The user saw it as the capsule arranging itself inside the claw, not natural (October 2026).
   - Now it moves at most about 6 mm before the claw starts rising.

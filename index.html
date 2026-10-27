@@ -114,6 +114,7 @@ const FLEX_GAIN = 6, FLEX_MAX = 1.1, FLEX_RETURN = 1.5, FLEX_MAX_ANGLE = 1.6;
 // finger's give the others follow while the claw comes down (see flexFingers)
 const FLEX_RATE = 1.8, FLEX_LINK = .8;
 const HOLD_SETTLE = 6;   // how fast (per second) a caught prize slides to the middle and the fingers even out
+const CENTER_SPEED = .5; // the fastest the rising fingers push a caught prize in to the middle (see carry)
 // How a caught prize moves about inside the claw (see wobble): restoring spring and damping (per
 // second), how far it can go sideways and up, how much of its speed it keeps when it bounces off the
 // sides or the box, and its springy contact with the fingers under it (stiffness, damping, and the
@@ -928,11 +929,17 @@ function detach() {
 function carry(dt) {
   const c = claw, p = c.held, hd = c.hold, k = Math.min(1, HOLD_SETTLE * dt), h = c.head, f = clawFrame();
   if (!p) return;
+  // Until lifted it stays put in the world (where it is in the claw is measured); once lifted it rides
+  // with the claw (its place in the claw is kept, plus its wobble)
+  const lifted = hd.oy <= hd.restOy;
   const rel = [p.x - h.x, p.y - h.y, p.z - h.z], dot = v => rel[0] * v[0] + rel[1] * v[1] + rel[2] * v[2];
-  hd.oy = Math.max(hd.restOy, Math.min(hd.oy, -dot(f.d)));
+  if (!lifted) hd.oy = Math.max(hd.restOy, Math.min(hd.oy, -dot(f.d)));
   const fall = hd.oy0 - hd.restOy, s = fall > 1e-3 ? (hd.oy - hd.restOy) / fall : 0;
-  let ox = dot(f.e1), oz = dot(f.e2);
-  const off = Math.hypot(ox, oz), lim = hd.off0 * s;
+  let ox = lifted ? hd.ox : dot(f.e1), oz = lifted ? hd.oz : dot(f.e2);
+  // The push to the middle is also never faster than CENTER_SPEED. Tied to the rise alone, a prize with
+  // little or no way to drop onto the fingers was snapped to the middle in a step or two, at up to
+  // 30 m/s, and the capsules touching it took that speed: they flew up to the roof (October 2026).
+  const off = Math.hypot(ox, oz), lim = Math.max(hd.off0 * s, off - CENTER_SPEED * dt);
   if (off > lim) { ox *= lim / off; oz *= lim / off; }
   hd.ox = ox; hd.oz = oz;
   // The claw stays shut until it lets go: no finger opens while carrying, not under the prize's weight
