@@ -54,27 +54,30 @@
   .cap.any { background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .8) 0 6%, transparent 20%),
       conic-gradient(#ff5d8f 0 20%, #4cc9f0 0 40%, #80ed99 0 60%, #b388ff 0 80%, #ff9f43 0); }
   /* The gallery and the levels: screens of their own over the machine */
-  .screen { position: fixed; inset: 0; overflow-y: auto; touch-action: pan-y; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  /* (the title on top and the buttons at the bottom stay put; only what is between them scrolls, as in
+     the maze game: the user asked for it, October 2026) */
+  .screen { position: fixed; inset: 0; overflow: hidden; touch-action: pan-y; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
     background: radial-gradient(ellipse at 50% 0%, #3a2366, var(--bg) 70%); display: flex; flex-direction: column; align-items: center; }
+  .screen > * { flex: none; }
   .screen h2 { margin: 6px 0 0; font-size: 38px; color: var(--gold); text-shadow: 0 3px 0 var(--pink-dark); }
   .screen .sub { margin: 0 0 18px; font-size: 20px; opacity: .85; text-align: center; }
   /* The gallery's and the exhibitor's worlds side by side, one whole world at a time: swipe (dragged
      with the mouse on a computer) or the arrows to the next. The user asked for it (October 2026); the
      next one used to peek in at the side, which looked cut off. */
-  .pages { position: relative; display: flex; gap: 24px; width: 100%; max-width: 600px; overflow-x: auto; scroll-snap-type: x mandatory; touch-action: pan-x pan-y;
-    scrollbar-width: none; overscroll-behavior-x: contain; cursor: grab; flex: none; }
+  .pages { position: relative; display: flex; gap: 24px; width: 100%; max-width: 900px; overflow-x: auto; scroll-snap-type: x mandatory; touch-action: pan-x pan-y;
+    scrollbar-width: none; overscroll-behavior-x: contain; cursor: grab; flex: 1 1 auto; min-height: 0; }
   .pages::-webkit-scrollbar { display: none; }
   .pages.drag { scroll-snap-type: none; cursor: grabbing; }
   .pages img { -webkit-user-drag: none; }
-  .season { flex: 0 0 100%; scroll-snap-align: center; }
-  .nav { display: flex; align-items: center; gap: 14px; margin: 14px 0 22px; }
+  .season { flex: 0 0 100%; scroll-snap-align: center; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin; padding: 0 2px 8px; }
+  .nav { display: flex; align-items: center; gap: 14px; margin: 10px 0 12px; }
   .nav button { width: 40px; height: 40px; padding: 0; font: inherit; font-size: 28px; line-height: 1; color: var(--gold); background: var(--panel);
     border: 3px solid var(--gold); border-radius: 50%; cursor: pointer; }
   .nav button:disabled { opacity: .3; cursor: default; }
   .dots { display: flex; gap: 8px; }
   .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--ink); opacity: .3; }
   .dots i.on { opacity: 1; background: var(--gold); }
-  .backs { margin-top: auto; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+  .backs { margin-top: auto; padding-top: 4px; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
   .back.alt { background: var(--panel); color: var(--ink); border-color: var(--gold); }
   .season h3 { display: flex; justify-content: space-between; margin: 0 4px 10px; font-size: 22px; color: var(--gold); }
   .season .sub { font-size: 16px; margin-bottom: 10px; }
@@ -120,6 +123,8 @@
   .cap.rainbow { background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .8) 0 6%, transparent 20%),
       linear-gradient(#ff5d8f 0 17%, #ff9f43 0 33%, #ffd23f 0 50%, #80ed99 0 67%, #4cc9f0 0 83%, #b388ff 0); }
   .shelf { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  /* (on a wide screen the capsules go five to a row and the characters are bigger) */
+  @media (min-width: 760px) { .shelf { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
   /* The other rarity finishes: white stripes (uncommon), white dots (rare) */
   .cap.stripes { background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .8) 0 6%, transparent 20%),
       repeating-linear-gradient(-50deg, rgba(255, 255, 255, .55) 0 12%, transparent 12% 30%),
@@ -152,7 +157,8 @@
   .back:active { transform: translateY(4px); box-shadow: 0 1px 0 #a8740a; }
   /* Levels: one row each, with its number, its goal (capsules and how many), its coins and whether it
      is done (a star), open to play, or still locked */
-  #lvlList { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 520px; margin-bottom: 24px; }
+  #lvlList { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 640px; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; padding: 2px 2px 12px; margin-bottom: 12px; }
+  #lvlList > * { flex: none; }
   .lvl { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--panel); border: 4px solid var(--pink-dark); border-radius: 18px;
     font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
   .lvl.cur { border-color: var(--gold); }
@@ -196,28 +202,28 @@
 </div>
 <button id="gear" aria-label="Ajustes">⚙</button>
 <button id="lvlBtn" aria-label="Niveles">★</button>
-<button id="galBtn" aria-label="Galería de premios"><div class="cap"></div></button>
-<button id="charBtn" aria-label="Exhibidor de personajes"><img src="assets/chars/animales/00.png" alt=""></button>
+<button id="galBtn" aria-label="Cápsulas"><div class="cap"></div></button>
+<button id="charBtn" aria-label="Colección de personajes"><img src="assets/chars/animales/00.png" alt=""></button>
 <div id="toast"></div>
 <div id="chars" class="screen" hidden>
-  <h2>Exhibidor</h2>
+  <h2>Colección</h2>
   <p id="charTotal" class="sub"></p>
   <div id="charShelf" class="pages"></div>
   <div class="nav"><button id="charPrev" aria-label="Mundo anterior">‹</button><span id="charDots" class="dots"></span><button id="charNext" aria-label="Mundo siguiente">›</button></div>
-  <div class="backs"><button id="charToGal" class="back alt">Galería</button><button id="charToLvl" class="back alt">★ Niveles</button><button id="charBack" class="back">Volver a la máquina</button></div>
+  <div class="backs"><button id="charToGal" class="back alt">Cápsulas</button><button id="charToLvl" class="back alt">★ Niveles</button><button id="charBack" class="back">Volver a la máquina</button></div>
 </div>
 <div id="gallery" class="screen" hidden>
-  <h2>Mis premios</h2>
+  <h2>Cápsulas</h2>
   <p id="galTotal" class="sub"></p>
   <div id="shelf" class="pages"></div>
   <div class="nav"><button id="galPrev" aria-label="Mundo anterior">‹</button><span id="galDots" class="dots"></span><button id="galNext" aria-label="Mundo siguiente">›</button></div>
-  <div class="backs"><button id="galToChar" class="back alt">Exhibidor</button><button id="galToLvl" class="back alt">★ Niveles</button><button id="galBack" class="back">Volver a la máquina</button></div>
+  <div class="backs"><button id="galToChar" class="back alt">Colección</button><button id="galToLvl" class="back alt">★ Niveles</button><button id="galBack" class="back">Volver a la máquina</button></div>
 </div>
 <div id="levels" class="screen" hidden>
   <h2>Niveles</h2>
   <p id="lvlSub" class="sub"></p>
   <div id="lvlList"></div>
-  <div class="backs"><button id="lvlToGal" class="back alt">Galería</button><button id="lvlToChar" class="back alt">Exhibidor</button><button id="lvlBack" class="back">Volver a la máquina</button></div>
+  <div class="backs"><button id="lvlToGal" class="back alt">Cápsulas</button><button id="lvlToChar" class="back alt">Colección</button><button id="lvlBack" class="back">Volver a la máquina</button></div>
 </div>
 <div id="opts" hidden>
   <div class="card">

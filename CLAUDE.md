@@ -262,6 +262,8 @@ The user asked for collectable characters as a metagame (October 2026), differen
   - The `CHAR_EVERY`-th (10) gives a random character of that rarity. The rainbow gives one of any rarity by the tiers' shares.
   - Characters repeat, and are counted (`meta.chars`). All of it is in `localStorage` under `clawMachine.meta`.
   - A new character pops up at the top (`#toast`, `charToast()`, `sfx('prize')`), is listed on the level's card (`newChars`, `charsWonHtml()`), and puts a dot on the exhibitor button.
+- On screen the gallery is called "Cápsulas" and the exhibitor "Colección", titles and buttons alike, as the user asked (October 2026); the code still says gallery and chars.
+- The screens (`.screen`) keep the title at the top and the buttons at the bottom always in view, like the maze game; only the middle scrolls: each carousel page (`.season`, vertical scroll) and the levels list. The user asked for it (October 2026). On a computer the pages are up to 900 px wide, and the capsules go five to a row from 760 px.
 - The gallery (`#gallery`, capsule button) now has a page per world. Each of its nine capsules shows its finish, name, rarity, a bar to the next character (`prog/10`) and the total won.
   - It replaced the earlier seasons (Clásicas/Rayadas/Lunares), since the finishes now mean rarity.
 - The exhibitor (`#chars`, `#charBtn` with the bear, top left after the gallery button) has a page per world. Each page has four shelves (`.rack`, one per rarity, wooden board; gold for legendary) of five characters.

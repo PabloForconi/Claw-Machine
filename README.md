@@ -11,7 +11,7 @@ Prototipo de juego 3D para el navegador: una máquina de garra llena de cápsula
 - Si sacás premios dos rondas seguidas, ganás una ficha.
 - El desafío del día es un nivel distinto cada día, igual todo el día; cuenta cuántos días seguidos lo superaste.
 - Mové la garra con el pad (o las flechas / WASD): izquierda-derecha y adelante-atrás; cuanto más lo empujás, más rápido va. Bajala con **¡BAJAR!** (o Espacio). Tenés 15 segundos por intento.
-- Arriba a la izquierda: la ★ abre los niveles y el desafío del día, la cápsula abre la galería de cápsulas (por mundo) y el osito abre el exhibidor de personajes.
+- Arriba a la izquierda: la ★ abre los niveles y el desafío del día, la cápsula abre **Cápsulas** (las que juntaste, por mundo) y el osito abre la **Colección** de personajes.
 - Los niveles están en cuatro mundos (Animales, Monstruos, Halloween y Navidad), cada uno con sus cápsulas: dos colores por rareza (común lisa, infrecuente rayada, rara con lunares, legendaria metálica) y una arcoíris. Cada 10 cápsulas de un color ganás un personaje de esa rareza (con las arcoíris, de cualquiera); se pueden repetir.
 - En ⚙ (arriba a la derecha) podés poner el pad a la derecha y el botón a la izquierda.
 - Guiate por la sombra de la garra para saber dónde va a caer.
