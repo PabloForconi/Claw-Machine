@@ -109,7 +109,12 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
   - Without this, a capsule about as wide as the closed claw got wedged at its widest point, right up under the box. The user saw it as "stuck to the top of the claw" (October 2026).
   - It now hangs about 0.25 below the box instead of 0.1, and the catch rate didn't change.
   - It runs after the catch decision, so it doesn't change which grabs count.
-- Once caught, the prize rides in the claw (`claw.hold`: its offset in the claw frame, the height it settles to and the cradle flex). `carry()` evens the fingers out and slides the prize to the middle sideways and down onto the fingers, never up, at `HOLD_SETTLE`. That is what linked fingers and gravity would do, and it isn't a magnet, since only prizes already enclosed get there. A finger still pressing on a neighbour while lifting off the pile gives way to it.
+- Once caught, the prize rides in the claw (`claw.hold`: its offset in the claw frame, where it started, the height it rests at and `sag()`'s path). It never moves up in the claw, so it isn't a magnet. `carry()` keeps it where it lay on the pile while the claw finishes closing and reels in its slack. Then, as the claw rises, the fingers come up under it and lift it once it is at its rest height.
+  - On the way the fingers push it in towards the middle, only in proportion to how far they have risen.
+  - The fingers follow it at the angle `sag()` found for each height. Its weight pushes them open at once, up to `FLEX_RATE`. A splayed finger closes in at `HOLD_SETTLE`, and a finger still pressing on a neighbour while lifting off the pile gives way to it.
+  - Its velocity is its actual motion, so it is zero until it is lifted.
+  - Earlier, `carry()` slid it down and to the middle at a steady rate from the moment it was caught. The user saw it as the capsule arranging itself inside the claw, not natural (October 2026).
+  - Now it moves at most about 6 mm before the claw starts rising. The claw rises 0.15–0.3 before it lifts the capsule.
 - `claw.q` is the grip quality (1 = dead centre). `slip()` uses it (rate `.015 + (1 - q) * .08` per second, gold prizes 1.6×).
   - A slip sets `claw.slipping` to the prize. The fingers ease open (`loosen()`), and the prize stays in the claw until the tips clear it (`tipsClear()`). Only then does `detach()` make it a loose body with the claw's velocity, so it drops straight out.
   - It used to come loose as soon as the fingers started opening, lie on them, and get flung as they swung out and up. The user saw prizes "thrown" into the hole (October 2026).
