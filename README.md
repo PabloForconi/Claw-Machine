@@ -8,6 +8,7 @@ Prototipo de juego 3D para el navegador: una máquina de garra llena de cápsula
 
 - Empezás con 10 fichas; cada intento cuesta una.
 - Mové la garra con el pad (o las flechas / WASD): izquierda-derecha y adelante-atrás; cuanto más lo empujás, más rápido va. Bajala con **¡BAJAR!** (o Espacio). Tenés 15 segundos por intento.
+- En la cápsula de arriba a la izquierda está la galería: cuántos premios de cada color atrapaste.
 - En ⚙ (arriba a la derecha) podés poner el pad a la derecha y el botón a la izquierda.
 - Guiate por la sombra de la garra para saber dónde va a caer.
 - Si la garra agarra la cápsula bien centrada es más difícil que se le resbale.

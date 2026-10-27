@@ -34,6 +34,32 @@
   #gear { position: fixed; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); width: 44px; height: 44px; padding: 0;
     display: grid; place-items: center; font: inherit; font-size: 26px; line-height: 1; color: var(--ink); cursor: pointer;
     background: var(--panel); border: 3px solid var(--gold); border-radius: 12px; }
+  #galBtn { position: fixed; top: max(10px, env(safe-area-inset-top)); left: max(10px, env(safe-area-inset-left)); width: 44px; height: 44px; padding: 0;
+    display: grid; place-items: center; cursor: pointer; background: var(--panel); border: 3px solid var(--gold); border-radius: 12px; }
+  #galBtn .cap { width: 24px; height: 24px; box-shadow: none; }
+  /* A capsule drawn in CSS for the gallery: its colour (--c) with a highlight, the lower half a little
+     darker, and the dark band where the halves meet, tilted like a toy lying on a shelf */
+  .cap { --c: #ff5d8f; position: relative; width: 76px; height: 76px; border-radius: 50%; overflow: hidden; transform: rotate(-18deg);
+    background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .8) 0 6%, transparent 20%),
+      radial-gradient(circle at 50% 38%, var(--c) 0 50%, color-mix(in srgb, var(--c) 55%, #000) 100%);
+    box-shadow: 0 6px 0 rgba(0, 0, 0, .28); }
+  .cap::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 50%; background: rgba(0, 0, 0, .12); }
+  .cap::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 12%; margin-top: -6%; background: #2a1d40; }
+  .cap.gold { --c: #ffd23f; }
+  /* The gallery: a screen of its own over the machine, with a shelf slot per kind of prize */
+  #gallery { position: fixed; inset: 0; overflow-y: auto; touch-action: pan-y; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+    background: radial-gradient(ellipse at 50% 0%, #3a2366, var(--bg) 70%); display: flex; flex-direction: column; align-items: center; }
+  #gallery h2 { margin: 6px 0 0; font-size: 38px; color: var(--gold); text-shadow: 0 3px 0 var(--pink-dark); }
+  #galTotal { margin: 0 0 18px; font-size: 20px; opacity: .85; }
+  #shelf { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; width: 100%; max-width: 560px; margin-bottom: 24px; }
+  .slot { background: var(--panel); border: 4px solid var(--pink-dark); border-radius: 18px; padding: 16px 6px 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .slot.none .cap { filter: grayscale(1) brightness(.35); box-shadow: none; }
+  .slot.none .num, .slot.none .name { opacity: .45; }
+  .slot .num { font-size: 30px; line-height: 1; color: var(--gold); }
+  .slot .name { font-size: 17px; line-height: 1; }
+  #galBack { margin-top: auto; font: inherit; font-size: 24px; color: #3a1f00; background: var(--gold); border: 4px solid #a8740a; border-radius: 16px;
+    padding: 8px 24px; cursor: pointer; box-shadow: 0 5px 0 #a8740a; }
+  #galBack:active { transform: translateY(4px); box-shadow: 0 1px 0 #a8740a; }
   #opts { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(10, 5, 25, .65); padding: 16px; }
   .opt { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 6px 0 20px; font-size: 22px; text-align: left; cursor: pointer; }
   .opt input { width: 26px; height: 26px; accent-color: var(--gold); cursor: pointer; }
@@ -64,6 +90,13 @@
   <button id="bd">¡BAJAR!</button>
 </div>
 <button id="gear" aria-label="Ajustes">⚙</button>
+<button id="galBtn" aria-label="Galería de premios"><div class="cap"></div></button>
+<div id="gallery" hidden>
+  <h2>Mis premios</h2>
+  <p id="galTotal"></p>
+  <div id="shelf"></div>
+  <button id="galBack">Volver a la máquina</button>
+</div>
 <div id="opts" hidden>
   <div class="card">
     <h2>Ajustes</h2>
@@ -173,16 +206,21 @@ const WAIT_TIME = .3;
 const PRIZE_COUNT = 15, R_MIN = .29, R_MAX = .32, RESTOCK_BELOW = 8;
 const SETTLE_STEPS = 600;   // physics steps (5 s) run at a reset so the pile is settled when shown
 const COLORS = [0xff5d8f, 0x4cc9f0, 0x80ed99, 0xb388ff, 0xff9f43];
+// The kinds of prize, as the gallery lists them: one per colour, then the gold ones
+const KINDS = [...COLORS.map((c, i) => ({ key: c.toString(16), css: '#' + c.toString(16).padStart(6, '0'), name: ['Rosa', 'Celeste', 'Verde', 'Violeta', 'Naranja'][i] })),
+  { key: 'gold', css: '#ffd23f', name: 'Dorada' }];
 // Three prongs, one at the back. (A caught prize rides in the claw, so it can't slip out through the
 // gap between two fingers, which is why there were four for a while.)
 const FINGER_ANGLES = [-Math.PI / 2, -Math.PI / 2 + 2 * Math.PI / 3, -Math.PI / 2 + 4 * Math.PI / 3];
 const BEST_KEY = 'clawMachine.best';
+const COLLECTION_KEY = 'clawMachine.collection';   // how many of each kind were won, ever (see the gallery)
 
-let prizes = [], claw, coins, score, won, state, aimT, best = 0;
+let prizes = [], claw, coins, score, won, state, aimT, best = 0, collection = {};
 let caught = 0;   // catches made since the reset (they go round LOSE_PATTERN)
 const keys = { l: false, r: false, u: false, d: false };
 
 try { best = +localStorage.getItem(BEST_KEY) || 0; } catch (e) {}
+try { collection = JSON.parse(localStorage.getItem(COLLECTION_KEY)) || {}; } catch (e) {}
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const $ = id => document.getElementById(id);
@@ -594,7 +632,7 @@ function mkPrize(x, y, z) {
   g.scale.setScalar(r);
   g.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
   scene.add(g);
-  const p = { x, y, z, vx: (Math.random() - .5) * .4, vy: 0, vz: (Math.random() - .5) * .4, wx: 0, wy: 0, wz: 0, r, rare, held: false, mesh: g };
+  const p = { x, y, z, vx: (Math.random() - .5) * .4, vy: 0, vz: (Math.random() - .5) * .4, wx: 0, wy: 0, wz: 0, r, rare, kind: rare ? 'gold' : col.toString(16), held: false, mesh: g };
   setMass(p, (r / .3) ** 3);   // bigger capsules are heavier
   return p;
 }
@@ -1167,6 +1205,9 @@ function loosen(dt, rate) {
 // text any more: the user asked to drop it (October 2026).
 function win(p) {
   score += p.rare ? 5 : 1; won++;
+  // It goes into the collection, kept across games (see the gallery)
+  collection[p.kind] = (collection[p.kind] || 0) + 1;
+  try { localStorage.setItem(COLLECTION_KEY, JSON.stringify(collection)); } catch (e) {}
   sfx('win'); hud();
 }
 
@@ -1344,6 +1385,8 @@ function dropButton() { if (state === 'idle') startRound(); else startDrop(); }
 const KEY_DIR = { ArrowLeft: 'l', a: 'l', ArrowRight: 'r', d: 'r', ArrowUp: 'u', w: 'u', ArrowDown: 'd', s: 'd' };
 addEventListener('keydown', e => {
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  // In the gallery the keys don't play (Escape goes back to the machine)
+  if (!$('gallery').hidden) { if (k === 'Escape') closeGallery(); return; }
   if (k === ' ' || k === 'Enter' || KEY_DIR[k]) e.preventDefault();
   if (e.repeat) return;
   if (state === 'over') { if (k === ' ' || k === 'Enter') reset(); return; }
@@ -1401,6 +1444,25 @@ $('swap').addEventListener('change', e => setSwap(e.target.checked));
 $('gear').addEventListener('click', () => { $('opts').hidden = false; paused = true; stickEnd(); });
 $('optsOk').addEventListener('click', () => { $('opts').hidden = true; paused = false; });
 $('again').addEventListener('click', reset);
+
+// The gallery (the capsule button, top left): a screen of its own listing every kind of prize with how
+// many were won, from the collection. Kinds not won yet show as dark silhouettes. The game holds still
+// and isn't drawn while it is open.
+function openGallery() {
+  const total = KINDS.reduce((s, k) => s + (collection[k.key] || 0), 0);
+  $('galTotal').textContent = total ? `Atrapaste ${total} premio${total === 1 ? '' : 's'}` : 'Todavía no atrapaste ningún premio';
+  $('shelf').innerHTML = KINDS.map(k => {
+    const n = collection[k.key] || 0;
+    return `<div class="slot${n ? '' : ' none'}"><div class="cap${k.key === 'gold' ? ' gold' : ''}" style="--c:${k.css}"></div>` +
+      `<span class="num">${n}</span><span class="name">${k.name}</span></div>`;
+  }).join('');
+  $('gallery').hidden = false; paused = true; stickEnd();
+  keys.l = keys.r = keys.u = keys.d = false;
+}
+function closeGallery() { $('gallery').hidden = true; paused = false; }
+$('galBtn').style.setProperty('--c', KINDS[0].css);
+$('galBtn').addEventListener('click', openGallery);
+$('galBack').addEventListener('click', closeGallery);
 addEventListener('blur', () => { keys.l = keys.r = keys.u = keys.d = false; });
 
 // ---------- Layout and loop ----------
@@ -1447,7 +1509,7 @@ function frame(now) {
   const dt = Math.min(.1, (now - last) / 1000);
   last = now; acc = paused ? 0 : acc + dt;
   while (acc >= STEP) { update(STEP); physics(STEP, false); acc -= STEP; }
-  draw(now);
+  if ($('gallery').hidden) draw(now);
   requestAnimationFrame(frame);
 }
 

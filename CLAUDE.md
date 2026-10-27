@@ -191,6 +191,11 @@ Each capsule (`mkPrize()`) is two solid halves of one colour, gold for the rare 
   - Before that, the user reported a brief odd flash, "like text or numbers", on the inner hole wall just before the "+1". It wasn't reproduced and they said to look at it later.
 - `fit()` frames the machine by projecting the cabinet's corners (`FIT_CORNERS`). It searches for the camera distance at which they just fit between the top of the screen and the controls, then centres them there with `setViewOffset`. This works for any camera angle and screen shape. On wide screens (`body.wide`) the controls go to the bottom corners and take no height. A fixed half-height guess stopped fitting when the camera was lowered, since the near base looks bigger.
 - The best score is kept in `localStorage` under `clawMachine.best` (wrapped in try/catch).
+- The gallery is a second screen the user asked for (October 2026). It lists every kind of prize and how many of each were ever won.
+  - The kinds (`KINDS`) are the five `COLORS` plus gold, with Spanish names. Each prize carries its `kind` (its hex colour, or `'gold'`).
+  - `win()` adds the prize to `collection`, kept in `localStorage` under `clawMachine.collection`. It survives "Jugar de nuevo" and new games.
+  - `#galBtn` (top left, a little capsule; the gear is top right) opens `#gallery`, a full-screen page with a 3-column shelf of slots: a CSS-drawn capsule (`.cap`), the count and the name. Kinds not won yet are dark silhouettes with a 0.
+  - "Volver a la máquina" (`#galBack`) or Escape goes back. While it is open the game is paused, not drawn, and the keys don't play.
 - Sounds are synthesised with WebAudio in `sfx()`; there are no audio files yet.
 
 Controls: arrows or WASD to move (up/W moves the claw back, away from the camera), Space or Enter to drop. On screen there is the pad and the ¡BAJAR! button.
