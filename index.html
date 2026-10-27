@@ -36,11 +36,6 @@
     width: 120px; height: 120px; border-radius: 50%; font-size: 26px;
     background: var(--gold); color: #3a1f00; border-color: #a8740a; box-shadow: 0 6px 0 #a8740a;
   }
-  .pop {
-    position: fixed; transform: translate(-50%, -50%); font-size: 30px; pointer-events: none; white-space: nowrap;
-    text-shadow: 0 3px 0 var(--bg), 0 0 6px var(--bg); animation: rise 1.2s ease-out forwards;
-  }
-  @keyframes rise { to { transform: translate(-50%, -150%); opacity: 0; } }
   #over { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(10, 5, 25, .65); padding: 16px; }
   .card { background: var(--panel); border: 5px solid var(--gold); border-radius: 22px; padding: 22px 30px; text-align: center; max-width: 360px; width: 100%; }
   .card h2 { margin: 0 0 8px; font-size: 34px; color: var(--gold); }
@@ -124,6 +119,11 @@ const CLOSE_HOLD = .35;  // seconds the motor keeps squeezing once fully closed,
 // Rope: velocity kept per step, link passes per step, and the sideways nudge that lets slack bow out
 const CABLE_DAMP = .995, CABLE_ITERS = 30, CABLE_NUDGE = 2e-5;
 const AIM_TIME = 15, START_COINS = 10;
+// For testing (the user asked for it, October 2026): rounds cost nothing, the board shows ∞ coins and
+// the game never ends. Set to false to play with START_COINS again.
+const FREE_PLAY = true;
+// Seconds after letting go before the next round can start (it was 1.2)
+const WAIT_TIME = .3;
 // Few enough capsules to leave gaps for the fingers, and sizes close together: a tight carpet of
 // capsules only lets the claw pinch tops, small ones sit too low to reach and big ones squeeze out
 const PRIZE_COUNT = 66, R_MIN = .29, R_MAX = .32, RESTOCK_BELOW = 33;
@@ -232,7 +232,7 @@ const boardTex = canvasTex(1024, Math.round(1024 * BOARD_H / BOARD_W), (g, w, h)
     g.fillStyle = '#b9a8e0'; g.font = '700 36px Kalam, cursive'; g.fillText(label, x, 44);
     g.fillStyle = label === 'TIEMPO' && board.low ? '#ff5d8f' : '#fff6e0'; g.font = '700 84px Kalam, cursive'; g.fillText(value, x, 108);
   });
-  if (board.hint) { g.fillStyle = '#ffd23f'; g.font = '700 44px Kalam, cursive'; g.fillText('Tocá las flechas o ¡BAJAR! (1 ficha)', w / 2, h - 42); }
+  if (board.hint) { g.fillStyle = '#ffd23f'; g.font = '700 44px Kalam, cursive'; g.fillText(FREE_PLAY ? 'Tocá las flechas o ¡BAJAR!' : 'Tocá las flechas o ¡BAJAR! (1 ficha)', w / 2, h - 42); }
 });
 const boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(BOARD_W, BOARD_H), new THREE.MeshBasicMaterial({ map: boardTex, transparent: true }));
 boardMesh.position.set(0, -1.15, 1.86); scene.add(boardMesh);
@@ -833,7 +833,8 @@ function physics(dt, settling) {
 
 function startRound() {
   if (state !== 'idle' || coins <= 0) return;
-  coins--; state = 'aim'; aimT = AIM_TIME; sfx('coin'); hud();
+  if (!FREE_PLAY) coins--;
+  state = 'aim'; aimT = AIM_TIME; sfx('coin'); hud();
 }
 
 function startDrop() {
@@ -1010,21 +1011,11 @@ function loosen(dt, rate) {
   }
 }
 
+// A prize in the hole scores on the board, with a jingle. There is no floating "+1" / "+5 ¡Dorada!"
+// text any more: the user asked to drop it (October 2026).
 function win(p) {
-  const pts = p.rare ? 5 : 1;
-  score += pts; won++;
-  pop([HOME.x, 1.4, HOME.z], p.rare ? '+5 ¡Dorada!' : '+1', p.rare ? '#ffd23f' : '#80ed99');
+  score += p.rare ? 5 : 1; won++;
   sfx('win'); hud();
-}
-
-const vPop = new THREE.Vector3();
-function pop(pos, text, col) {
-  vPop.set(...pos).project(camera);
-  const el = document.createElement('div');
-  el.className = 'pop'; el.textContent = text; el.style.color = col;
-  el.style.left = (vPop.x + 1) / 2 * innerWidth + 'px'; el.style.top = (1 - vPop.y) / 2 * innerHeight + 'px';
-  el.addEventListener('animationend', () => el.remove());
-  document.body.append(el);
 }
 
 function update(dt) {
@@ -1087,10 +1078,11 @@ function update(dt) {
       }
       break;
     case 'settle': {
-      // Wait over the hole for the swing to die down (up to a second) before letting go
+      // Wait over the hole for the swing to die down (up to a second) before letting go; with nothing
+      // in the claw there is nothing to drop straight, so it opens right away
       c.t += dt; slip(dt);
       const h = c.head;
-      if (Math.hypot(h.x - c.x, h.z - c.z) < .05 && Math.hypot(h.vx, h.vz) < .25 || c.t > 1) state = 'release';
+      if (!c.held || Math.hypot(h.x - c.x, h.z - c.z) < .05 && Math.hypot(h.vx, h.vz) < .25 || c.t > 1) state = 'release';
       break;
     }
     case 'release':
@@ -1100,7 +1092,7 @@ function update(dt) {
       break;
     case 'wait':
       c.t += dt;
-      if (c.t > 1.2) {
+      if (c.t > WAIT_TIME) {
         if (coins > 0) {
           state = 'idle';
           if (prizes.length < RESTOCK_BELOW) spawn(PRIZE_COUNT - prizes.length, 5);   // restock from the top
@@ -1124,7 +1116,7 @@ function gameOver() {
 
 // Update the scoreboard on the base; it is only repainted when something on it changes
 function hud() {
-  const next = { coins, score, time: state === 'aim' ? String(Math.ceil(aimT)) : '–', low: state === 'aim' && aimT < 5, hint: state === 'idle' };
+  const next = { coins: FREE_PLAY ? '∞' : coins, score, time: state === 'aim' ? String(Math.ceil(aimT)) : '–', low: state === 'aim' && aimT < 5, hint: state === 'idle' };
   if (Object.keys(next).some(k => next[k] !== board[k])) { Object.assign(board, next); boardTex.repaint(); }
 }
 const hudTime = hud;

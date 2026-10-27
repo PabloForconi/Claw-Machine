@@ -29,6 +29,8 @@ The pane only repaints while its tab is fronted (`tabs_select`); otherwise scree
   - The marquee is a thin strip (`MARQUEE_H`).
   - The camera sits about 20° above level (`CAM_DIR`; it was 30°).
 - `update()` is the claw state machine: `idle` → `aim` (costs one coin, `AIM_TIME` seconds, moves in x and z, auto-drops when time runs out) → `drop` → `close` → `lift` → `return` → `settle` → `release` → `wait` → `idle`, or `over` when the coins run out.
+  - `FREE_PLAY` (on for now: the user asked for unlimited coins to test, October 2026): rounds cost nothing, the board shows ∞ and the hint drops "(1 ficha)", and the game never ends. Turn it off to play with `START_COINS`.
+  - The user asked to start the next round sooner (October 2026). `wait` lasts `WAIT_TIME` (0.3 s; it was 1.2), and `settle` lets go at once when the claw is empty. A released prize can now score just after the next round becomes available, while it is still falling.
 - A straight-down shadow-casting light (`top`) puts the claw's shadow right under it; that shadow is how the player judges depth, so keep it if the lighting changes.
 
 ### Physics
@@ -148,7 +150,8 @@ Each capsule (`mkPrize()`) is two solid halves of one colour, gold for the rare 
 
 ### Scoring and the rest
 
-- A prize that falls below y = -0.75 counts in `win()`: 1 point, 5 for a gold (rare) one.
+- A prize that falls below y = -0.75 counts in `win()`: 1 point, 5 for a gold (rare) one, shown only on the board, with a jingle. The floating "+1" / "+5 ¡Dorada!" text over the hole was removed at the user's request (October 2026).
+  - Before that, the user reported a brief odd flash, "like text or numbers", on the inner hole wall just before the "+1". It wasn't reproduced and they said to look at it later.
 - `fit()` frames the machine by projecting the cabinet's corners (`FIT_CORNERS`). It searches for the camera distance at which they just fit between the top of the screen and the controls, then centres them there with `setViewOffset`. This works for any camera angle and screen shape. On wide screens (`body.wide`) the controls go to the bottom corners and take no height. A fixed half-height guess stopped fitting when the camera was lowered, since the near base looks bigger.
 - The best score is kept in `localStorage` under `clawMachine.best` (wrapped in try/catch).
 - Sounds are synthesised with WebAudio in `sfx()`; there are no audio files yet.
