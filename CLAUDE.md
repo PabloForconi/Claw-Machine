@@ -253,8 +253,10 @@ Each capsule (`mkPrize()`) is two solid halves of one colour, gold for the rare 
   - `#galBtn` (top left, after the levels star) opens `#gallery`.
     - Each season is a 3-column shelf of slots with a CSS-drawn capsule (`.cap`, `.cap.stripes`, `.cap.dots`), the count and the name.
     - Kinds not won yet are dark silhouettes. A locked season shows ? and what opens it.
-  - The seasons are a carousel (`#shelf`, horizontal scroll snap), as the user asked (October 2026). Each is 86% wide, so the next one peeks in, cut, at the side.
-    - Swipe, or the arrows and dots under it (`#galNav`, `showSeason()`). Tapping the peeking one goes to it.
+  - The seasons are a carousel (`#shelf`, horizontal scroll snap), as the user asked (October 2026). Each one fills the whole width.
+    - The next one used to peek in at the side (86% wide), but on a computer the user saw it as the gallery being cut off.
+    - Swipe, or the arrows and dots under it (`#galNav`, `showSeason()`).
+    - With a mouse it is dragged like a swipe (`shelfDrag`, scroll snap off meanwhile). On release it goes to the next or previous season if it moved over 40 px, otherwise back.
     - It opens on the newest open season. `seasonIdx` is the one shown, read back from the scroll position once a swipe stops.
     - `#shelf` must stay `position: relative`, since the slides' `offsetLeft` is measured from it.
   - The gallery and the levels screen each have a button to the other (`#galToLvl`, `#lvlToGal`), as the user asked.

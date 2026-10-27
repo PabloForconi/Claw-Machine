@@ -57,13 +57,14 @@
     background: radial-gradient(ellipse at 50% 0%, #3a2366, var(--bg) 70%); display: flex; flex-direction: column; align-items: center; }
   .screen h2 { margin: 6px 0 0; font-size: 38px; color: var(--gold); text-shadow: 0 3px 0 var(--pink-dark); }
   .screen .sub { margin: 0 0 18px; font-size: 20px; opacity: .85; text-align: center; }
-  /* The seasons side by side, one at a time: swipe (or the arrows) to the next, which peeks in at the
-     side. The user asked for it (October 2026); they were stacked one under the other. */
-  #shelf { position: relative; display: flex; gap: 14px; width: 100%; max-width: 600px; overflow-x: auto; scroll-snap-type: x mandatory; touch-action: pan-x pan-y;
-    scrollbar-width: none; overscroll-behavior-x: contain; }
+  /* The seasons side by side, one whole season at a time: swipe (dragged with the mouse on a computer)
+     or the arrows to the next. The user asked for it (October 2026); they were stacked one under the
+     other. The next one used to peek in at the side, which looked cut off. */
+  #shelf { position: relative; display: flex; gap: 24px; width: 100%; max-width: 600px; overflow-x: auto; scroll-snap-type: x mandatory; touch-action: pan-x pan-y;
+    scrollbar-width: none; overscroll-behavior-x: contain; cursor: grab; }
   #shelf::-webkit-scrollbar { display: none; }
-  .season { flex: 0 0 86%; scroll-snap-align: center; }
-  .season:not(.on) { cursor: pointer; }
+  #shelf.drag { scroll-snap-type: none; cursor: grabbing; }
+  .season { flex: 0 0 100%; scroll-snap-align: center; }
   #galNav { display: flex; align-items: center; gap: 14px; margin: 14px 0 22px; }
   #galNav button { width: 40px; height: 40px; padding: 0; font: inherit; font-size: 28px; line-height: 1; color: var(--gold); background: var(--panel);
     border: 3px solid var(--gold); border-radius: 50%; cursor: pointer; }
@@ -1991,7 +1992,21 @@ function markSeason(i) {
   $('galPrev').disabled = i === 0; $('galNext').disabled = i === SEASONS.length - 1;
 }
 $('shelf').addEventListener('scroll', () => { clearTimeout(seasonSettle); seasonSettle = setTimeout(() => markSeason(seasonIdx = seasonNow()), 150); });
-$('shelf').addEventListener('click', e => { const el = e.target.closest('.season'); if (el && !el.classList.contains('on')) showSeason(seasonEls().indexOf(el)); });
+// With a mouse the shelf is dragged sideways like a swipe: it follows the pointer, then settles on the
+// season it was dragged to (a short flick is enough to go to the next one)
+const shelfDrag = { id: null, x: 0, left: 0 };
+$('shelf').addEventListener('pointerdown', e => {
+  if (e.pointerType !== 'mouse' || e.button !== 0) return;
+  Object.assign(shelfDrag, { id: e.pointerId, x: e.clientX, left: $('shelf').scrollLeft, from: seasonIdx });
+  $('shelf').setPointerCapture(e.pointerId); $('shelf').classList.add('drag');
+});
+$('shelf').addEventListener('pointermove', e => { if (e.pointerId === shelfDrag.id) $('shelf').scrollLeft = shelfDrag.left - (e.clientX - shelfDrag.x); });
+for (const ev of ['pointerup', 'pointercancel']) $('shelf').addEventListener(ev, e => {
+  if (e.pointerId !== shelfDrag.id) return;
+  shelfDrag.id = null; $('shelf').classList.remove('drag');
+  const moved = e.clientX - shelfDrag.x;
+  showSeason(clamp(shelfDrag.from + (moved < -40 ? 1 : moved > 40 ? -1 : 0), 0, SEASONS.length - 1));
+});
 $('galPrev').addEventListener('click', () => showSeason(Math.max(0, seasonIdx - 1)));
 $('galNext').addEventListener('click', () => showSeason(Math.min(SEASONS.length - 1, seasonIdx + 1)));
 // From one screen to the other: the gallery and the levels each have a button for the other
