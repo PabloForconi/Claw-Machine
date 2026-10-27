@@ -274,9 +274,11 @@ The user asked for collectable characters as a metagame (October 2026), differen
   - The carousels' mouse drag only starts after 6 px of movement, so a click on a card still reaches it.
   - It replaced the earlier seasons (Clásicas/Rayadas/Lunares), since the finishes now mean rarity.
 - The exhibitor (`#chars`, `#charBtn` with the bear, top left after the gallery button) has a page per world. Each page has four shelves (`.rack`, one per rarity, wooden board; gold for legendary) of five characters.
-  - Owned characters show their picture, name and ×n when repeated. The rest are black silhouettes with "?".
+  - Each character stands on the board (its picture sinks a little into it, `margin-bottom: -9%`, since the cut has room and the shadow under the figure), with its name over it, as the user asked (October 2026). Owned characters show their picture, name and ×n when repeated. The rest are black silhouettes with "?".
 - Both screens are carousels (`carousel()`: `.pages`, one full-width page each, scroll snap), as the user asked.
   - Swipe, drag with the mouse (it settles on the next or previous page past 40 px), or use the arrows and dots.
+  - No scroll bars: the user asked for the mouse to work like a finger. Dragged up or down it scrolls the page (the levels list too), and the wheel scrolls it as usual. The drag picks its direction from the first 6 px of movement.
+  - `fill()` must come after the screen shows (`showScreen()` first): while hidden the pages have no size, and the scroll stayed on the first world while the dots marked the one being played. The user saw that mismatch.
   - The next page used to peek in at the side, which on a computer looked cut off.
   - They open on the world being played.
   - `.pages` must stay `position: relative`, since the pages' `offsetLeft` is measured from it.

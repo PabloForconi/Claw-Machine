@@ -69,7 +69,9 @@
   .pages::-webkit-scrollbar { display: none; }
   .pages.drag { scroll-snap-type: none; cursor: grabbing; }
   .pages img { -webkit-user-drag: none; }
-  .season { flex: 0 0 100%; scroll-snap-align: center; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin; padding: 0 2px 8px; }
+  .season { flex: 0 0 100%; scroll-snap-align: center; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: none; padding: 0 2px 8px; }
+  /* (no scroll bars: the finger, the mouse dragging and the wheel scroll them, as the user asked) */
+  .season::-webkit-scrollbar, #lvlList::-webkit-scrollbar { display: none; }
   .nav { display: flex; align-items: center; gap: 14px; margin: 10px 0 12px; }
   .nav button { width: 40px; height: 40px; padding: 0; font: inherit; font-size: 28px; line-height: 1; color: var(--gold); background: var(--panel);
     border: 3px solid var(--gold); border-radius: 50%; cursor: pointer; }
@@ -92,15 +94,18 @@
   .rack { margin-bottom: 14px; }
   .rack .rtitle { display: block; margin: 0 6px 2px; font-size: 16px; }
   .rack.t0 .rtitle { color: #c9cfdb; } .rack.t1 .rtitle { color: #80ed99; } .rack.t2 .rtitle { color: #4cc9f0; } .rack.t3 .rtitle { color: #ffd23f; }
-  .row5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; padding: 6px 6px 0; border-radius: 14px 14px 0 0;
+  .row5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: end; gap: 4px; padding: 6px 6px 0; border-radius: 14px 14px 0 0;
     background: linear-gradient(rgba(255, 255, 255, .04), rgba(255, 255, 255, .09)); border-bottom: 12px solid #7a4a2a;
     box-shadow: 0 6px 0 #4a2a16, 0 12px 14px rgba(0, 0, 0, .35); }
   .rack.t3 .row5 { border-bottom-color: #c99a1c; box-shadow: 0 6px 0 #7a5a0a, 0 12px 14px rgba(0, 0, 0, .35); }
-  .toy { position: relative; display: flex; flex-direction: column; align-items: center; font-size: 12px; line-height: 1.1; text-align: center; padding-bottom: 4px; }
-  .toy img { width: 100%; aspect-ratio: 1; object-fit: contain; pointer-events: none; }
+  /* Each character stands on the board (its picture has a little room and its shadow under it), with
+     its name over it */
+  .toy { position: relative; display: flex; flex-direction: column; align-items: center; font-size: clamp(14px, 2.4vw, 20px); line-height: 1.1; text-align: center; }
+  .toy > span { min-height: 2.2em; display: flex; align-items: flex-end; justify-content: center; }
+  .toy img { width: 100%; aspect-ratio: 1; object-fit: contain; pointer-events: none; margin-bottom: -9%; }
   .toy.none img { filter: brightness(0); opacity: .35; }
   .toy.none span { opacity: .5; }
-  .toy b { position: absolute; top: 0; right: 0; padding: 0 5px; border-radius: 8px; font-size: 13px; background: var(--pink); color: var(--ink); }
+  .toy b { position: absolute; top: 2.4em; right: 0; padding: 0 5px; border-radius: 8px; font-size: 13px; background: var(--pink); color: var(--ink); }
   /* A character just won, at the top of the screen for a moment */
   #toast { position: fixed; top: max(64px, calc(env(safe-area-inset-top) + 54px)); left: 50%; display: flex; align-items: center; gap: 10px;
     padding: 6px 16px 6px 6px; border-radius: 18px; background: var(--panel); border: 3px solid var(--gold); font-size: 20px;
@@ -185,7 +190,7 @@
   .back:active { transform: translateY(4px); box-shadow: 0 1px 0 #a8740a; }
   /* Levels: one row each, with its number, its goal (capsules and how many), its coins and whether it
      is done (a star), open to play, or still locked */
-  #lvlList { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 640px; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; padding: 2px 2px 12px; margin-bottom: 12px; }
+  #lvlList { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 640px; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: none; padding: 2px 2px 12px; margin-bottom: 12px; }
   #lvlList > * { flex: none; }
   .lvl { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--panel); border: 4px solid var(--pink-dark); border-radius: 18px;
     font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
@@ -2125,6 +2130,17 @@ $('lvlList').addEventListener('click', e => {
   $('levels').hidden = true; paused = false;
   if (i !== level || state === 'over') i < 0 ? startDaily() : startLevel(i);
 });
+// The mouse drags the levels list up and down like a finger (the wheel scrolls it too)
+{
+  const el = $('lvlList'), d = { id: null };
+  el.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse' && e.button === 0) Object.assign(d, { id: e.pointerId, y: e.clientY, top: el.scrollTop, on: false }); });
+  el.addEventListener('pointermove', e => {
+    if (e.pointerId !== d.id) return;
+    if (!d.on && Math.abs(e.clientY - d.y) > 6) { d.on = true; el.setPointerCapture(e.pointerId); }
+    if (d.on) el.scrollTop = d.top - (e.clientY - d.y);
+  });
+  for (const ev of ['pointerup', 'pointercancel']) el.addEventListener(ev, e => { if (e.pointerId === d.id) d.id = null; });
+}
 $('lvlBtn').addEventListener('click', openLevels);
 $('lvlBack').addEventListener('click', closeScreens);
 const SCREENS = ['gallery', 'levels', 'chars'];
@@ -2157,25 +2173,35 @@ function carousel(shelf, prev, next, dots) {
     shelf.scrollTo({ left: el.offsetLeft - (shelf.clientWidth - el.offsetWidth) / 2, behavior: smooth ? 'smooth' : 'instant' });
     mark(i);
   };
+  // (call it once the screen shows: while hidden the pages have no size, so the scroll stayed on the
+  // first page while the dots marked another, which the user saw)
   c.fill = (html, at) => { shelf.innerHTML = html; dots.innerHTML = pages().map(() => '<i></i>').join(''); c.show(at, false); };
   let settle = 0;
   shelf.addEventListener('scroll', () => { clearTimeout(settle); settle = setTimeout(() => mark(c.idx = near()), 150); });
-  // (the drag only starts once the mouse has moved a few pixels, so a click on a card still reaches it)
+  // The mouse works like a finger: dragged sideways it swipes the pages, up or down it scrolls the page
+  // (as does the wheel). The drag only starts once the mouse has moved a few pixels, in the direction it
+  // moved most, so a click on a card still reaches it.
   const drag = { id: null };
   shelf.addEventListener('pointerdown', e => {
     if (e.pointerType !== 'mouse' || e.button !== 0) return;
-    Object.assign(drag, { id: e.pointerId, x: e.clientX, left: shelf.scrollLeft, from: c.idx, on: false });
+    const page = pages()[c.idx];
+    Object.assign(drag, { id: e.pointerId, x: e.clientX, y: e.clientY, left: shelf.scrollLeft, page, top: page ? page.scrollTop : 0, from: c.idx, on: null });
   });
   shelf.addEventListener('pointermove', e => {
     if (e.pointerId !== drag.id) return;
-    if (!drag.on && Math.abs(e.clientX - drag.x) > 6) { drag.on = true; shelf.setPointerCapture(e.pointerId); shelf.classList.add('drag'); }
-    if (drag.on) shelf.scrollLeft = drag.left - (e.clientX - drag.x);
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.on && Math.max(Math.abs(dx), Math.abs(dy)) > 6) {
+      drag.on = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      shelf.setPointerCapture(e.pointerId); shelf.classList.add('drag');
+    }
+    if (drag.on === 'x') shelf.scrollLeft = drag.left - dx;
+    if (drag.on === 'y' && drag.page) drag.page.scrollTop = drag.top - dy;
   });
   for (const ev of ['pointerup', 'pointercancel']) shelf.addEventListener(ev, e => {
     if (e.pointerId !== drag.id) return;
     drag.id = null;
-    if (!drag.on) return;
     shelf.classList.remove('drag');
+    if (drag.on !== 'x') return;
     const moved = e.clientX - drag.x;
     c.show(clamp(drag.from + (moved < -40 ? 1 : moved > 40 ? -1 : 0), 0, pages().length - 1));
   });
@@ -2195,6 +2221,7 @@ const lockedNote = w => `<p class="sub">Se abre en el nivel ${w * 5 + 1}</p>`;
 // won yet show as dark silhouettes; a world not open yet is locked. The game holds still and isn't
 // drawn while it is open. It opens on page `at`, by default the world being played.
 function openGallery(at = worldNow()) {
+  showScreen('gallery');
   galCar.fill(WORLDS.map((wd, w) => {
     const locked = !worldOpen(w), kinds = Object.fromEntries(worldKinds(w).map(k => [k.key, k]));
     const slots = worldKinds(w).map(k => {
@@ -2209,7 +2236,6 @@ function openGallery(at = worldNow()) {
     return `<section class="season${locked ? ' locked' : ''}"><h3>Mundo ${w + 1} · ${wd.name}${locked ? '<span>🔒</span>' : ''}</h3>` +
       (locked ? lockedNote(w) : `<p class="sub">${CHAR_EVERY > 1 ? `Cada ${CHAR_EVERY} de un color completan su tarjeta` : 'Cada cápsula completa su tarjeta'}: tocala para abrirla</p>`) + `<div class="shelf">${slots}</div></section>`;
   }).join(''), at);
-  showScreen('gallery');
 }
 $('shelf').addEventListener('click', e => { const el = e.target.closest('.slot.ready'); if (el) openCard(+el.dataset.w, +el.dataset.b); });
 // The exhibitor (the character button, top left): a page per world, a shelf per rarity (row 1 common to
@@ -2218,17 +2244,17 @@ $('shelf').addEventListener('click', e => { const el = e.target.closest('.slot.r
 function openChars() {
   const total = Object.keys(meta.chars).length;
   $('charTotal').textContent = `Tenés ${total} de ${WORLDS.length * 20} personajes`;
+  showScreen('chars');
   charCar.fill(WORLDS.map((wd, w) => {
     const have = wd.chars.filter((c, i) => meta.chars[`${wd.id}:${i}`]).length;
     const rows = CHAR_TIERS.map((t, r) => `<div class="rack t${r}"><span class="rtitle">${t}</span><div class="row5">` + [0, 1, 2, 3, 4].map(c => {
       const i = r * 5 + c, n = meta.chars[`${wd.id}:${i}`] || 0;
-      return `<span class="toy${n ? '' : ' none'}"><img src="${charSrc(w, i)}" alt="" loading="lazy" draggable="false">` +
-        `${n > 1 ? `<b>×${n}</b>` : ''}<span>${n ? charName(w, i) : '?'}</span></span>`;
+      return `<span class="toy${n ? '' : ' none'}"><span>${n ? charName(w, i) : '?'}</span><img src="${charSrc(w, i)}" alt="" loading="lazy" draggable="false">` +
+        `${n > 1 ? `<b>×${n}</b>` : ''}</span>`;
     }).join('') + '</div></div>').join('');
     return `<section class="season${worldOpen(w) ? '' : ' locked'}"><h3>${wd.name}<span>${have}/20</span></h3>${worldOpen(w) ? '' : lockedNote(w)}${rows}</section>`;
   }).join(''), worldNow());
   $('charBtn').classList.remove('new');
-  showScreen('chars');
 }
 // Show one of the screens (and hide the others); the game holds still while one is open. Closing one
 // goes back to the machine, and to the level's card if it had ended.
