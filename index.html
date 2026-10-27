@@ -919,8 +919,9 @@ function driveCarriage(tx, tz, dt) {
 function swingHead(dt) {
   const c = claw, h = c.head, mass = HEAD_MASS + (c.held ? c.held.r ** 3 / .03 : 0);
   const dx = h.x - c.x, dy = h.y - CARRIAGE_Y, dz = h.z - c.z, dist = Math.hypot(dx, dy, dz);
-  // While closing, the claw rests where it landed (see imOf)
-  if (state === 'close') { h.vx = h.vy = h.vz = 0; return dist; }
+  // While closing, and while the winch then reels in the slack, the claw rests where it landed (see
+  // imOf). Left free during the reel-in, it sank into the pile by up to 0.3 before the cable pulled.
+  if (state === 'close' || (state === 'lift' && c.len > dist)) { h.vx = h.vy = h.vz = 0; return dist; }
   let ax = 0, ay = -G, az = 0;
   if (dist > c.len) {
     const nx = dx / dist, ny = dy / dist, nz = dz / dist;
@@ -956,21 +957,26 @@ function swingHead(dt) {
 }
 
 // The grip sometimes gives way: more often off centre and for gold prizes. A slip doesn't snap the
-// claw open: the prize comes loose and the fingers ease open (loosen) until it drops between the tips.
-// claw.slipping is the prize slipping out, until it is clear of the tips.
+// claw open: the fingers ease open (loosen) until the prize drops out between the tips.
+// claw.slipping is the prize slipping out.
 function slip(dt) {
   const c = claw, p = c.held;
   if (c.slipping) { loosen(dt, .8); return; }
   if (!p || (state === 'lift' && c.t < .25)) return;
   const rate = (.015 + (1 - c.q) * .08) * (p.rare ? 1.6 : 1);
-  if (Math.random() < rate * dt) c.slipping = detach();
+  if (Math.random() < rate * dt) c.slipping = p;
 }
 
-// Open the fingers at this rate; a slipping prize falls out on its own once the tips clear it
+// Open the fingers at this rate. The prize stays in the claw while they open and only comes loose
+// once the tips are clear of it, so it drops straight out. Let go of earlier, it lay on the opening
+// fingers and got flung by them.
 function loosen(dt, rate) {
   const c = claw;
   c.open = Math.min(1, c.open + rate * dt);
-  if (c.slipping && tipsClear(c.slipping)) { sfx('slip'); c.slipping = null; }
+  if (c.held && (tipsClear(c.held) || c.open >= 1)) {
+    if (c.slipping) sfx('slip');
+    detach(); c.slipping = null;
+  }
 }
 
 function win(p) {
@@ -1057,7 +1063,7 @@ function update(dt) {
       break;
     }
     case 'release':
-      detach(); c.slipping = null;
+      c.slipping = null;
       loosen(dt, 2);
       if (c.open >= 1) { state = 'wait'; c.t = 0; }
       break;

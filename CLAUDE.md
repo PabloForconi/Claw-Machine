@@ -60,7 +60,7 @@ The user asked for physically based motion when the claw brakes, drops, etc.
   - Once landed (`claw.landed`, where it came down) the claw is held there sideways and only sinks. Before this, with loose cable, it slid 0.2–0.5 sideways off the round top of a capsule before closing.
   - Landing means the cable is slack and the claw touches something: `claw.touching`, set in `physics()` from any head or finger contact with a prize, and in `swingHead()` from a hole wall. Slack alone isn't enough. A swinging claw slackens its elastic cable for a moment at each end of the swing, and taking that for a landing pinned it in mid-air, so a shaken claw fell straight down. The user noticed this (October 2026). Requiring it to stop going down instead let it slide 0.17 off a capsule before the lock.
   - The winch keeps letting out up to `DROP_SLACK` of loose cable, which bows out above the resting claw.
-  - The first slack plays the landing clank. When lifting, the winch reels the slack in before it pulls (about 0.2 s); stopping at the top (`L_MIN`) makes the head bounce.
+  - The first slack plays the landing clank. When lifting, the winch reels the slack in before it pulls (about 0.4 s); meanwhile the claw stays resting where it closed (`swingHead()` freezes it while `len > dist`). Left free, it sank into the pile by up to 0.3, a dip the user noticed (October 2026). Stopping at the top (`L_MIN`) makes the head bounce.
 - The visible cable is a simulated rope (`cable`, `cableStep()`). The user found the straight cylinder too rigid (October 2026).
   - It is a chain of `CABLE_NODES` Verlet point masses with gravity, pinned to the carriage and the hook on top of the claw's body (`HOOK_UP` above the head point), with links of `(claw.len - HOOK_UP) / CABLE_NODES` held at length (`CABLE_ITERS` passes).
   - When the claw is lower than the cable allows, the extra length curves out; a tiny `CABLE_NUDGE` picks the side, or a vertical slack rope would just fold onto itself.
@@ -103,10 +103,10 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
   - A prize only pinched at the top isn't caught: the claw rises without it. Before this rule, such prizes were carried hanging off the tips and dropped on the jolt of the lift.
 - Once caught, the prize rides in the claw (`claw.hold`: its offset in the claw frame, the height it settles to and the cradle flex). `carry()` evens the fingers out and slides the prize to the middle sideways and down onto the fingers, never up, at `HOLD_SETTLE`. That is what linked fingers and gravity would do, and it isn't a magnet, since only prizes already enclosed get there. A finger still pressing on a neighbour while lifting off the pile gives way to it.
 - `claw.q` is the grip quality (1 = dead centre). `slip()` uses it (rate `.015 + (1 - q) * .08` per second, gold prizes 1.6×).
-  - A slip `detach()`es the prize, making it a loose body with the claw's velocity, and sets `claw.slipping` to it.
-  - The fingers ease open (`loosen()`) until the tips clear it (`tipsClear()`).
+  - A slip sets `claw.slipping` to the prize. The fingers ease open (`loosen()`), and the prize stays in the claw until the tips clear it (`tipsClear()`). Only then does `detach()` make it a loose body with the claw's velocity, so it drops straight out.
+  - It used to come loose as soon as the fingers started opening, lie on them, and get flung as they swung out and up. The user saw prizes "thrown" into the hole (October 2026).
   - There is no on-screen text for a slip: the user asked to remove the old "¡Uy!" pop and the claw's sudden half-open snap (October 2026).
-- Releasing over the hole detaches the prize the same way; the `settle` state first waits (up to 1 s) for the swing to die down, since a released prize keeps the claw's velocity.
+- Releasing over the hole lets go the same way, once the tips clear the prize; the `settle` state first waits (up to 1 s) for the swing to die down, since a released prize keeps the claw's velocity.
 - Measured with 45 rounds aiming at capsules away from the walls:
   - four straight-segment fingers: about 15–17 catches and 17 deliveries;
   - three: 23 and 23;
