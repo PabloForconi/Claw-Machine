@@ -868,7 +868,7 @@ function startRound() {
 
 function startDrop() {
   if (state !== 'aim') return;
-  state = 'drop'; claw.winch = 0; claw.t = 0; claw.landed = false; claw.target = null; claw.slipping = null; claw.lose = null; claw.letGo = 0; claw.reshut = false; claw.tripFrom = undefined; keys.l = keys.r = keys.u = keys.d = false; sfx('drop');
+  state = 'drop'; claw.winch = 0; claw.t = 0; claw.landed = false; claw.target = null; claw.slipping = null; claw.lose = null; claw.letGo = 0; claw.reshut = false; claw.tripFrom = undefined; claw.topHit = false; keys.l = keys.r = keys.u = keys.d = false; sfx('drop');
 }
 
 // When the claw starts closing, pickTarget() notes the prize right under it whose top half the closed
@@ -1072,8 +1072,9 @@ function swingHead(dt) {
 // it rises. The user asked for these two kinds (October 2026); before, a slip could start at any
 // moment, mid-rise included, which looked odd. Either way the claw keeps going to the hole as usual,
 // and the prize just falls, with the claw's speed, wherever that leaves it.
-// - 'top': the jolt of the stop at the top (the end of lift) snaps the fingers open (LOSE_TOP_RATE)
-//   as the claw sets off back; after TOP_SHUT_IN the motor shuts them again on the way (restClose).
+// - 'top': the jolt of the stop at the top (when the claw tops out, just after the end of lift)
+//   snaps the fingers open (LOSE_TOP_RATE) as the claw sets off back; after TOP_SHUT_IN the motor
+//   shuts them again on the way (restClose).
 // - 'early': a moment after the claw sets off back (LOSE_EARLY_AFTER seconds of moving, or halfway if
 //   that comes first) it opens, a bit faster than letting go over the hole (LOSE_EARLY_RATE), and
 //   stays open; it shuts over the hole. (Opening just before the hole, the user found, felt wrong.)
@@ -1087,6 +1088,15 @@ function slip(dt) {
     return;
   }
   if (c.reshut) { restClose(dt); if (c.open === 0) c.reshut = false; return; }
+  // The winch stops a moment before the claw does: on its stretched cable it rides on up for about
+  // 0.12 s. The jolt that shakes the prize loose is when it tops out, so it opens then, not when the
+  // winch stops (which looked like opening before hitting the top).
+  if (c.topHit) {
+    if (c.head.vy > 0) return;
+    c.topHit = false;
+    if (p) { c.slipping = p; c.letGo = LOSE_TOP_RATE; sfx('clunk'); }
+    return;
+  }
   if (!p || c.lose !== 'early' || state !== 'return') return;
   const d = Math.hypot(HOME.x - c.x, HOME.z - c.z);
   if (c.tripFrom === undefined) { c.tripFrom = d; c.moved = 0; }
@@ -1172,7 +1182,7 @@ function update(dt) {
       c.len = Math.max(L_MIN, c.len - c.winch * dt); c.t += dt;
       if (c.len <= L_MIN) {
         state = 'return'; c.winch = 0; sfx('clank');
-        if (c.held && c.lose === 'top') { c.slipping = c.held; c.letGo = LOSE_TOP_RATE; }   // shaken loose (see slip)
+        if (c.held && c.lose === 'top') c.topHit = true;   // to be shaken loose at the stop (see slip)
       }
       break;
     case 'return':

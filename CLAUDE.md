@@ -139,7 +139,8 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
     - The moment is after `LOSE_EARLY_AFTER` (0.35 s) of moving, or halfway (`c.tripFrom`) if that comes first.
     - It stays open; it arrives open, so `settle` goes straight to the open hold and it shuts over the hole.
     - It used to open about 1.1 from the hole, just before arriving; the user wanted it soon after setting off, halfway at most (October 2026).
-  - `'top'`: the stop at the top (the end of `lift`) snaps the fingers open (`LOSE_TOP_RATE`, fully open in about 0.08 s, since it opens because it hit) as the claw sets off back. The prize drops out there, and after `TOP_SHUT_IN` the motor shuts the claw again on the way (`restClose()`).
+  - `'top'`: the stop at the top snaps the fingers open (`LOSE_TOP_RATE`, fully open in about 0.08 s, since it opens because it hit) as the claw sets off back, with a clunk.
+    - The jolt is when the claw tops out, not when the winch stops (`c.topHit` waits for `head.vy` to turn). On its stretched cable the claw rides on up for about 0.12–0.15 s after the winch stops at 1.7, and opening at the winch stop looked like opening before hitting the top (the user noticed, October 2026). The prize drops out there, and after `TOP_SHUT_IN` the motor shuts the claw again on the way (`restClose()`).
   - Earlier tries, which the user turned down:
     - The claw stopped at the top to open and shut before heading back.
     - It let go early where a prize keeping the claw's speed would land short of the hole, which meant right as it set off.
