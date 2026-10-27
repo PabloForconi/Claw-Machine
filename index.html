@@ -131,11 +131,9 @@ const RELEASE_SPEED = 4, RELEASE_ACC = 16, OPEN_HOLD = .5, JOLT = .9;
 // Losing a catch on purpose (see slip): the chance (LOSE_BASE, plus LOSE_OFF the further off centre it
 // was caught; gold ones 1.6 times as often); how fast the fingers fly open when the stop at the top
 // shakes it loose (a snap: it opens because it hit) and how long before the motor shuts them again;
-// and for the other kind, how close to the hole the moving claw lets go, how fast it opens, and how
-// much of the claw's speed the prize keeps as it slides off the opening fingers (with all of it, it
-// flew on into the hole)
+// and for the other kind, how close to the hole the moving claw lets go and how fast it opens
 const LOSE_BASE = .045, LOSE_OFF = .24, LOSE_TOP_RATE = 12, TOP_SHUT_IN = .3;
-const LOSE_EARLY_AT = 1.1, LOSE_EARLY_RATE = 4, LOSE_EARLY_CARRY = .3;
+const LOSE_EARLY_AT = 1.1, LOSE_EARLY_RATE = 6;
 // For testing (the user asked for it, October 2026): catches go round this pattern, one lost on the
 // way to the hole, one shaken loose at the top, one carried home, whatever the grip. Only catches
 // count, never a round where the claw came up empty. Set to null for the normal chance above.
@@ -869,7 +867,7 @@ function startRound() {
 
 function startDrop() {
   if (state !== 'aim') return;
-  state = 'drop'; claw.winch = 0; claw.t = 0; claw.landed = false; claw.target = null; claw.slipping = null; claw.lose = null; keys.l = keys.r = keys.u = keys.d = false; sfx('drop');
+  state = 'drop'; claw.winch = 0; claw.t = 0; claw.landed = false; claw.target = null; claw.slipping = null; claw.lose = null; claw.letGo = 0; claw.reshut = false; keys.l = keys.r = keys.u = keys.d = false; sfx('drop');
 }
 
 // When the claw starts closing, pickTarget() notes the prize right under it whose top half the closed
@@ -1070,35 +1068,26 @@ function swingHead(dt) {
 
 // The grip sometimes gives way. Whether a catch will be lost, and how, is settled when it is caught
 // (claw.lose, see grabTarget: for now a fixed pattern, LOSE_PATTERN), and the claw never opens while
-// it rises. Either the jolt of the stop at the top shakes it loose ('top', see shake), or the claw
-// lets go a little before reaching the hole ('early', here, so the prize lands just short of it). The
-// user asked for these two (October 2026); before, a slip could start at any moment, mid-rise
-// included, which looked odd. claw.slipping is the prize slipping out; the fingers ease open (loosen)
-// until it drops out between the tips.
+// it rises. The user asked for these two kinds (October 2026); before, a slip could start at any
+// moment, mid-rise included, which looked odd. Either way the claw keeps going to the hole as usual,
+// and the prize just falls, with the claw's speed, wherever that leaves it.
+// - 'top': the jolt of the stop at the top (the end of lift) snaps the fingers open (LOSE_TOP_RATE)
+//   as the claw sets off back; after TOP_SHUT_IN the motor shuts them again on the way (restClose).
+// - 'early': on the way, once the moving claw is within LOSE_EARLY_AT of the hole, it opens, a bit
+//   faster than letting go over the hole (LOSE_EARLY_RATE), and stays open; it shuts over the hole.
+// c.letGo is the opening rate while a lost catch opens the claw; claw.slipping is the prize slipping
+// out (the fingers open until it drops out between the tips, see loosen); c.reshut is the closing.
 function slip(dt) {
   const c = claw, p = c.held;
-  if (c.slipping) { loosen(dt, c.slipRate); return; }
-  if (!p || c.lose !== 'early' || state !== 'return') return;
-  // Letting go early: on the way, just before the hole (within LOSE_EARLY_AT of it), while the claw is
-  // still moving. The prize slides off the opening fingers keeping only LOSE_EARLY_CARRY of the
-  // claw's speed (see loosen), so it drops just short of the hole and now and then bounces in. The
-  // claw stays open the rest of the way and shuts over the hole. (Going by where a prize with all the
-  // claw's speed would land, it had to let go right as the claw set off, which looked wrong.)
-  if (Math.hypot(c.vx, c.vz) > .3 && Math.hypot(HOME.x - c.x, HOME.z - c.z) < LOSE_EARLY_AT) { c.slipping = p; c.slipRate = LOSE_EARLY_RATE; }
-}
-
-// A catch shaken loose by the stop at the top ('top'): the claw stays put, the fingers spring open
-// (LOSE_TOP_RATE) and the prize drops out, then the motor shuts them (like restClose, after a short
-// TOP_SHUT_IN) and only then does the claw head back to the hole, closed.
-function shake(dt) {
-  const c = claw;
-  if (c.shakeOpen) {
-    loosen(dt, LOSE_TOP_RATE);   // the prize drops out once the tips clear it (at the latest, fully open)
-    if (c.open >= 1) { c.shakeOpen = false; c.slipping = null; c.shutIn = TOP_SHUT_IN; c.closeV = 0; }
+  if (c.letGo) {
+    loosen(dt, c.letGo);
+    if (c.open >= 1) { c.letGo = 0; if (c.lose === 'top') { c.reshut = true; c.shutIn = TOP_SHUT_IN; c.closeV = 0; } }
     return;
   }
-  restClose(dt);
-  if (c.open === 0) state = 'return';
+  if (c.reshut) { restClose(dt); if (c.open === 0) c.reshut = false; return; }
+  if (p && c.lose === 'early' && state === 'return' && Math.hypot(c.vx, c.vz) > .3 && Math.hypot(HOME.x - c.x, HOME.z - c.z) < LOSE_EARLY_AT) {
+    c.slipping = p; c.letGo = LOSE_EARLY_RATE;
+  }
 }
 
 // Open the fingers at this rate. The prize stays in the claw while they open and only comes loose
@@ -1109,8 +1098,7 @@ function loosen(dt, rate) {
   c.open = Math.min(1, c.open + rate * dt);
   if (c.held && (tipsClear(c.held) || c.open >= 1)) {
     if (c.slipping) sfx('slip');
-    const early = c.slipping && c.lose === 'early', p = detach(); c.slipping = null;
-    if (early) { p.vx *= LOSE_EARLY_CARRY; p.vz *= LOSE_EARLY_CARRY; }   // slid off the fingers (see slip)
+    detach(); c.slipping = null;
   }
 }
 
@@ -1179,12 +1167,9 @@ function update(dt) {
       c.winch = Math.min(LIFT, c.winch + WINCH_ACC * dt);
       c.len = Math.max(L_MIN, c.len - c.winch * dt); c.t += dt;
       if (c.len <= L_MIN) {
-        c.winch = 0; sfx('clank');
-        if (c.held && c.lose === 'top') { state = 'shake'; c.shakeOpen = true; c.slipping = c.held; } else state = 'return';
+        state = 'return'; c.winch = 0; sfx('clank');
+        if (c.held && c.lose === 'top') { c.slipping = c.held; c.letGo = LOSE_TOP_RATE; }   // shaken loose (see slip)
       }
-      break;
-    case 'shake':
-      shake(dt);
       break;
     case 'return':
       slip(dt);

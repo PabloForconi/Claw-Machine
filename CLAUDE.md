@@ -134,12 +134,13 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
     - Only catches move it on (`caught`, reset by `reset()`); a round where the claw comes up empty is a normal round.
     - With `LOSE_PATTERN = null` the chance is `LOSE_BASE + (1 - q) * LOSE_OFF`, with gold prizes 1.6× (about what the old per-second slips added up to over a carry), half each way.
   - The claw never opens while it rises. A slip used to be able to start at any moment, mid-rise included, which the user found odd.
-  - `'early'` (in `slip()`): on the way back, while the claw is still moving and once it is within `LOSE_EARLY_AT` (1.1) of the hole, it opens (`LOSE_EARLY_RATE`).
-    - The prize slides off the opening fingers keeping only `LOSE_EARLY_CARRY` of the claw's speed (in `loosen()`), so it drops just short of the hole. With all of it, it flew on into the hole.
-    - The claw stays open the rest of the way. It arrives open, so `settle` goes straight to the open hold and it shuts over the hole.
-    - An earlier version let go when a prize keeping the claw's full speed would land short of the hole. That meant letting go right as the claw set off, and the user wanted it to open on the way, just before arriving.
-    - Measured, the prize lands about 0.3–0.9 from the hole's middle and now and then bounces or rolls in, which the user is fine with.
-  - `'top'` (the `shake` state, `shake()`): at the stop at the top the claw stays put. The fingers snap open (`LOSE_TOP_RATE`, fully open in about 0.1 s, since it opens because it hit) and the prize drops out. After `TOP_SHUT_IN` the motor shuts them (`restClose()`), and only then does it head back to the hole, closed and empty, for a normal empty release.
+  - In both, the claw goes back to the hole as usual, without stopping, and the prize just falls with the claw's speed wherever that leaves it. The user wanted physics to do its job (October 2026); it often lands in the hole anyway. `slip()` runs both: `c.letGo` is the opening rate while a lost catch opens the claw, and `c.reshut` the closing that follows.
+  - `'early'`: on the way back, while the claw is still moving and once it is within `LOSE_EARLY_AT` (1.1) of the hole, it opens at `LOSE_EARLY_RATE` (about 0.16 s, quicker than letting go over the hole). It stays open; it arrives open, so `settle` goes straight to the open hold and it shuts over the hole.
+  - `'top'`: the stop at the top (the end of `lift`) snaps the fingers open (`LOSE_TOP_RATE`, fully open in about 0.08 s, since it opens because it hit) as the claw sets off back. The prize drops out there, and after `TOP_SHUT_IN` the motor shuts the claw again on the way (`restClose()`).
+  - Earlier tries, which the user turned down:
+    - The claw stopped at the top to open and shut before heading back.
+    - It let go early where a prize keeping the claw's speed would land short of the hole, which meant right as it set off.
+    - The prize kept only part of the claw's speed, to drop short.
   - A slip sets `claw.slipping` to the prize. The fingers ease open (`loosen()`), and the prize stays in the claw until the tips clear it (`tipsClear()`). Only then does `detach()` make it a loose body with the claw's velocity, so it drops straight out.
   - It used to come loose as soon as the fingers started opening, lie on them, and get flung as they swung out and up. The user saw prizes "thrown" into the hole (October 2026).
   - There is no on-screen text for a slip: the user asked to remove the old "¡Uy!" pop and the claw's sudden half-open snap (October 2026).
