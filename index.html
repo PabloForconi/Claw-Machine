@@ -148,6 +148,10 @@ const RELEASE_SPEED = 4, RELEASE_ACC = 16, OPEN_HOLD = .5, JOLT = .9;
 // it opens
 const LOSE_BASE = .045, LOSE_OFF = .24, TOP_KICK = 7, TOP_SHUT_IN = .3;
 const TOP_BOUNCE = .35;   // how much of its speed the claw keeps, back down, when its box hits the carriage
+// Knocked open at the top, the claw opens only until its tips are TOP_GAP clear of the prize all round
+// (less than a normal opening, as the user asked, October 2026); a prize still caught on a tip
+// TOP_SHUT_IN later is let down by opening further at TOP_EASE (open-fractions per second)
+const TOP_GAP = .02, TOP_EASE = 1.5;
 const LOSE_EARLY_AT = .4, LOSE_EARLY_RATE = 6;
 // For testing (the user asked for it, October 2026): catches go round this pattern, one lost on the
 // way to the hole, one shaken loose at the top, one carried home, whatever the grip. Only catches
@@ -540,6 +544,12 @@ function tipsClear(p) {
   return fingers().every(fg => Math.hypot(fg.t[0] - h.x, fg.t[2] - h.z) >= p.r + FINGER_R);
 }
 
+// The tips are far enough apart round a loose prize, wherever it is, for it to drop between them
+// with TOP_GAP to spare
+function tipsWide(p) {
+  return fingers().every(fg => Math.hypot(fg.t[0] - p.x, fg.t[2] - p.z) >= p.r + FINGER_R + TOP_GAP);
+}
+
 function syncClaw() {
   const h = claw.head;
   bridge.position.z = claw.z;
@@ -883,7 +893,7 @@ function startRound() {
 
 function startDrop() {
   if (state !== 'aim') return;
-  state = 'drop'; claw.winch = 0; claw.t = 0; claw.landed = false; claw.target = null; claw.slipping = null; claw.lose = null; claw.letGo = 0; claw.reshut = false; claw.tripFrom = undefined; keys.l = keys.r = keys.u = keys.d = false; sfx('drop');
+  state = 'drop'; claw.winch = 0; claw.t = 0; claw.landed = false; claw.target = null; claw.slipping = null; claw.lose = null; claw.letGo = 0; claw.reshut = false; claw.tripFrom = undefined; claw.dropping = null; keys.l = keys.r = keys.u = keys.d = false; sfx('drop');
 }
 
 // When the claw starts closing, pickTarget() notes the prize right under it whose top half the closed
@@ -1104,16 +1114,29 @@ function swingHead(dt) {
 // out (the fingers open until it drops out between the tips, see loosen); c.reshut is the closing.
 function slip(dt) {
   const c = claw, p = c.held;
+  const d = c.dropping;
   if (c.letGo) {
     loosen(dt, c.letGo);
-    if (c.open >= 1) { c.letGo = 0; if (c.lose === 'top') { c.reshut = true; c.shutIn = TOP_SHUT_IN; c.closeV = 0; } }
+    // Knocked open at the top, the fingers only swing out as far as the prize needs to drop through
+    if (c.open >= 1 || (d && tipsWide(d))) { c.letGo = 0; if (c.lose === 'top') { c.reshut = true; c.shutIn = TOP_SHUT_IN; c.closeV = 0; } }
     return;
   }
-  if (c.reshut) { restClose(dt); if (c.open === 0) c.reshut = false; return; }
+  if (c.reshut) {
+    // They don't shut again on the prize: not before it is out below the tips (falling through the
+    // claw takes about 0.35 s). Caught on a tip (not falling), it is let down by opening a little more.
+    if (d) {
+      if (d.y + d.r > Math.min(...fingers().map(fg => fg.t[1]))) {
+        if ((c.shutIn -= dt) < 0 && d.vy > -.3) c.open = Math.min(1, c.open + TOP_EASE * dt);
+        return;
+      }
+      c.dropping = null;
+    }
+    restClose(dt); if (c.open === 0) c.reshut = false; return;
+  }
   if (!p || c.lose !== 'early' || state !== 'return') return;
-  const d = Math.hypot(HOME.x - c.x, HOME.z - c.z);
-  if (c.tripFrom === undefined) c.tripFrom = d;
-  if (d <= c.tripFrom * (1 - LOSE_EARLY_AT)) { c.slipping = p; c.letGo = LOSE_EARLY_RATE; }
+  const left = Math.hypot(HOME.x - c.x, HOME.z - c.z);
+  if (c.tripFrom === undefined) c.tripFrom = left;
+  if (left <= c.tripFrom * (1 - LOSE_EARLY_AT)) { c.slipping = p; c.letGo = LOSE_EARLY_RATE; }
 }
 
 // The claw's box hits the carriage at speed v with a catch to be lost there. The winch's limit switch
@@ -1122,7 +1145,7 @@ function slip(dt) {
 // the speed it was rising with (it isn't stopped by the carriage, only by the box above it).
 function hitTop(v) {
   const c = claw;
-  detach();
+  c.dropping = detach();
   state = 'return'; c.winch = 0; c.len = L_MIN;
   c.letGo = TOP_KICK * v;
   sfx('clank'); sfx('clunk');
