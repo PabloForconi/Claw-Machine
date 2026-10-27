@@ -18,18 +18,18 @@ To run it, open `index.html` in a browser; it needs internet for Three.js and th
 
 The pane only repaints while its tab is fronted (`tabs_select`); otherwise screenshots show a stale frame.
 
-`game.claw` is replaced on `reset()` ("Jugar de nuevo"), so read it again after a reset. With 66 capsules a round is about 900 steps (1.5 s of work), so keep test batches to about 8 rounds per browser tool call, or the call times out ("Internal error").
+`game.claw` is replaced on `reset()` (and so by `game.startLevel(i)`), so read it again after a reset. `game.level` and `game.got` show the level being played and what was won towards it. In the in-app browser's `data:` preview `localStorage` is disabled, so cleared levels and the gallery are only kept until the page reloads (and editing `index.html` reloads it). With 66 capsules a round is about 900 steps (1.5 s of work), so keep test batches to about 8 rounds per browser tool call, or the call times out ("Internal error").
 
 ## How the game works
 
 - World units: the glass box is x ∈ [-2, 2], z ∈ [-1.5, 1.5] (z+ is towards the camera), floor at y = 0. The prize hole is the front-left corner (`HOLE`: x < -1.1 and z > 0.6), fenced by two clear walls (`WALLS`, axis-aligned boxes). The claw returns to `HOME`, the centre of the hole.
 - The machine is built from plain boxes in the "Machine" section, all with sharp edges, and the marquee lights are little square boxes. The user asked for fewer polygons to match the claw's flat, simple look (October 2026); the base, pillars and roof used to be rounded and the lights were spheres. The capsules keep their round shape, and the shadows are unchanged. the floor slab is two boxes forming an L so the hole stays open, and `holeIn` is a back-side box that shows the dark inside of the hole. The marquee and the scoreboard are canvas textures, repainted once Kalam loads.
 - Screen layout (the user asked for more view of the game, October 2026):
-  - There is no HTML HUD at the top. Coins, points, time and the idle hint are a scoreboard on the front of the machine's base (`board`, `boardTex`, where a "PREMIOS" door label used to be). `hud()` repaints it only when a value changes. Only the controls and the game-over card are HTML.
+  - There is no HTML HUD at the top. Coins, the level and its goal, time and the idle hint are a scoreboard on the front of the machine's base (`board`, `boardTex`, where a "PREMIOS" door label used to be). `hud()` repaints it only when a value changes. Only the controls and the game-over card are HTML.
   - The marquee is a thin strip (`MARQUEE_H`).
   - The camera sits about 20° above level (`CAM_DIR`; it was 30°).
 - `update()` is the claw state machine: `idle` → `aim` (costs one coin, `AIM_TIME` seconds, moves in x and z, auto-drops when time runs out) → `drop` → `close` → `lift` → `return` → `settle` → `release` → `wait` → `idle`, or `over` when the coins run out.
-  - `FREE_PLAY` (on for now: the user asked for unlimited coins to test, October 2026): rounds cost nothing, the board shows ∞ and the hint drops "(1 ficha)", and the game never ends. Turn it off to play with `START_COINS`.
+  - `FREE_PLAY` (off since the levels, which each give their coins; the user had it on for a while to test, October 2026): rounds cost nothing, the board shows ∞, the hint drops "(1 ficha)", and a level is never lost.
   - The user asked to start the next round sooner (October 2026). `wait` lasts `WAIT_TIME` (0.3 s; it was 1.2), and `settle` lets go at once when the claw is empty. A released prize can now score just after the next round becomes available, while it is still falling.
 - A straight-down shadow-casting light (`top`) puts the claw's shadow right under it; that shadow is how the player judges depth, so keep it if the lighting changes.
 
@@ -86,7 +86,7 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
   - `OPEN_ANGLE` (0.4 rad) is how far the motor swings the fingers out. The wider the open claw, the more neighbours it lands on and the fewer catches.
     - With the second knee far out, 0.65 gave 14 deliveries in 45 rounds and 0.5 gave 18.
     - The user asked for it to open a little less (October 2026), so it went 0.5 → 0.4. Over the same seeded piles and aims, 0.4 delivered 15 of 32 rounds and 0.5 delivered 8, so the game got easier.
-    - For a fair comparison, seed `Math.random` (e.g. mulberry32) and reset with the "Jugar de nuevo" button (`#again`) before each batch: the pile and the aims then repeat exactly.
+    - For a fair comparison, seed `Math.random` (e.g. mulberry32) and reset with `game.startLevel(game.level)` before each batch: the pile and the aims then repeat exactly.
   - `HEAD_MIN_Y` comes from `FINGER_REACH`, the deepest finger point open or closed.
   - The material is `CHROME`, not too metallic: there is no environment map, so a high metalness renders almost black.
 - The claw has three fingers (`FINGER_ANGLES`, one at the back). It had four for a while, against capsules slipping out between two fingers; the user asked for three again once a caught prize rode in the claw (October 2026).
@@ -130,9 +130,9 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
   - With the fingers shut, a capsule about as wide as the closed claw rests where it first touches them, about 0.1 under the box.
   - Deliveries: 11 of 40 rounds, against 14 of 40 for the version just before. That is within noise; batches of 10 ranged from 1 to 7.
 - `claw.q` is the grip quality (1 = dead centre). When a catch is made, `grabTarget()` settles whether it will be lost (`claw.lose`).
-  - For now, as the user asked (October 2026), catches go round `LOSE_PATTERN`: one lost on the way (`'early'`), one shaken loose at the top (`'top'`), one carried home (`null`).
-    - Only catches move it on (`caught`, reset by `reset()`); a round where the claw comes up empty is a normal round.
-    - With `LOSE_PATTERN = null` the chance is `LOSE_BASE + (1 - q) * LOSE_OFF`, with gold prizes 1.6× (about what the old per-second slips added up to over a carry), half each way.
+  - The chance is `LOSE_BASE + (1 - q) * LOSE_OFF`: about 4.5% dead centre, up to about 28% at the edge, with gold prizes 1.6×. It is about what the old per-second slips added up to over a carry, half each way.
+    - With the levels the user asked to keep both kinds of loss at a more realistic rate (October 2026), so `LOSE_PATTERN` is `null`.
+    - For testing it can be a pattern again, e.g. `['early', 'top', null]`: one lost on the way, one shaken loose at the top, one carried home. The user had it that way for a while. Only catches move it on (`caught`, reset by `reset()`); a round where the claw comes up empty is a normal round.
   - The claw never opens while it rises. A slip used to be able to start at any moment, mid-rise included, which the user found odd.
   - In both, the claw goes back to the hole as usual, without stopping, and the prize just falls with the claw's speed wherever that leaves it. The user wanted physics to do its job (October 2026); it often lands in the hole anyway. `slip()` runs both: `c.letGo` is the opening rate while a lost catch opens the claw, and `c.reshut` the closing that follows.
   - `'early'`: a moment after the claw sets off back, it opens at `LOSE_EARLY_RATE` (about 0.16 s, quicker than letting go over the hole).
@@ -187,14 +187,27 @@ Each capsule (`mkPrize()`) is two solid halves of one colour, gold for the rare 
 
 ### Scoring and the rest
 
-- A prize that falls below y = -0.75 counts in `win()`: 1 point, 5 for a gold (rare) one, shown only on the board, with a jingle. The floating "+1" / "+5 ¡Dorada!" text over the hole was removed at the user's request (October 2026).
+- A prize that falls below y = -0.75 counts in `win()`, towards the level's goal and the gallery, with a jingle. It still adds points (1, 5 for a gold one, `score`), but they are no longer shown anywhere. The board's PUNTOS gave way to the goal, and the best score (`clawMachine.best`) was dropped with the game-over card. The floating "+1" / "+5 ¡Dorada!" text over the hole was removed at the user's request (October 2026).
   - Before that, the user reported a brief odd flash, "like text or numbers", on the inner hole wall just before the "+1". It wasn't reproduced and they said to look at it later.
 - `fit()` frames the machine by projecting the cabinet's corners (`FIT_CORNERS`). It searches for the camera distance at which they just fit between the top of the screen and the controls, then centres them there with `setViewOffset`. This works for any camera angle and screen shape. On wide screens (`body.wide`) the controls go to the bottom corners and take no height. A fixed half-height guess stopped fitting when the camera was lowered, since the near base looks bigger.
-- The best score is kept in `localStorage` under `clawMachine.best` (wrapped in try/catch).
+- Levels: the user asked for goals of rising difficulty, each unlocking the next (October 2026). They also chose a limited number of coins per level, a levels screen, and 10 levels to start with.
+  - `LEVELS` gives each level a goal (a list of `{ key, n }`: so many of a kind, `'any'` for any kind) and its coins. They go from 3 pink in 12 coins to one of each of the six kinds in 15.
+  - Difficulty comes from more prizes, several kinds at once, gold ones (they slip 1.6× more) and fewer coins to spare.
+  - `startLevel(i)` resets the machine for level `i`: its coins, `got` cleared (what has been won towards the goal, kind → count) and a fresh pile.
+  - The pile: `needed()` lists the kinds the pile is short of, so each kind the level still needs is there with `PILE_SPARE` (2) to spare, or 1 when the goal has more than three kinds. `spawn()` makes those first and the rest at random.
+  - At a reset there are at least `PRIZE_COUNT`. In `wait` it restocks from the top when the pile is low or short of a needed kind.
+  - Clearing a level (`levelMet()` in `win()`) saves `levelsDone` to `localStorage` (`clawMachine.levelsDone`), which unlocks the next. After `CLEAR_DELAY` the card `levelCard(true)` comes up: "¡Nivel N superado!", the coins left, "Siguiente nivel" and "Niveles".
+  - Out of coins, `wait` waits until no prize is still moving or in the hole column (at most `LOSE_WAIT`), so a last prize dropping in counts. Then `levelCard(false)`: "¡Sin fichas!", what was missing, "Reintentar" and "Niveles". The card's main button is `#again` (it starts `nextLevel`).
+  - The game opens on the first level not cleared.
+  - The board shows FICHAS, NIVEL n with the goal (a capsule per kind and "won/needed", shrunk to fit; a kind asked for once is just its capsule, ticked once won), and TIEMPO.
+  - The levels screen (`#levels`, opened by the star `#lvlBtn`, top left before the gallery button) lists the levels with their goal (CSS capsules, `.cap.mini`), their coins and a status: ★ cleared, ▶ open, 🔒 locked.
+    - Picking one starts it; the one being played just goes back to it unless it is over.
+    - "Volver a la máquina" or Escape goes back, and back to the level's card if it had ended. The game is paused and not drawn meanwhile (`screenOpen()`).
+  - Tested with a bot that aims dead centre at the highest prize of the right kind: level 1 took 5 coins, and 7 of 7 rounds delivered on level 6 (aimed off gold). Real players are far less exact, so the coins may need tuning after playing.
 - The gallery is a second screen the user asked for (October 2026). It lists every kind of prize and how many of each were ever won.
   - The kinds (`KINDS`) are the five `COLORS` plus gold, with Spanish names. Each prize carries its `kind` (its hex colour, or `'gold'`).
-  - `win()` adds the prize to `collection`, kept in `localStorage` under `clawMachine.collection`. It survives "Jugar de nuevo" and new games.
-  - `#galBtn` (top left, a little capsule; the gear is top right) opens `#gallery`, a full-screen page with a 3-column shelf of slots: a CSS-drawn capsule (`.cap`), the count and the name. Kinds not won yet are dark silhouettes with a 0.
+  - `win()` adds the prize to `collection`, kept in `localStorage` under `clawMachine.collection`. It survives levels and new games.
+  - `#galBtn` (top left, a little capsule, after the levels star; the gear is top right) opens `#gallery`, a full-screen page with a 3-column shelf of slots: a CSS-drawn capsule (`.cap`), the count and the name. Kinds not won yet are dark silhouettes with a 0.
   - "Volver a la máquina" (`#galBack`) or Escape goes back. While it is open the game is paused, not drawn, and the keys don't play.
 - Sounds are synthesised with WebAudio in `sfx()`; there are no audio files yet.
 

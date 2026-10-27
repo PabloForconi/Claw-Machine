@@ -34,8 +34,10 @@
   #gear { position: fixed; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); width: 44px; height: 44px; padding: 0;
     display: grid; place-items: center; font: inherit; font-size: 26px; line-height: 1; color: var(--ink); cursor: pointer;
     background: var(--panel); border: 3px solid var(--gold); border-radius: 12px; }
-  #galBtn { position: fixed; top: max(10px, env(safe-area-inset-top)); left: max(10px, env(safe-area-inset-left)); width: 44px; height: 44px; padding: 0;
-    display: grid; place-items: center; cursor: pointer; background: var(--panel); border: 3px solid var(--gold); border-radius: 12px; }
+  #lvlBtn, #galBtn { position: fixed; top: max(10px, env(safe-area-inset-top)); left: max(10px, env(safe-area-inset-left)); width: 44px; height: 44px; padding: 0;
+    display: grid; place-items: center; cursor: pointer; background: var(--panel); border: 3px solid var(--gold); border-radius: 12px;
+    font: inherit; font-size: 26px; line-height: 1; color: var(--gold); }
+  #galBtn { left: calc(max(10px, env(safe-area-inset-left)) + 52px); }
   #galBtn .cap { width: 24px; height: 24px; box-shadow: none; }
   /* A capsule drawn in CSS for the gallery: its colour (--c) with a highlight, the lower half a little
      darker, and the dark band where the halves meet, tilted like a toy lying on a shelf */
@@ -46,20 +48,39 @@
   .cap::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 50%; background: rgba(0, 0, 0, .12); }
   .cap::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 12%; margin-top: -6%; background: #2a1d40; }
   .cap.gold { --c: #ffd23f; }
-  /* The gallery: a screen of its own over the machine, with a shelf slot per kind of prize */
-  #gallery { position: fixed; inset: 0; overflow-y: auto; touch-action: pan-y; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  .cap.mini { display: inline-block; width: 26px; height: 26px; box-shadow: none; flex: none; vertical-align: middle; }
+  /* "Any colour" in a level's goal: a capsule of all the colours */
+  .cap.any { background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .8) 0 6%, transparent 20%),
+      conic-gradient(#ff5d8f 0 20%, #4cc9f0 0 40%, #80ed99 0 60%, #b388ff 0 80%, #ff9f43 0); }
+  /* The gallery and the levels: screens of their own over the machine */
+  .screen { position: fixed; inset: 0; overflow-y: auto; touch-action: pan-y; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
     background: radial-gradient(ellipse at 50% 0%, #3a2366, var(--bg) 70%); display: flex; flex-direction: column; align-items: center; }
-  #gallery h2 { margin: 6px 0 0; font-size: 38px; color: var(--gold); text-shadow: 0 3px 0 var(--pink-dark); }
-  #galTotal { margin: 0 0 18px; font-size: 20px; opacity: .85; }
+  .screen h2 { margin: 6px 0 0; font-size: 38px; color: var(--gold); text-shadow: 0 3px 0 var(--pink-dark); }
+  .screen .sub { margin: 0 0 18px; font-size: 20px; opacity: .85; text-align: center; }
   #shelf { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; width: 100%; max-width: 560px; margin-bottom: 24px; }
   .slot { background: var(--panel); border: 4px solid var(--pink-dark); border-radius: 18px; padding: 16px 6px 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
   .slot.none .cap { filter: grayscale(1) brightness(.35); box-shadow: none; }
   .slot.none .num, .slot.none .name { opacity: .45; }
   .slot .num { font-size: 30px; line-height: 1; color: var(--gold); }
   .slot .name { font-size: 17px; line-height: 1; }
-  #galBack { margin-top: auto; font: inherit; font-size: 24px; color: #3a1f00; background: var(--gold); border: 4px solid #a8740a; border-radius: 16px;
+  .back { margin-top: auto; font: inherit; font-size: 24px; color: #3a1f00; background: var(--gold); border: 4px solid #a8740a; border-radius: 16px;
     padding: 8px 24px; cursor: pointer; box-shadow: 0 5px 0 #a8740a; }
-  #galBack:active { transform: translateY(4px); box-shadow: 0 1px 0 #a8740a; }
+  .back:active { transform: translateY(4px); box-shadow: 0 1px 0 #a8740a; }
+  /* Levels: one row each, with its number, its goal (capsules and how many), its coins and whether it
+     is done (a star), open to play, or still locked */
+  #lvlList { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 520px; margin-bottom: 24px; }
+  .lvl { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--panel); border: 4px solid var(--pink-dark); border-radius: 18px;
+    font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
+  .lvl.cur { border-color: var(--gold); }
+  .lvl.locked { opacity: .45; cursor: default; }
+  .lvl .n { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 26px; background: var(--pink); color: var(--ink); }
+  .lvl .goal { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 22px; }
+  .lvl .goal span { display: flex; align-items: center; gap: 4px; }
+  .lvl .coins { display: block; width: 100%; font-size: 16px; opacity: .75; }
+  .lvl .st { flex: none; font-size: 28px; color: var(--gold); }
+  .card .row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .card button.alt { background: var(--panel); color: var(--ink); border-color: var(--gold); }
+  .card .goal { display: inline-flex; align-items: center; gap: 4px; margin: 0 6px; }
   #opts { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(10, 5, 25, .65); padding: 16px; }
   .opt { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 6px 0 20px; font-size: 22px; text-align: left; cursor: pointer; }
   .opt input { width: 26px; height: 26px; accent-color: var(--gold); cursor: pointer; }
@@ -90,12 +111,19 @@
   <button id="bd">¡BAJAR!</button>
 </div>
 <button id="gear" aria-label="Ajustes">⚙</button>
+<button id="lvlBtn" aria-label="Niveles">★</button>
 <button id="galBtn" aria-label="Galería de premios"><div class="cap"></div></button>
-<div id="gallery" hidden>
+<div id="gallery" class="screen" hidden>
   <h2>Mis premios</h2>
-  <p id="galTotal"></p>
+  <p id="galTotal" class="sub"></p>
   <div id="shelf"></div>
-  <button id="galBack">Volver a la máquina</button>
+  <button id="galBack" class="back">Volver a la máquina</button>
+</div>
+<div id="levels" class="screen" hidden>
+  <h2>Niveles</h2>
+  <p id="lvlSub" class="sub"></p>
+  <div id="lvlList"></div>
+  <button id="lvlBack" class="back">Volver a la máquina</button>
 </div>
 <div id="opts" hidden>
   <div class="card">
@@ -106,9 +134,9 @@
 </div>
 <div id="over" hidden>
   <div class="card">
-    <h2>¡Sin fichas!</h2>
+    <h2 id="ovTitle"></h2>
     <p id="ovStats"></p>
-    <button id="again">Jugar de nuevo</button>
+    <div class="row"><button id="again"></button><button id="ovLevels" class="alt">Niveles</button></div>
   </div>
 </div>
 <script type="module">
@@ -186,41 +214,70 @@ const TOP_BOUNCE = .35;   // how much of its speed the claw keeps, back down, wh
 // TOP_SHUT_IN later is let down by opening further at TOP_EASE (open-fractions per second)
 const TOP_GAP = .02, TOP_EASE = 1.5;
 const LOSE_EARLY_AT = .4, LOSE_EARLY_RATE = 6;
-// For testing (the user asked for it, October 2026): catches go round this pattern, one lost on the
-// way to the hole, one shaken loose at the top, one carried home, whatever the grip. Only catches
-// count, never a round where the claw came up empty. Set to null for the normal chance above.
-const LOSE_PATTERN = ['early', 'top', null];
+// For testing, catches can go round a pattern instead, e.g. ['early', 'top', null]: one lost on the
+// way to the hole, one shaken loose at the top, one carried home, whatever the grip (only catches
+// count, never a round where the claw came up empty). With the levels the user asked for the normal,
+// more realistic chance again, keeping both kinds of loss (October 2026).
+const LOSE_PATTERN = null;
 const CLOSE_GIVE = .03;  // while closing, how far a finger digs into a jammed prize before it gives way
 const CLOSE_HOLD = .35;  // seconds the motor keeps squeezing once fully closed, before lifting
 // Rope: velocity kept per step, link passes per step, and the sideways nudge that lets slack bow out
 const CABLE_DAMP = .995, CABLE_ITERS = 30, CABLE_NUDGE = 2e-5;
-const AIM_TIME = 15, START_COINS = 10;
-// For testing (the user asked for it, October 2026): rounds cost nothing, the board shows ∞ coins and
-// the game never ends. Set to false to play with START_COINS again.
-const FREE_PLAY = true;
+const AIM_TIME = 15;
+// For testing: rounds cost nothing, the board shows ∞ coins and a level is never lost. (On for a
+// while at the user's request, October 2026; off since the levels, which each give their coins.)
+const FREE_PLAY = false;
 // Seconds after letting go before the next round can start (it was 1.2)
 const WAIT_TIME = .3;
 // Few enough capsules to leave gaps for the fingers, and sizes close together: a tight carpet of
 // capsules only lets the claw pinch tops, small ones sit too low to reach and big ones squeeze out
 // (15 for now: the user asked for it, October 2026; it was 66, a heap)
 const PRIZE_COUNT = 15, R_MIN = .29, R_MAX = .32, RESTOCK_BELOW = 8;
+const PILE_SPARE = 2;   // a level's pile has this many more of each kind it asks for than it still needs
 const SETTLE_STEPS = 600;   // physics steps (5 s) run at a reset so the pile is settled when shown
 const COLORS = [0xff5d8f, 0x4cc9f0, 0x80ed99, 0xb388ff, 0xff9f43];
 // The kinds of prize, as the gallery lists them: one per colour, then the gold ones
 const KINDS = [...COLORS.map((c, i) => ({ key: c.toString(16), css: '#' + c.toString(16).padStart(6, '0'), name: ['Rosa', 'Celeste', 'Verde', 'Violeta', 'Naranja'][i] })),
   { key: 'gold', css: '#ffd23f', name: 'Dorada' }];
+const KIND = Object.fromEntries(KINDS.map(k => [k.key, k]));
+const kindKey = name => KINDS.find(k => k.name === name).key;
+
+// Levels (the user asked for them, October 2026): each asks for so many prizes of some kinds ('any' is
+// any kind) with so many coins. Running out of coins first means trying again; clearing one unlocks the
+// next. Difficulty rises with more prizes, several kinds at once, gold ones (they slip more) and fewer
+// coins to spare.
+const LEVELS = [
+  { goal: [['Rosa', 3]], coins: 12 },
+  { goal: [['Celeste', 3]], coins: 10 },
+  { goal: [['Verde', 2], ['Naranja', 2]], coins: 12 },
+  { goal: [['Violeta', 4]], coins: 11 },
+  { goal: [['any', 5]], coins: 10 },
+  { goal: [['Dorada', 1]], coins: 7 },
+  { goal: [['Rosa', 2], ['Celeste', 2], ['Verde', 2]], coins: 14 },
+  { goal: [['Naranja', 5]], coins: 12 },
+  { goal: [['Dorada', 2], ['Violeta', 3]], coins: 14 },
+  { goal: KINDS.map(k => [k.name, 1]), coins: 15 },
+].map(l => ({ ...l, goal: l.goal.map(([name, n]) => ({ key: name === 'any' ? 'any' : kindKey(name), n })) }));
+const LEVELS_KEY = 'clawMachine.levelsDone';   // how many levels have been cleared (they unlock in order)
 // Three prongs, one at the back. (A caught prize rides in the claw, so it can't slip out through the
 // gap between two fingers, which is why there were four for a while.)
 const FINGER_ANGLES = [-Math.PI / 2, -Math.PI / 2 + 2 * Math.PI / 3, -Math.PI / 2 + 4 * Math.PI / 3];
-const BEST_KEY = 'clawMachine.best';
 const COLLECTION_KEY = 'clawMachine.collection';   // how many of each kind were won, ever (see the gallery)
 
-let prizes = [], claw, coins, score, won, state, aimT, best = 0, collection = {};
+let prizes = [], claw, coins, score, won, state, aimT, collection = {};
+// The level being played, what has been won towards its goal (kind → count), how many levels are
+// cleared, and once this one is cleared, the countdown to its card
+let level = 0, got = {}, levelsDone = 0, clearT = null;
 let caught = 0;   // catches made since the reset (they go round LOSE_PATTERN)
 const keys = { l: false, r: false, u: false, d: false };
 
-try { best = +localStorage.getItem(BEST_KEY) || 0; } catch (e) {}
 try { collection = JSON.parse(localStorage.getItem(COLLECTION_KEY)) || {}; } catch (e) {}
+try { levelsDone = Math.min(LEVELS.length, +localStorage.getItem(LEVELS_KEY) || 0); } catch (e) {}
+level = Math.min(levelsDone, LEVELS.length - 1);   // start on the first level not cleared yet
+
+// How many more of a goal's kind are still needed this level
+const goalLeft = g => Math.max(0, g.n - (g.key === 'any' ? Object.values(got).reduce((s, v) => s + v, 0) : got[g.key] || 0));
+const levelMet = () => LEVELS[level].goal.every(g => goalLeft(g) === 0);
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const $ = id => document.getElementById(id);
@@ -303,20 +360,46 @@ const holeIn = box(.88, .6, .88, new THREE.MeshStandardMaterial({ color: 0x120a2
 holeIn.receiveShadow = true;
 box(4.7, 1.1, 3.7, PINK, 0, -1.15, 0);
 
-// Scoreboard on the front of the base: coins, points, time, and the hint while idle. It is part of the
-// machine (a canvas texture, repainted by hud() when something changes) so the screen above is all game.
-const board = { coins: 0, score: 0, time: '–', low: false, hint: true };
+// Scoreboard on the front of the base: coins, the level's goal and how far along it is, time, and the
+// hint while idle. It is part of the machine (a canvas texture, repainted by hud() when something
+// changes) so the screen above is all game. (It showed points before the levels.)
+const board = { coins: 0, goal: '', time: '–', low: false, hint: true };
 const BOARD_W = 4.2, BOARD_H = .95;
 const boardTex = canvasTex(1024, Math.round(1024 * BOARD_H / BOARD_W), (g, w, h) => {
   g.clearRect(0, 0, w, h);
   g.fillStyle = '#2b1850'; g.beginPath(); g.roundRect(6, 6, w - 12, h - 12, 32); g.fill();
   g.strokeStyle = '#ffd23f'; g.lineWidth = 10; g.stroke();
   g.textAlign = 'center'; g.textBaseline = 'middle';
-  [['FICHAS', board.coins], ['PUNTOS', board.score], ['TIEMPO', board.time]].forEach(([label, value], i) => {
-    const x = w * (i + .5) / 3;
+  [['FICHAS', board.coins, .11], ['TIEMPO', board.time, .89]].forEach(([label, value, at]) => {
+    const x = w * at;
     g.fillStyle = '#b9a8e0'; g.font = '700 36px Kalam, cursive'; g.fillText(label, x, 44);
     g.fillStyle = label === 'TIEMPO' && board.low ? '#ff5d8f' : '#fff6e0'; g.font = '700 84px Kalam, cursive'; g.fillText(value, x, 108);
   });
+  g.fillStyle = '#b9a8e0'; g.font = '700 36px Kalam, cursive'; g.fillText(`NIVEL ${level + 1}`, w / 2, 44);
+  // The goal: a capsule of each kind asked for and "won/needed", shrunk to fit between coins and time.
+  // A kind asked for once is just its capsule, ticked once won (with six kinds "0/1" got too small to read).
+  const goal = LEVELS[level].goal, rows = goal.map(gl => ({ gl, text: gl.n === 1 ? '' : `${gl.n - goalLeft(gl)}/${gl.n}` }));
+  let size = 72, width;
+  const measure = () => { g.font = `700 ${size}px Kalam, cursive`; return rows.reduce((s, r) => s + size * .9 + g.measureText(r.text).width, 0) + (rows.length - 1) * size * .45; };
+  while ((width = measure()) > w * .58 && size > 30) size -= 4;
+  let x = w / 2 - width / 2;
+  g.textAlign = 'left';
+  for (const { gl, text } of rows) {
+    const cr = size * .34, cx = x + cr, cy = 110;
+    if (gl.key === 'any') {
+      COLORS.forEach((c, i) => { g.fillStyle = '#' + c.toString(16).padStart(6, '0'); g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, cr, i * 2 * Math.PI / 5, (i + 1) * 2 * Math.PI / 5); g.fill(); });
+    } else { g.fillStyle = KIND[gl.key].css; g.beginPath(); g.arc(cx, cy, cr, 0, 7); g.fill(); }
+    g.fillStyle = '#2a1d40'; g.fillRect(cx - cr, cy - cr * .1, cr * 2, cr * .2);   // the band
+    if (!text && !goalLeft(gl)) {
+      g.strokeStyle = '#2a1d40'; g.lineWidth = cr * .6; g.lineCap = 'round'; g.beginPath();
+      g.moveTo(cx - cr * .5, cy); g.lineTo(cx - cr * .1, cy + cr * .45); g.lineTo(cx + cr * .6, cy - cr * .5); g.stroke();
+      g.strokeStyle = '#80ed99'; g.lineWidth = cr * .3; g.stroke();
+    }
+    g.fillStyle = goalLeft(gl) ? '#fff6e0' : '#80ed99';
+    g.fillText(text, x + size * .9, cy + 4);
+    x += size * .9 + g.measureText(text).width + size * .45;
+  }
+  g.textAlign = 'center';
   if (board.hint) { g.fillStyle = '#ffd23f'; g.font = '700 44px Kalam, cursive'; g.fillText(FREE_PLAY ? 'Mové el pad o tocá ¡BAJAR!' : 'Mové el pad o tocá ¡BAJAR! (1 ficha)', w / 2, h - 42); }
 });
 const boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(BOARD_W, BOARD_H), new THREE.MeshBasicMaterial({ map: boardTex, transparent: true }));
@@ -621,8 +704,9 @@ const colorMat = c => colorMats.get(c) || colorMats.set(c, mat(c, { roughness: .
 const GOLD_SHELL = mat(0xffd23f, { metalness: .6, roughness: .25 });
 
 // A capsule: two solid halves of one colour (gold for the rare ones) with a dark band where they meet
-function mkPrize(x, y, z) {
-  const rare = Math.random() < .12, col = COLORS[Math.random() * COLORS.length | 0];
+function mkPrize(x, y, z, kind) {
+  const rare = kind ? kind === 'gold' : Math.random() < .12;
+  const col = kind && !rare ? parseInt(kind, 16) : COLORS[Math.random() * COLORS.length | 0];
   const r = R_MIN + Math.random() * (R_MAX - R_MIN);
   const g = new THREE.Group(), shell = rare ? GOLD_SHELL : colorMat(col);
   const halves = [new THREE.Mesh(HEMI_TOP, shell), new THREE.Mesh(HEMI_BOT, shell)];
@@ -637,13 +721,33 @@ function mkPrize(x, y, z) {
   return p;
 }
 
-// Drop n prizes in from y0 up, in loose layers of a dozen so a big batch settles quickly
+// Drop n prizes in from y0 up, in loose layers of a dozen so a big batch settles quickly. The first
+// ones are the kinds the level still needs and the pile is short of (see needed), the rest are random.
 function spawn(n, y0) {
+  const kinds = needed().sort(() => Math.random() - .5);
   for (let i = 0; i < n; i++) {
     let x, z;
     do { x = (Math.random() * 2 - 1) * 1.7; z = (Math.random() * 2 - 1) * 1.2; } while (x < HOLE.x + .5 && z > HOLE.z - .5);
-    prizes.push(mkPrize(x, y0 + Math.floor(i / 12) * .75 + Math.random() * .2, z));
+    prizes.push(mkPrize(x, y0 + Math.floor(i / 12) * .75 + Math.random() * .2, z, kinds[i]));
   }
+}
+
+// The kinds the pile must get so that each one the level still needs is there with some to spare
+// (PILE_SPARE, or 1 when the goal has many kinds, to keep the pile small): one entry per prize missing
+function needed() {
+  const goal = LEVELS[level].goal, spare = goal.length > 3 ? 1 : PILE_SPARE, out = [];
+  for (const g of goal) {
+    if (g.key === 'any') continue;
+    const left = goalLeft(g), have = prizes.filter(p => p.kind === g.key).length;
+    for (let i = have; i < (left ? left + spare : 0); i++) out.push(g.key);
+  }
+  return out;
+}
+
+// Start (or retry) level i: its coins, nothing won towards it yet, and a fresh pile with what it asks for
+function startLevel(i) {
+  level = i; got = {}; clearT = null;
+  reset();
 }
 
 function reset() {
@@ -657,8 +761,8 @@ function reset() {
   setMass(claw.head, HEAD_MASS, false);
   lastSegs = null;
   resetCable();
-  state = 'idle'; coins = START_COINS; score = 0; won = 0; caught = 0;
-  spawn(PRIZE_COUNT, 1);
+  state = 'idle'; coins = LEVELS[level].coins; score = 0; won = 0; caught = 0;
+  spawn(Math.max(PRIZE_COUNT, needed().length + 3), 1);
   for (let i = 0; i < SETTLE_STEPS; i++) physics(STEP, true);   // let the pile settle before showing it
   $('over').hidden = true;
   hud();
@@ -1208,11 +1312,20 @@ function win(p) {
   // It goes into the collection, kept across games (see the gallery)
   collection[p.kind] = (collection[p.kind] || 0) + 1;
   try { localStorage.setItem(COLLECTION_KEY, JSON.stringify(collection)); } catch (e) {}
+  // And towards the level's goal. Once that is met the level is cleared (the next one unlocks), and
+  // its card comes up CLEAR_DELAY later, so the prize is seen dropping in first.
+  got[p.kind] = (got[p.kind] || 0) + 1;
+  if (clearT === null && levelMet()) {
+    clearT = CLEAR_DELAY;
+    levelsDone = Math.max(levelsDone, level + 1);
+    try { localStorage.setItem(LEVELS_KEY, levelsDone); } catch (e) {}
+  }
   sfx('win'); hud();
 }
 
 function update(dt) {
   const c = claw;
+  if (clearT !== null && state !== 'over' && (clearT -= dt) <= 0) levelCard(true);
   // Where the carriage wants to go; it only moves while aiming and on the way back
   let tx = 0, tz = 0;
   if (state === 'aim') {
@@ -1301,12 +1414,16 @@ function update(dt) {
       break;
     case 'wait':
       c.t += dt;
-      if (c.t > WAIT_TIME) {
-        if (coins > 0) {
+      if (c.t > WAIT_TIME && clearT === null) {
+        if (coins > 0 || FREE_PLAY) {
           state = 'idle';
-          if (prizes.length < RESTOCK_BELOW) spawn(PRIZE_COUNT - prizes.length, 5);   // restock from the top
-        } else gameOver();
-        hud();
+          // Restock from the top when the pile runs low or is out of a kind the level still needs
+          const miss = needed().length;
+          if (prizes.length < RESTOCK_BELOW || miss) spawn(Math.max(PRIZE_COUNT - prizes.length, miss), 5);
+          hud();
+        // Out of coins: the level is lost, once nothing is still on its way into the hole (or after
+        // LOSE_WAIT at most), so a last prize dropping in still counts
+        } else if (c.t > LOSE_WAIT || prizes.every(p => Math.hypot(p.vx, p.vy, p.vz) < .3 && !(p.x < HOLE.x && p.z > HOLE.z))) levelCard(false);
       }
       break;
   }
@@ -1329,17 +1446,33 @@ function restClose(dt) {
   if (c.open === 0) { c.closeV = 0; sfx('clack'); c.head.vy += JOLT * .6; }
 }
 
-function gameOver() {
-  state = 'over';
-  const rec = score > best;
-  if (rec) { best = score; try { localStorage.setItem(BEST_KEY, best); } catch (e) {} }
-  $('ovStats').innerHTML = `Premios: ${won}<br>Puntos: ${score}<br>${rec && score > 0 ? '¡Nuevo récord!' : 'Récord: ' + best}`;
+// A level is over: cleared (with the coins left over, and on to the next) or lost for lack of coins
+// (with what was still missing, and a retry). Either way the levels screen is a button away.
+function levelCard(cleared) {
+  state = 'over'; clearT = null; stickEnd();
+  const last = level === LEVELS.length - 1;
+  if (cleared) {
+    $('ovTitle').textContent = `¡Nivel ${level + 1} superado!`;
+    $('ovStats').textContent = last ? '¡Completaste todos los niveles!' : coins ? `Te sobraron ${coins} ficha${coins === 1 ? '' : 's'}` : '¡Justo con la última ficha!';
+    $('again').textContent = last ? 'Jugarlo de nuevo' : 'Siguiente nivel';
+    nextLevel = last ? level : level + 1;
+  } else {
+    $('ovTitle').textContent = '¡Sin fichas!';
+    $('ovStats').innerHTML = 'Te faltaron:<br>' + LEVELS[level].goal.filter(goalLeft).map(g => `<span class="goal">${capHtml(g.key)} ${goalLeft(g)}</span>`).join('');
+    $('again').textContent = 'Reintentar';
+    nextLevel = level;
+  }
+  sfx(cleared ? 'win' : 'clunk');
   $('over').hidden = false;
 }
+let nextLevel = 0;   // what the card's main button starts
+
+// A little CSS capsule of a kind ('any' is all the colours)
+const capHtml = key => key === 'any' ? '<span class="cap mini any"></span>' : `<span class="cap mini" style="--c:${KIND[key].css}"></span>`;
 
 // Update the scoreboard on the base; it is only repainted when something on it changes
 function hud() {
-  const next = { coins: FREE_PLAY ? '∞' : coins, score, time: state === 'aim' ? String(Math.ceil(aimT)) : '–', low: state === 'aim' && aimT < 5, hint: state === 'idle' };
+  const next = { coins: FREE_PLAY ? '∞' : coins, goal: level + ':' + LEVELS[level].goal.map(goalLeft).join(), time: state === 'aim' ? String(Math.ceil(aimT)) : '–', low: state === 'aim' && aimT < 5, hint: state === 'idle' };
   if (Object.keys(next).some(k => next[k] !== board[k])) { Object.assign(board, next); boardTex.repaint(); }
 }
 const hudTime = hud;
@@ -1385,11 +1518,11 @@ function dropButton() { if (state === 'idle') startRound(); else startDrop(); }
 const KEY_DIR = { ArrowLeft: 'l', a: 'l', ArrowRight: 'r', d: 'r', ArrowUp: 'u', w: 'u', ArrowDown: 'd', s: 'd' };
 addEventListener('keydown', e => {
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-  // In the gallery the keys don't play (Escape goes back to the machine)
-  if (!$('gallery').hidden) { if (k === 'Escape') closeGallery(); return; }
+  // In the gallery and the levels the keys don't play (Escape goes back to the machine)
+  if (screenOpen()) { if (k === 'Escape') { if (!$('levels').hidden) closeLevels(); else closeGallery(); } return; }
   if (k === ' ' || k === 'Enter' || KEY_DIR[k]) e.preventDefault();
   if (e.repeat) return;
-  if (state === 'over') { if (k === ' ' || k === 'Enter') reset(); return; }
+  if (state === 'over') { if (k === ' ' || k === 'Enter') $('again').click(); return; }
   if (KEY_DIR[k]) press(KEY_DIR[k]);
   else if (k === ' ' || k === 'Enter') dropButton();
 });
@@ -1435,6 +1568,7 @@ $('bd').addEventListener('pointerdown', dropButton);
 // Settings (the gear, top right): the pad can go on the right and the drop button on the left, for
 // right-handed players. Kept in localStorage. The game holds still while the panel is open.
 const SWAP_KEY = 'clawMachine.padRight';
+const CLEAR_DELAY = .9, LOSE_WAIT = 3;   // seconds: before a cleared level's card; most a lost one waits for a falling prize
 function setSwap(on) {
   document.body.classList.toggle('swap', on); $('swap').checked = on;
   try { localStorage.setItem(SWAP_KEY, on ? '1' : '0'); } catch (e) {}
@@ -1443,7 +1577,37 @@ try { setSwap(localStorage.getItem(SWAP_KEY) === '1'); } catch (e) {}
 $('swap').addEventListener('change', e => setSwap(e.target.checked));
 $('gear').addEventListener('click', () => { $('opts').hidden = false; paused = true; stickEnd(); });
 $('optsOk').addEventListener('click', () => { $('opts').hidden = true; paused = false; });
-$('again').addEventListener('click', reset);
+$('again').addEventListener('click', () => startLevel(nextLevel));
+$('ovLevels').addEventListener('click', () => { $('over').hidden = true; openLevels(); });
+
+// The levels screen (the star, top left): every level with its goal and coins, cleared ones with a
+// star, the first not cleared open to play and the rest locked. Picking one starts it (the one being
+// played just goes back to it, unless it is over). The game holds still while it is open.
+function openLevels() {
+  $('lvlSub').textContent = `Superaste ${levelsDone} de ${LEVELS.length}`;
+  $('lvlList').innerHTML = LEVELS.map((l, i) => {
+    const locked = i > levelsDone, st = i < levelsDone ? '★' : locked ? '🔒' : '▶';
+    const goal = l.goal.map(g => `<span>${capHtml(g.key)}${g.key === 'any' ? 'Cualquiera ' : ''}×${g.n}</span>`).join('');
+    return `<button class="lvl${i === level ? ' cur' : ''}${locked ? ' locked' : ''}" data-i="${i}"${locked ? ' disabled' : ''}>` +
+      `<span class="n">${i + 1}</span><span class="goal">${goal}<span class="coins">${l.coins} fichas</span></span><span class="st">${st}</span></button>`;
+  }).join('');
+  $('levels').hidden = false; paused = true; stickEnd();
+  keys.l = keys.r = keys.u = keys.d = false;
+}
+function closeLevels() {
+  $('levels').hidden = true; paused = false;
+  if (state === 'over') $('over').hidden = false;   // back to the card of the level that ended
+}
+$('lvlList').addEventListener('click', e => {
+  const b = e.target.closest('.lvl');
+  if (!b || b.disabled) return;
+  const i = +b.dataset.i;
+  if (i !== level || state === 'over') startLevel(i);
+  $('levels').hidden = true; paused = false;
+});
+$('lvlBtn').addEventListener('click', openLevels);
+$('lvlBack').addEventListener('click', closeLevels);
+const screenOpen = () => !$('gallery').hidden || !$('levels').hidden;
 
 // The gallery (the capsule button, top left): a screen of its own listing every kind of prize with how
 // many were won, from the collection. Kinds not won yet show as dark silhouettes. The game holds still
@@ -1509,7 +1673,7 @@ function frame(now) {
   const dt = Math.min(.1, (now - last) / 1000);
   last = now; acc = paused ? 0 : acc + dt;
   while (acc >= STEP) { update(STEP); physics(STEP, false); acc -= STEP; }
-  if ($('gallery').hidden) draw(now);
+  if (!screenOpen()) draw(now);
   requestAnimationFrame(frame);
 }
 
@@ -1523,7 +1687,7 @@ function draw(now) {
 }
 
 // Handle for poking at the game from the console
-window.game = { get state() { return state; }, get paused() { return paused; }, set paused(v) { paused = v; }, get claw() { return claw; }, get prizes() { return prizes; }, get score() { return score; }, startRound, startDrop, segments, cable,
+window.game = { get state() { return state; }, get paused() { return paused; }, set paused(v) { paused = v; }, get claw() { return claw; }, get prizes() { return prizes; }, get score() { return score; }, get level() { return level; }, get got() { return got; }, startLevel, startRound, startDrop, segments, cable,
   // Run n simulation steps right now, without waiting for frames (fast, repeatable tests)
   step(n = 1) { for (let i = 0; i < n; i++) { update(STEP); physics(STEP, false); } },
   // Draw the current state right now (the browser pane may not be asking for frames)
