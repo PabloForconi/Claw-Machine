@@ -18,7 +18,7 @@ To run it, open `index.html` in a browser; it needs internet for Three.js and th
 
 The pane only repaints while its tab is fronted (`tabs_select`); otherwise screenshots show a stale frame.
 
-`game.claw` is replaced on `reset()` ("Jugar de nuevo"), so read it again after a reset.
+`game.claw` is replaced on `reset()` ("Jugar de nuevo"), so read it again after a reset. With 66 capsules a round is about 900 steps (1.5 s of work), so keep test batches to about 8 rounds per browser tool call, or the call times out ("Internal error").
 
 ## How the game works
 
@@ -34,7 +34,7 @@ The pane only repaints while its tab is fronted (`tabs_select`); otherwise scree
 ### Physics
 
 `physics()` is a small rigid-body contact solver for the spheres, written by hand (no physics library), run every fixed step (`STEP`, 1/120 s). The user asked for better collisions and physics (October 2026); before it, it was plain position pushes without friction, and spheres sank up to 0.08 into each other under the claw.
-- Each step: gravity, then `findContacts()` (with `MARGIN`, so resting contacts are found every step). `solveContacts()` runs `SOLVER_ITERS` passes of normal impulses (restitution `BOUNCE` only above `BOUNCE_MIN`, gaps allowed to close but not overshoot) and Coulomb friction (`MU`) at the contact point. Then the bodies move and spin, and `separate()` runs `POS_ITERS` passes that push apart what still overlaps, without adding velocity.
+- Each step: gravity, then `findContacts()` (with `MARGIN`, so resting contacts are found every step; prize pairs come from the `prizeGrid()` neighbour grid). `solveContacts()` runs `SOLVER_ITERS` passes of normal impulses (restitution `BOUNCE` only above `BOUNCE_MIN`, gaps allowed to close but not overshoot) and Coulomb friction (`MU`) at the contact point. Then the bodies move and spin, and `separate()` runs `POS_ITERS` passes that push apart what still overlaps, without adding velocity.
 - Prizes have real mass (by volume, `setMass()`) and angular velocity (`wx, wy, wz`). Friction spins them, the mesh rotates from that, and `ROLL_DAMP` is rolling resistance, so they roll, stack and come to rest.
 - Contact kinds (`MU` and `BOUNCE` keys): `prize`, `claw`, `floor` (absent over the hole), `glass` and `wall` (the hole walls).
 - The claw head is a dynamic body (`HEAD_MASS`, no spin) and collides as its body: an upright cylinder of radius `HUB_R` from `HUB_DOWN` below the head point to `HUB_UP` above it. An earlier spherical head squirted capsules sideways out from under the claw when it landed slightly off centre.
@@ -92,6 +92,9 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
   - A finger pressing into a prize, the one under the claw included, swings up and out (`FLEX_GAIN` per unit of overlap, up to `FLEX_MAX`) until it rests on it instead of digging in.
   - It springs back at `FLEX_RETURN` only as far as it stays clear, and not while a prize slips out or the claw lets go.
   - So during the drop the fingers ride up over neighbours and the head reaches the capsule under it. When closing, the motor closes all the way (`open` → 0) and every finger ends up lying against whatever it met.
+  - While closing the motor is strong. A finger only gives way once it digs `CLOSE_GIVE` into something, so it shoves loose prizes aside instead. It springs back against prizes up to that same give, twice as fast. Once fully closed, the motor keeps squeezing for `CLOSE_HOLD` before lifting.
+    - Without this, a claw buried in a deep pile gave way to every capsule around it and finished "closed" with its fingers wider than when open (mean flex 1.06). The user saw it as the claw not closing (October 2026).
+    - Now the fingers end at about 0.14 flex, and dig at most about 0.045 into a jammed capsule.
   - `FLEX_GAIN` 6 and `FLEX_MAX` 1.1 grab best. A faster or larger give left fingers splayed too wide to cradle, roughly halving catches, though fingers then dig into neighbours a bit less (up to about 0.07 now, rarely).
 - `pickTarget()`, when closing starts, notes `claw.target`: the prize under the head (within 0.8 of its radius) whose top half the closed tips could reach.
 - `grabTarget()`, when closing is done, catches it only if it is really held, judged by `cradle()` with all fingers at one angle and the prize centred. The prize must also be within 0.8 of its radius from the axis. There are two ways to be held:
@@ -124,7 +127,11 @@ Capsule count and sizes are tuned to the claw. The user noticed small capsules e
 - Big ones squeezed out sideways: 10 of 12 grabs.
 - Between two closed fingers of three there was a gap of about 0.44–0.6, enough for a 0.58-wide capsule.
 
-Now the radius is `R_MIN`–`R_MAX` (0.29–0.32). `PRIZE_COUNT` is 22, after the user asked for more capsules; with 26 the floor is a tight carpet again. When fewer than `RESTOCK_BELOW` remain, enough fall from the top to get back to `PRIZE_COUNT`.
+Now the radius is `R_MIN`–`R_MAX` (0.29–0.32). `PRIZE_COUNT` is 66: the user asked for three times the 22 there were (October 2026).
+- They no longer fit in one layer and heap up like in a real machine: about 1.1 high on average, up to about 1.8, over the hole walls' 1.1. `spawn()` drops them in layers of a dozen. A reset settles them for `SETTLE_STEPS` (about 0.7 s of work), and now and then one tips into the hole while settling.
+- `findContacts()` uses a grid (`prizeGrid()`, cells of `CELL`) so each prize is only checked against its neighbours. A physics step takes about 1.7 ms with 66.
+- With the heap, about 30% of rounds aiming at capsules deliver one (8 catches in 24 rounds).
+- Earlier, with a single layer, 22 was the compromise and 26 made the floor a tight carpet where only tops could be pinched. When fewer than `RESTOCK_BELOW` remain, enough fall from the top to get back to `PRIZE_COUNT`.
 
 ### Scoring and the rest
 

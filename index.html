@@ -116,12 +116,15 @@ const DROP_TIME = (L_MAX - L_MIN) / DROP + DROP / (2 * WINCH_ACC), DROP_REST = .
 // it can, how fast it springs back (radians per second), and the widest a finger can ever swing
 const FLEX_GAIN = 6, FLEX_MAX = 1.1, FLEX_RETURN = 1.5, FLEX_MAX_ANGLE = 1.6;
 const HOLD_SETTLE = 6;   // how fast (per second) a caught prize slides to the middle and the fingers even out
+const CLOSE_GIVE = .03;  // while closing, how far a finger digs into a jammed prize before it gives way
+const CLOSE_HOLD = .35;  // seconds the motor keeps squeezing once fully closed, before lifting
 // Rope: velocity kept per step, link passes per step, and the sideways nudge that lets slack bow out
 const CABLE_DAMP = .995, CABLE_ITERS = 30, CABLE_NUDGE = 2e-5;
 const AIM_TIME = 15, START_COINS = 10;
 // Few enough capsules to leave gaps for the fingers, and sizes close together: a tight carpet of
 // capsules only lets the claw pinch tops, small ones sit too low to reach and big ones squeeze out
-const PRIZE_COUNT = 22, R_MIN = .29, R_MAX = .32, RESTOCK_BELOW = 10;
+const PRIZE_COUNT = 66, R_MIN = .29, R_MAX = .32, RESTOCK_BELOW = 33;
+const SETTLE_STEPS = 600;   // physics steps (5 s) run at a reset so the pile is settled when shown
 const COLORS = [0xff5d8f, 0x4cc9f0, 0x80ed99, 0xb388ff, 0xff9f43];
 // Three prongs, one at the back. (A caught prize rides in the claw, so it can't slip out through the
 // gap between two fingers, which is why there were four for a while.)
@@ -450,15 +453,21 @@ const fingersOn = (p, gap = .004) => fingers().filter(fg => fingerPenOn(fg, p) >
 // instead of digging in. So when the claw has closed, every finger lies against whatever it met.
 // It springs back as far as it can without digging into anything. (While the claw carries a prize,
 // carry() drives the fingers instead.)
+// While closing, though, the motor is strong: a finger shoves the prizes in its way aside (the
+// contact solver pushes them with the finger's own motion) and only gives way to one that is jammed
+// and that it starts to dig into (CLOSE_GIVE). Otherwise, buried in a pile, the fingers gave way to
+// every capsule around them and ended up wider than the open claw.
 function flexFingers(dt) {
-  const fl = claw.flex, now = fingers();
+  const fl = claw.flex, now = fingers(), give = state === 'close' ? CLOSE_GIVE : .002;
   for (let i = 0; i < fl.length; i++) {
     const pen = fingerPen(now[i]);
-    if (pen > .002) { fl[i] = Math.min(FLEX_MAX, fl[i] + pen * FLEX_GAIN); continue; }
+    if (pen > give) { fl[i] = Math.min(FLEX_MAX, fl[i] + (pen - give) * FLEX_GAIN); continue; }
     // No springing back while a prize slips out or the claw lets go, or it would fight the opening
     if (fl[i] <= 0 || claw.slipping || state === 'release') continue;
-    const back = fl.slice(); back[i] = Math.max(0, fl[i] - FLEX_RETURN * dt);
-    if (fingerPen(fingers(back)[i]) <= .002) fl[i] = back[i];
+    // Spring back as far as it stays clear; while closing, the motor drives it back in even against
+    // the prizes around it, up to the same give
+    const back = fl.slice(); back[i] = Math.max(0, fl[i] - FLEX_RETURN * (state === 'close' ? 2 : 1) * dt);
+    if (fingerPen(fingers(back)[i]) <= give) fl[i] = back[i];
   }
 }
 
@@ -526,11 +535,12 @@ function mkPrize(x, y, z) {
   return p;
 }
 
+// Drop n prizes in from y0 up, in loose layers of a dozen so a big batch settles quickly
 function spawn(n, y0) {
   for (let i = 0; i < n; i++) {
     let x, z;
     do { x = (Math.random() * 2 - 1) * 1.7; z = (Math.random() * 2 - 1) * 1.2; } while (x < HOLE.x + .5 && z > HOLE.z - .5);
-    prizes.push(mkPrize(x, y0 + i * .5, z));
+    prizes.push(mkPrize(x, y0 + Math.floor(i / 12) * .75 + Math.random() * .2, z));
   }
 }
 
@@ -547,7 +557,7 @@ function reset() {
   resetCable();
   state = 'idle'; coins = START_COINS; score = 0; won = 0;
   spawn(PRIZE_COUNT, 1);
-  for (let i = 0; i < 1200; i++) physics(STEP, true);   // let the pile settle before showing it
+  for (let i = 0; i < SETTLE_STEPS; i++) physics(STEP, true);   // let the pile settle before showing it
   $('over').hidden = true;
   hud();
 }
@@ -635,8 +645,21 @@ const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, 
 // held prize are part of the claw: their contacts have b = the head, so the reaction pushes the whole claw,
 // and vb is their own motion relative to the head (closing, tilting). Their velocity is the head's current
 // velocity plus that, so when a contact brakes the claw the fingers brake with it instead of pushing on.
+// Prizes sorted into a grid of cells as big as the largest pair can reach, so each prize is only
+// checked against those in its own and the neighbouring cells, not against every other prize
+const CELL = 2 * R_MAX + .06;
+const cellKey = (cx, cy, cz) => ((cx + 50) * 128 + (cy + 50)) * 128 + (cz + 50);
+function prizeGrid() {
+  const grid = new Map();
+  prizes.forEach((p, i) => {
+    const k = cellKey(Math.floor(p.x / CELL), Math.floor(p.y / CELL), Math.floor(p.z / CELL));
+    (grid.get(k) || grid.set(k, []).get(k)).push(i);
+  });
+  return grid;
+}
+
 function findContacts(segs, segVel, margin, withClaw) {
-  const out = [], h = claw.head;
+  const out = [], h = claw.head, grid = prizeGrid();
   for (let i = 0; i < prizes.length; i++) {
     const a = prizes[i];
     if (a.held) continue;
@@ -647,9 +670,10 @@ function findContacts(segs, segVel, margin, withClaw) {
       const dx = q[0] - a.x, dy = q[1] - a.y, dz = q[2] - a.z, d = Math.hypot(dx, dy, dz);
       if (d > 1e-9) add(b, dx / d, dy / d, dz / d, a.r + qr - d, kind, vb);
     };
-    for (let j = i + 1; j < prizes.length; j++) {
-      const b = prizes[j];
-      toPoint([b.x, b.y, b.z], b.r, 'prize', null, b);
+    const cx = Math.floor(a.x / CELL), cy = Math.floor(a.y / CELL), cz = Math.floor(a.z / CELL);
+    for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) for (let oz = -1; oz <= 1; oz++) {
+      const near = grid.get(cellKey(cx + ox, cy + oy, cz + oz));
+      if (near) for (const j of near) if (j > i) { const b = prizes[j]; toPoint([b.x, b.y, b.z], b.r, 'prize', null, b); }
     }
     if (withClaw) {
       // The head collides as a short upright cylinder: landing on a capsule it presses straight down
@@ -1002,9 +1026,12 @@ function update(dt) {
       break;
     case 'close': {
       // The motor closes all the way: each finger gives way against whatever it meets, prizes and the
-      // hole walls alike (see flexFingers)
+      // hole walls alike (see flexFingers). Then it keeps squeezing for CLOSE_HOLD, so fingers that
+      // had given way on the pile while landing get time to work their way back in.
       c.open = Math.max(0, c.open - dt * 2.2);
-      if (c.open <= 0) {
+      c.closedFor = c.open > 0 ? 0 : (c.closedFor || 0) + dt;
+      if (c.closedFor >= CLOSE_HOLD) {
+        c.closedFor = 0;
         grabTarget();
         if (c.held) sfx('grab');
         state = 'lift'; c.t = 0;   // the winch first reels in the slack, so the cable straightens before it pulls
