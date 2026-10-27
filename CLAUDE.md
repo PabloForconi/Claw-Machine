@@ -22,13 +22,8 @@ The pane only repaints while its tab is fronted (`tabs_select`); otherwise scree
 
 ## How the game works
 
-- World units: the glass box is x ∈ [-`BOX.x`, `BOX.x`], z ∈ [-`BOX.z`, `BOX.z`] (2.28 and 1.78; z+ is towards the camera), floor at y = 0.
-  - The prize hole (`HOLE`, `inHole()`) is a 0.9 square in the front-left corner, x from -2 to -1.1 and z from 0.6 to 1.5. It is fenced by clear walls on all four sides (`WALLS`, axis-aligned boxes), with a strip of floor between it and the glass. The claw returns to `HOME`, the hole's centre.
-  - The glass box is the smallest that lets the claw open over the hole without touching the glass: the open claw reaches about 0.69 from its axis, and `HOME` is now 0.73 from both panes. It used to be 4 x 3 with the hole right in its corner, only 0.45 from the panes, and letting go bent one or two fingers against the glass by 0.2–0.45 rad. The user saw it and asked for the glass box to be made only as much bigger as that needs (October 2026).
-  - The capsules spread over the larger floor. Measured afterwards: no finger bends when letting go, and none had come to rest on the strip round the hole.
-- The machine is built from plain boxes in the "Machine" section, all with sharp edges, and the marquee lights are little square boxes. The user asked for fewer polygons to match the claw's flat, simple look (October 2026); the base, pillars and roof used to be rounded and the lights were spheres. The capsules keep their round shape, and the shadows are unchanged.
-  - The cabinet's outer size is `CAB_W` x `CAB_D` (the glass box plus a 0.35 frame), and the base, roof, marquee, lights, scoreboard, shadow camera and `FIT_CORNERS` follow it.
-  - The floor slab is four boxes round the hole (`slab()`), and `holeIn` is a back-side box that shows the dark inside of the hole. The marquee and the scoreboard are canvas textures, repainted once Kalam loads.
+- World units: the glass box is x ∈ [-2, 2], z ∈ [-1.5, 1.5] (z+ is towards the camera), floor at y = 0. The prize hole is the front-left corner (`HOLE`: x < -1.1 and z > 0.6), fenced by two clear walls (`WALLS`, axis-aligned boxes). The claw returns to `HOME`, the centre of the hole.
+- The machine is built from plain boxes in the "Machine" section, all with sharp edges, and the marquee lights are little square boxes. The user asked for fewer polygons to match the claw's flat, simple look (October 2026); the base, pillars and roof used to be rounded and the lights were spheres. The capsules keep their round shape, and the shadows are unchanged. the floor slab is two boxes forming an L so the hole stays open, and `holeIn` is a back-side box that shows the dark inside of the hole. The marquee and the scoreboard are canvas textures, repainted once Kalam loads.
 - Screen layout (the user asked for more view of the game, October 2026):
   - There is no HTML HUD at the top. Coins, points, time and the idle hint are a scoreboard on the front of the machine's base (`board`, `boardTex`, where a "PREMIOS" door label used to be). `hud()` repaints it only when a value changes. Only the controls and the game-over card are HTML.
   - The marquee is a thin strip (`MARQUEE_H`).
@@ -78,23 +73,7 @@ The user asked for physically based motion when the claw brakes, drops, etc.
   - Landing on a wall's top edge rests the claw there.
   - The claw always closes fully. A finger that runs into a wall gives way against it like against a prize: `fingerPen()` includes `fingerWallPen()`, sampled along the finger. Earlier, the whole claw stopped closing as soon as a finger would touch a wall, and rose open; the user asked for it to close anyway (October 2026).
   - The open claw is wider than the hole, so it can't drop into it.
-  - The cabinet's four sides (the wallpapered back, the side and front glass) work the same way for the claw. `CLAW_WALLS` adds them, as thick boxes just outside the play area, to the hole walls for `clawWallPush()` and `fingerWallPen()`. The capsules keep their own `glass` contacts.
-    - Before, only the head was clamped, 0.3 inside, and the open fingers reach about 0.6 out from it. They went through the back wall, which the user noticed (October 2026).
-    - Now no finger gets more than about 5 mm past a wall, and the claw still catches capsules lying against the walls and in the corners.
-    - The head clamp (`BOX - 0.3` in `swingHead()`) is still there as a backstop.
-  - The claw is closed at the top and opens on the way down (`OPEN_RATE`). After letting go it closes again (`restClose()`, in `wait`, `idle` and `aim`).
-  - Letting go is mechanical, as the user asked (October 2026), instead of a steady soft open and close.
-    - The motor speeds up (`RELEASE_ACC`) to `RELEASE_SPEED` and opens in about 0.35 s. The fingers hit their stop with a clunk, and `JOLT` kicks the head up on its cable, about 3 cm.
-    - It stays open `OPEN_HOLD` (0.5 s), then shuts like the grab: it speeds up to `CLOSE_SPEED` in about 0.3 s and stops with a clack and a smaller jolt. A short motor whine (`sfx('motor')`) starts each move.
-    - The next round can start during the hold; a drop opens the claw again.
-    - The carriage's travel (`LIMIT`) keeps the closed claw, hanging straight, clear of the sides with room to swing on when the carriage stops (`CLOSED_REACH` + 0.08).
-    - The user asked for this (October 2026). The claw used to hang open at the top, about 0.6 wide, and travel to 0.3 from the walls. Once the walls were solid, they pushed it in while the carriage stayed out, so it hung tilted at the edges.
-  - Against the cabinet's sides, an open finger bends instead of shoving the whole claw away. So a claw opening next to a wall comes down straight; shoved by its fingers, it was pushed up to 0.35 off its carriage.
-    - `flexFingers()` bends a finger touching a wall whichever way gets it out. That is in (a negative flex, at most back to closed) against a wall beside it, or up and out on the hole walls' top edge. Swinging out against a side wall only drove the finger further in, up to `FLEX_MAX`.
-    - A finger that can't bend (claw closed or shut, bent all the way in, or carrying, which includes letting go over the hole) pushes the claw in `clawWallPush()` like the rest of it.
-    - Walls don't get the firm grip's `CLOSE_GIVE` in `fingerPen()`: a finger gives way as soon as it touches one.
-  - Measured in every corner and along the sides: the claw hangs straight at rest at the edges, tilts at most about 2 cm coming down by a wall and about 4 cm letting go over the hole, and no finger gets more than about 4 cm past a wall.
-  - Deliveries were unchanged: 5 of 20 rounds, against 6 of 30 for the version just before.
+  - The glass box walls still only clamp the head.
 
 ### Fingers and grabbing
 

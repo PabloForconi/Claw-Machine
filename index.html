@@ -68,34 +68,17 @@
 <script type="module">
 import * as THREE from 'three';
 
-// World units: the glass box is 2 * BOX.x wide (x), 2 * BOX.z deep (z), the floor is y = 0.
-// The prize hole sits in the front-left corner: x from HOLE.x0 to HOLE.x, z from HOLE.z to HOLE.z1,
-// a 0.9 square fenced by clear walls on all four sides, with a strip of floor between it and the glass.
-// The glass box is just big enough for the claw to open over the hole without touching the glass: the
-// open claw reaches about 0.69 from its axis. It was 4 x 3 with the hole right in its corner, 0.45 from
-// both panes, so letting go bent the fingers against them (the user saw it, October 2026).
-const BOX = { x: 2.28, z: 1.78 };
-const HOLE = { x0: -2, x: -1.1, z: 0.6, z1: 1.5 };
-const inHole = (x, z) => x > HOLE.x0 && x < HOLE.x && z > HOLE.z && z < HOLE.z1;
+// World units: the glass box is 4 wide (x), 3 deep (z), the floor is y = 0.
+// The prize hole is the front-left corner: x < HOLE.x and z > HOLE.z.
+const BOX = { x: 2, z: 1.5 };
+const HOLE = { x: -1.1, z: 0.6 };
 const HOLE_WALL_H = 1.1;
 const WALLS = [   // the clear walls around the hole, as boxes
-  { min: [HOLE.x - .03, 0, HOLE.z - .03], max: [HOLE.x + .03, HOLE_WALL_H, HOLE.z1 + .03] },
-  { min: [HOLE.x0 - .03, 0, HOLE.z - .03], max: [HOLE.x + .03, HOLE_WALL_H, HOLE.z + .03] },
-  { min: [HOLE.x0 - .03, 0, HOLE.z - .03], max: [HOLE.x0 + .03, HOLE_WALL_H, HOLE.z1 + .03] },
-  { min: [HOLE.x0 - .03, 0, HOLE.z1 - .03], max: [HOLE.x + .03, HOLE_WALL_H, HOLE.z1 + .03] },
+  { min: [HOLE.x - .03, 0, HOLE.z - .03], max: [HOLE.x + .03, HOLE_WALL_H, BOX.z] },
+  { min: [-BOX.x, 0, HOLE.z - .03], max: [HOLE.x + .03, HOLE_WALL_H, HOLE.z + .03] },
 ];
-// What the claw runs into: the hole walls, plus the cabinet's four sides (the wallpapered back, the
-// side and front glass) as thick boxes just outside the play area. The claw bumps off them as one body
-// and its fingers bend against them, like against the hole walls. Before, only the head was held 0.3
-// inside, so the open fingers (up to about 0.6 out) went through the back wall (October 2026).
-// The capsules have their own glass contacts (see findContacts).
-const CLAW_WALLS = [...WALLS,
-  { min: [-BOX.x - 1, -1, -BOX.z - 1], max: [BOX.x + 1, 6, -BOX.z] },
-  { min: [-BOX.x - 1, -1, BOX.z], max: [BOX.x + 1, 6, BOX.z + 1] },
-  { min: [-BOX.x - 1, -1, -BOX.z - 1], max: [-BOX.x, 6, BOX.z + 1] },
-  { min: [BOX.x, -1, -BOX.z - 1], max: [BOX.x + 1, 6, BOX.z + 1] },
-];
-const HOME = { x: (HOLE.x0 + HOLE.x) / 2, z: (HOLE.z + HOLE.z1) / 2 };
+const HOME = { x: (-BOX.x + HOLE.x) / 2, z: (HOLE.z + BOX.z) / 2 };
+const LIMIT = { x: 1.7, z: 1.2 };
 // The claw's body is a small rounded box around the head point, like the carriage: HUB_R out to its
 // sides, from HUB_DOWN below the head point to HUB_UP above it, and it collides as a cylinder that
 // size. The cable hooks onto its top (HOOK_UP), and the fingers hinge at its bottom edge (PIVOT_R
@@ -109,16 +92,7 @@ const PIVOT_R = .15, PIVOT_DOWN = .12, CLOSED_TIP_DOWN = PIVOT_DOWN + FINGER_SHA
 // reaches, open or closed
 const OPEN_ANGLE = .5;
 const FINGER_REACH = PIVOT_DOWN + Math.max(...FINGER_SHAPE.flatMap(([u, d]) => [d, -u * Math.sin(OPEN_ANGLE) + d * Math.cos(OPEN_ANGLE)]));
-const FINGER_R = .045;   // collision radius of a finger (about half its width)
-// The claw is closed at the top and only opens on the way down (OPEN_RATE, open-fractions per second);
-// after letting go it closes again (see restClose). The carriage's travel (LIMIT) keeps the closed claw,
-// hanging straight, just clear of the cabinet's sides. It used to hang open at the top, about 0.6 wide
-// from its axis, and travel to 0.3 from the walls: the wall pushed it in while the carriage stayed out,
-// so it hung tilted at the edges (October 2026).
-const OPEN_RATE = 2.5;
-const CLOSED_REACH = PIVOT_R + Math.max(...FINGER_SHAPE.map(([u]) => u)) + FINGER_R;
-// (with room for the claw to swing on a bit when the carriage stops at the limit)
-const LIMIT = { x: BOX.x - CLOSED_REACH - .08, z: BOX.z - CLOSED_REACH - .08 };const CARRIAGE_Y = 4.3, HEAD0 = CARRIAGE_Y - HOOK_UP - .12;   // at the top the hook sits just under the carriage
+const CARRIAGE_Y = 4.3, HEAD0 = CARRIAGE_Y - HOOK_UP - .12;   // at the top the hook sits just under the carriage
 const G = 14, STEP = 1 / 120;
 const MOVE = 1.6, DROP = 2.2, LIFT = 1.8;
 // Claw dynamics: the carriage accelerates and brakes, the winch ramps up, and the head is a
@@ -147,10 +121,6 @@ const WOBBLE = { k: 30, c: 4, side: .025, up: .05, bounce: .5, floorK: 6000, flo
 // The closing motor speeds up (CLOSE_ACC, in open-fractions per second²) to CLOSE_SPEED, so the claw
 // shuts with a snap rather than easing in
 const CLOSE_SPEED = 5, CLOSE_ACC = 22;
-// Letting go over the hole is mechanical too (the user asked, October 2026): the motor speeds up to
-// RELEASE_SPEED and the fingers hit their stop with a clunk and a jolt (JOLT, an upward kick to the
-// head on its cable), it stays open OPEN_HOLD seconds, then shuts like the grab, with a clack
-const RELEASE_SPEED = 4, RELEASE_ACC = 16, OPEN_HOLD = .5, JOLT = .9;
 const CLOSE_GIVE = .03;  // while closing, how far a finger digs into a jammed prize before it gives way
 const CLOSE_HOLD = .35;  // seconds the motor keeps squeezing once fully closed, before lifting
 // Rope: velocity kept per step, link passes per step, and the sideways nudge that lets slack bow out
@@ -205,7 +175,7 @@ const top = new THREE.DirectionalLight(0xffffff, 1.6);
 top.position.set(0, 10, 0.001);
 top.castShadow = true;
 top.shadow.mapSize.set(2048, 2048);
-Object.assign(top.shadow.camera, { left: -BOX.x - .6, right: BOX.x + .6, top: BOX.z + .7, bottom: -BOX.z - .7, near: 1, far: 14 });
+Object.assign(top.shadow.camera, { left: -2.6, right: 2.6, top: 2.2, bottom: -2.2, near: 1, far: 14 });
 top.shadow.bias = -0.0005;
 scene.add(top);
 const glow = new THREE.PointLight(0xffc0e0, 6, 8, 1.5);
@@ -246,21 +216,16 @@ const dots = (bg) => {
 // Floor slab with the hole cut out: two boxes forming an L, plus thick rims all round
 const floorTex = dots('#5a43a0'); floorTex.repeat.set(6, 4.5);
 const FLOOR = mat(0xffffff, { map: floorTex });
-// (the cabinet's outer size: the glass box plus its 0.35 frame all round)
-const CAB_W = BOX.x * 2 + .7, CAB_D = BOX.z * 2 + .7;
-// The floor slab with the hole cut out: four boxes, the hole's sides to the right, behind, left and in front
-const slab = (x0, x1, z0, z1) => { box(x1 - x0, .6, z1 - z0, FLOOR, (x0 + x1) / 2, -.3, (z0 + z1) / 2).receiveShadow = true; };
-slab(HOLE.x, BOX.x, -BOX.z, BOX.z);
-slab(-BOX.x, HOLE.x, -BOX.z, HOLE.z);
-slab(-BOX.x, HOLE.x0, HOLE.z, BOX.z);
-slab(HOLE.x0, HOLE.x, HOLE.z1, BOX.z);
-box(CAB_W, .62, .35, PINK, 0, -.29, BOX.z + .175);
-box(CAB_W, .62, .35, PINK, 0, -.29, -BOX.z - .175);
-box(.35, .62, CAB_D, PINK, BOX.x + .175, -.29, 0);
-box(.35, .62, CAB_D, PINK, -BOX.x - .175, -.29, 0);
-const holeIn = box(HOLE.x - HOLE.x0 - .02, .6, HOLE.z1 - HOLE.z - .02, new THREE.MeshStandardMaterial({ color: 0x120a20, side: THREE.BackSide }), HOME.x, -.3, HOME.z);
+const slabA = box(BOX.x - HOLE.x, .6, BOX.z * 2, FLOOR, (HOLE.x + BOX.x) / 2, -.3, 0);
+const slabB = box(HOLE.x + BOX.x, .6, HOLE.z + BOX.z, FLOOR, (HOLE.x - BOX.x) / 2, -.3, (HOLE.z - BOX.z) / 2);
+slabA.receiveShadow = slabB.receiveShadow = true;
+box(4.7, .62, .35, PINK, 0, -.29, BOX.z + .175);
+box(4.7, .62, .35, PINK, 0, -.29, -BOX.z - .175);
+box(.35, .62, 3.7, PINK, BOX.x + .175, -.29, 0);
+box(.35, .62, 3.7, PINK, -BOX.x - .175, -.29, 0);
+const holeIn = box(.88, .6, .88, new THREE.MeshStandardMaterial({ color: 0x120a20, side: THREE.BackSide }), HOME.x, -.3, HOME.z);
 holeIn.receiveShadow = true;
-box(CAB_W, 1.1, CAB_D, PINK, 0, -1.15, 0);
+box(4.7, 1.1, 3.7, PINK, 0, -1.15, 0);
 
 // Scoreboard on the front of the base: coins, points, time, and the hint while idle. It is part of the
 // machine (a canvas texture, repainted by hud() when something changes) so the screen above is all game.
@@ -279,11 +244,11 @@ const boardTex = canvasTex(1024, Math.round(1024 * BOARD_H / BOARD_W), (g, w, h)
   if (board.hint) { g.fillStyle = '#ffd23f'; g.font = '700 44px Kalam, cursive'; g.fillText(FREE_PLAY ? 'Tocá las flechas o ¡BAJAR!' : 'Tocá las flechas o ¡BAJAR! (1 ficha)', w / 2, h - 42); }
 });
 const boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(BOARD_W, BOARD_H), new THREE.MeshBasicMaterial({ map: boardTex, transparent: true }));
-boardMesh.position.set(0, -1.15, CAB_D / 2 + .01); scene.add(boardMesh);
+boardMesh.position.set(0, -1.15, 1.86); scene.add(boardMesh);
 
 // Pillars, roof, back wall, glass
 for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(.35, 4.6, .35, PINK, sx * (BOX.x + .175), 2.3, sz * (BOX.z + .175));
-box(CAB_W, .3, CAB_D, PINK, 0, 4.75, 0);
+box(4.7, .3, 3.7, PINK, 0, 4.75, 0);
 const backTex = dots('#2e2058'); backTex.repeat.set(6, 7);
 const back = new THREE.Mesh(new THREE.PlaneGeometry(BOX.x * 2, 4.6), mat(0xffffff, { map: backTex }));
 back.position.set(0, 2.3, -BOX.z); back.receiveShadow = true; scene.add(back);
@@ -304,20 +269,20 @@ for (const w of WALLS) {
 
 // Marquee with chasing bulbs: a thin strip on the roof (MARQUEE_H tall), so there is more room for the game
 const MARQUEE_H = .5, MARQUEE_Y = 4.9 + MARQUEE_H / 2;
-const marqueeTex = canvasTex(1024, Math.round(1024 * MARQUEE_H / CAB_W), (g, w, h) => {
+const marqueeTex = canvasTex(1024, Math.round(1024 * MARQUEE_H / 4.7), (g, w, h) => {
   g.fillStyle = '#3a1f6b'; g.fillRect(0, 0, w, h);
   g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .72)}px Kalam, cursive`;
   g.lineWidth = 10; g.strokeStyle = '#8a1f48'; g.strokeText('CLAW MACHINE', w / 2, h / 2 + 5);
   g.fillStyle = '#ffd23f'; g.fillText('CLAW MACHINE', w / 2, h / 2 + 5);
 });
 document.fonts.load('700 120px Kalam').then(() => { marqueeTex.repaint(); boardTex.repaint(); }).catch(() => {});
-box(CAB_W, MARQUEE_H, .3, [PINK, PINK, PINK, PINK, new THREE.MeshBasicMaterial({ map: marqueeTex }), PINK], 0, MARQUEE_Y, BOX.z + .2);
+box(4.7, MARQUEE_H, .3, [PINK, PINK, PINK, PINK, new THREE.MeshBasicMaterial({ map: marqueeTex }), PINK], 0, MARQUEE_Y, BOX.z + .2);
 const bulbs = [];
 const BULB_ON = new THREE.MeshBasicMaterial({ color: 0xfff3b0 }), BULB_OFF = new THREE.MeshBasicMaterial({ color: 0x8a6a2a });
 const BULB_GEO = new THREE.BoxGeometry(.075, .075, .04);   // little square lights, like the rest of the machine
 for (let i = 0; i < 22; i++) for (const y of [MARQUEE_Y - MARQUEE_H / 2 + .02, MARQUEE_Y + MARQUEE_H / 2 - .02]) {
   const b = new THREE.Mesh(BULB_GEO, BULB_OFF);
-  b.position.set(-CAB_W / 2 + .15 + i * (CAB_W - .3) / 21, y, BOX.z + .37); scene.add(b); bulbs.push([b, i]);
+  b.position.set(-2.2 + i * 4.4 / 21, y, BOX.z + .37); scene.add(b); bulbs.push([b, i]);
 }
 
 // Room floor
@@ -470,21 +435,20 @@ function fingerPenOn(fg, p) {
 }
 
 // How deep a finger digs into the prizes it isn't holding
-// ...and into the walls (the hole's and the cabinet's), so a finger gives way against them too instead
-// of the whole claw stopping short of closing. A wall doesn't get the firm grip's CLOSE_GIVE: a finger
-// gives way as soon as it touches one rather than digging 3 cm into it (it can't shove a wall aside).
+// ...and into the hole's clear walls, so a finger gives way against them too instead of the whole claw
+// stopping short of closing
 function fingerPen(fg) {
   let m = 0;
   for (const p of prizes) if (p !== claw.held) m = Math.max(m, fingerPenOn(fg, p));
-  return Math.max(m, fingerWallPen(fg) + (gripFirm() ? CLOSE_GIVE : 0));
+  return Math.max(m, fingerWallPen(fg));
 }
 
-// How deep a finger digs into the walls, sampled along its parts
+// How deep a finger digs into the hole walls, sampled along its parts
 function fingerWallPen(fg) {
   let m = 0;
   for (const [a, b] of fingerRods(fg)) for (let i = 0; i <= 6; i++) {
     const q = lerp3(a, b, i / 6);
-    for (const w of CLAW_WALLS) {
+    for (const w of WALLS) {
       const c = q.map((v, k) => clamp(v, w.min[k], w.max[k])), d = Math.hypot(q[0] - c[0], q[1] - c[1], q[2] - c[2]);
       // Inside the wall: as deep as the nearest face
       const inside = d === 0 ? Math.min(...[0, 1, 2].map(k => Math.min(q[k] - w.min[k], w.max[k] - q[k]))) : 0;
@@ -517,42 +481,22 @@ const gripFirm = () => ['close', 'lift', 'return', 'settle'].includes(state) || 
 // than one finger snapping open on its own.
 // Once closed (lift, return, settle) the claw stays shut until it lets go, as the user asked: no
 // finger gives way any more, the prizes in the way are pushed aside (see carry).
-const fingersShut = () => ['lift', 'return', 'settle'].includes(state);
-// Against a wall a finger bends whichever way gets it out: up and out off the hole walls' top edge,
-// but in (a negative flex, at most back to closed) against a wall beside it, such as a cabinet side
-// it is opening towards. Swinging out against a side wall only drove it further in, up to FLEX_MAX.
 function flexFingers(dt) {
   const fl = claw.flex, now = fingers(), firm = gripFirm(), give = firm ? CLOSE_GIVE : .002;
-  const shut = fingersShut(), least = -claw.open * OPEN_ANGLE, step = FLEX_RATE * dt;
+  const shut = ['lift', 'return', 'settle'].includes(state);
   for (let i = 0; i < fl.length; i++) {
-    fl[i] = Math.max(least, fl[i]);
     const pen = fingerPen(now[i]);
-    if (pen > give) {
-      if (shut) continue;
-      if (fingerWallPen(now[i]) > 0) {
-        const up = fl.slice(), dn = fl.slice();
-        up[i] = Math.min(FLEX_MAX, fl[i] + step); dn[i] = Math.max(least, fl[i] - step);
-        fl[i] = fingerPen(fingers(dn)[i]) < fingerPen(fingers(up)[i]) ? dn[i] : up[i];
-      } else fl[i] = Math.min(FLEX_MAX, fl[i] + Math.min((pen - give) * FLEX_GAIN, step));
-      continue;
-    }
-    // Held in by a wall: back out towards the motor's angle as far as it stays clear
-    if (fl[i] < 0) {
-      const back = fl.slice(); back[i] = Math.min(0, fl[i] + FLEX_RETURN * dt);
-      if (fingerPen(fingers(back)[i]) <= give) fl[i] = back[i];
-      continue;
-    }
+    if (pen > give) { if (!shut) fl[i] = Math.min(FLEX_MAX, fl[i] + Math.min((pen - give) * FLEX_GAIN, FLEX_RATE * dt)); continue; }
     // No springing back while a prize slips out or the claw lets go, or it would fight the opening
-    if (fl[i] === 0 || claw.slipping || state === 'release') continue;
+    if (fl[i] <= 0 || claw.slipping || state === 'release') continue;
     // Spring back as far as it stays clear; with a firm grip the motor drives it back in even
     // against the prizes around it, up to the same give
     const back = fl.slice(); back[i] = Math.max(0, fl[i] - FLEX_RETURN * (firm ? 2 : 1) * dt);
     if (fingerPen(fingers(back)[i]) <= give) fl[i] = back[i];
   }
   if (state === 'drop') {
-    // (a finger held in by a wall isn't pulled back out into it)
     const top = Math.max(...fl);
-    for (let i = 0; i < fl.length; i++) if (fl[i] >= 0) fl[i] = Math.max(fl[i], top * FLEX_LINK);
+    for (let i = 0; i < fl.length; i++) fl[i] = Math.max(fl[i], top * FLEX_LINK);
   }
 }
 
@@ -615,7 +559,7 @@ function mkPrize(x, y, z) {
 function spawn(n, y0) {
   for (let i = 0; i < n; i++) {
     let x, z;
-    do { x = (Math.random() * 2 - 1) * (BOX.x - .3); z = (Math.random() * 2 - 1) * (BOX.z - .3); } while (x < HOLE.x + .5 && z > HOLE.z - .5);
+    do { x = (Math.random() * 2 - 1) * 1.7; z = (Math.random() * 2 - 1) * 1.2; } while (x < HOLE.x + .5 && z > HOLE.z - .5);
     prizes.push(mkPrize(x, y0 + Math.floor(i / 12) * .75 + Math.random() * .2, z));
   }
 }
@@ -625,7 +569,7 @@ function reset() {
   prizes = [];
   // x, z, vx, vz: the carriage; len: cable paid out; winch: its current speed; head: the hanging claw
   claw = {
-    x: HOME.x, z: HOME.z, vx: 0, vz: 0, len: L_MIN, winch: 0, dist: L_MIN, open: 0, flex: FINGER_ANGLES.map(() => 0), held: null, q: 0, t: 0,
+    x: HOME.x, z: HOME.z, vx: 0, vz: 0, len: L_MIN, winch: 0, dist: L_MIN, open: 1, flex: FINGER_ANGLES.map(() => 0), held: null, q: 0, t: 0,
     head: { x: HOME.x, y: CARRIAGE_Y - L_MIN, z: HOME.z, vx: 0, vy: 0, vz: 0, r: HUB_R },
   };
   setMass(claw.head, HEAD_MASS, false);
@@ -640,6 +584,8 @@ function reset() {
 
 // ---------- Physics: spheres with gravity, walls, the hole walls and the claw fingers as kinematic segments ----------
 
+const FINGER_R = .045;   // collision radius of a finger (about half its width)
+
 // The two segments of each finger, pivot → knee and knee → tip
 function segments() {
   const out = [];
@@ -650,24 +596,16 @@ function segments() {
 const closestOnSeg = (p, a, b) => lerp3(a, b, segParam(p, a, b));
 
 // The push that gets the whole claw (head, sampled finger segments and a held prize) out of the
-// hole's clear walls and the cabinet's sides (CLAW_WALLS). The claw is rigid, so every point moves by
-// the same push. Against the cabinet's sides the fingers don't push the claw while they can still give
-// way: they bend against the side instead (flexFingers), so a claw opening by a wall comes down
-// straight. Pushed by its fingers, it was shoved up to 0.35 off its carriage and came down tilted.
+// hole's clear walls. The claw is rigid, so every point moves by the same push.
 function clawWallPush() {
-  const h = claw.head, fr = clawFrame(), pts = [-HUB_DOWN + h.r, HUB_UP - h.r].map(up => [...clawPoint(fr, 0, 0, up), h.r, false]);
-  // A finger can bend in against a side while it is open past closed and the claw isn't shut or
-  // carrying (carry drives the fingers then, letting go over the hole included); otherwise (closed,
-  // or bent all the way in) it pushes the claw like the rest of it
-  const least = -claw.open * OPEN_ANGLE, stiff = fingersShut() || !!claw.held;
-  fingers().forEach((fg, fi) => {
-    const bends = !stiff && claw.flex[fi] > least + 1e-3;
-    for (const [a, b] of fingerRods(fg)) for (let i = 0; i <= 6; i++) pts.push([...lerp3(a, b, i / 6), FINGER_R, bends]);
-  });
-  if (claw.held) pts.push([claw.held.x, claw.held.y, claw.held.z, claw.held.r, false]);
+  const h = claw.head, fr = clawFrame(), pts = [-HUB_DOWN + h.r, HUB_UP - h.r].map(up => [...clawPoint(fr, 0, 0, up), h.r]);
+  for (const [a, b] of segments()) for (let i = 0; i <= 6; i++) {
+    const t = i / 6;
+    pts.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, FINGER_R]);
+  }
+  if (claw.held) pts.push([claw.held.x, claw.held.y, claw.held.z, claw.held.r]);
   const s = [0, 0, 0];
-  CLAW_WALLS.forEach((w, wi) => { for (const [x0, y0, z0, r, bends] of pts) {
-    if (bends && wi >= WALLS.length) continue;
+  for (const w of WALLS) for (const [x0, y0, z0, r] of pts) {
     const p = [x0 + s[0], y0 + s[1], z0 + s[2]];
     const q = p.map((v, i) => clamp(v, w.min[i], w.max[i]));
     const d = Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
@@ -680,7 +618,7 @@ function clawWallPush() {
       if (dist < best) { best = dist; axis = i; dir = sg; }
     }
     s[axis] += dir * best;
-  } });
+  }
   return s;
 }
 
@@ -771,7 +709,7 @@ function findContacts(segs, segVel, margin, withClaw) {
         toPoint(lerp3(s0, s1, t), FINGER_R, 'claw', segVel ? lerp3(segVel[k][0], segVel[k][1], t) : ZERO, h);
       });
     }
-    if (!inHole(a.x, a.z)) add(null, 0, -1, 0, a.r - a.y, 'floor', ZERO);   // no floor over the hole
+    if (!(a.x < HOLE.x && a.z > HOLE.z)) add(null, 0, -1, 0, a.r - a.y, 'floor', ZERO);   // no floor over the hole
     add(null, -1, 0, 0, a.r - (a.x + BOX.x), 'glass', ZERO);
     add(null, 1, 0, 0, a.r - (BOX.x - a.x), 'glass', ZERO);
     add(null, 0, 0, -1, a.r - (a.z + BOX.z), 'glass', ZERO);
@@ -1087,8 +1025,7 @@ function swingHead(dt) {
   // over the round tops of the capsules under its fingers
   if (state === 'drop' && c.landed) { [h.x, h.z] = c.landed; h.vx = c.vx; h.vz = c.vz; }
   if (h.y < HEAD_MIN_Y) { h.y = HEAD_MIN_Y; if (h.vy < 0) h.vy *= -.2; h.vx *= .9; h.vz *= .9; }
-  // The walls stop the claw: it rests on the hole walls' top edge or slides off their sides, and it
-  // bumps off the cabinet's sides
+  // The hole walls stop the claw: it rests on their top edge or slides off their sides
   const s = clawWallPush(), sl = Math.hypot(...s);
   if (sl > 0) c.touching = true;
   if (sl > 0) {
@@ -1134,18 +1071,6 @@ function win(p) {
   sfx('win'); hud();
 }
 
-// After letting go the claw stays open for OPEN_HOLD, then the motor shuts it the way it grabs: it
-// speeds up to CLOSE_SPEED and stops with a clack and a jolt. (It used to start closing at once, at
-// a steady rate, which felt soft.) The next round can start meanwhile; a drop opens it again.
-function restClose(dt) {
-  const c = claw;
-  if (c.open <= 0 || (c.shutIn = (c.shutIn || 0) - dt) > 0) return;
-  if (!c.closeV) sfx('motor');
-  c.closeV = Math.min(CLOSE_SPEED, (c.closeV || 0) + CLOSE_ACC * dt);
-  c.open = Math.max(0, c.open - c.closeV * dt);
-  if (c.open === 0) { c.closeV = 0; sfx('clack'); c.head.vy += JOLT * .6; }
-}
-
 function update(dt) {
   const c = claw;
   // Where the carriage wants to go; it only moves while aiming and on the way back
@@ -1172,7 +1097,6 @@ function update(dt) {
       // pushes prizes aside (held in place sideways once landed, see swingHead). The winch keeps
       // letting out up to DROP_SLACK of loose cable, which bows out above the claw.
       c.t += dt;
-      c.open = Math.min(1, c.open + OPEN_RATE * dt);   // it opens as it starts down (closed at the top)
       c.winch = Math.min(DROP, c.winch + WINCH_ACC * dt);
       c.len = Math.min(L_MAX, c.len + c.winch * dt, c.dist + DROP_SLACK);
       // Landed means the cable is slack because the claw rests on something it touches. Slack alone
@@ -1216,14 +1140,13 @@ function update(dt) {
       // in the claw there is nothing to drop straight, so it opens right away
       c.t += dt; slip(dt);
       const h = c.head;
-      if (!c.held || Math.hypot(h.x - c.x, h.z - c.z) < .05 && Math.hypot(h.vx, h.vz) < .25 || c.t > 1) { state = 'release'; c.openV = 0; sfx('motor'); }
+      if (!c.held || Math.hypot(h.x - c.x, h.z - c.z) < .05 && Math.hypot(h.vx, h.vz) < .25 || c.t > 1) state = 'release';
       break;
     }
     case 'release':
       c.slipping = null;
-      c.openV = Math.min(RELEASE_SPEED, c.openV + RELEASE_ACC * dt);
-      loosen(dt, c.openV);
-      if (c.open >= 1) { state = 'wait'; c.t = 0; c.shutIn = OPEN_HOLD; c.closeV = 0; sfx('clunk'); c.head.vy += JOLT; }
+      loosen(dt, 2);
+      if (c.open >= 1) { state = 'wait'; c.t = 0; }
       break;
     case 'wait':
       c.t += dt;
@@ -1236,8 +1159,6 @@ function update(dt) {
       }
       break;
   }
-  // Empty and done, it closes again, so it is shut at the top for the next round (see LIMIT)
-  if (state === 'wait' || state === 'idle' || state === 'aim') restClose(dt);
   c.dist = swingHead(dt);
   cableStep(dt);
   if (c.held) carry(dt); else flexFingers(dt);
@@ -1278,8 +1199,6 @@ function sfx(name) {
       case 'drop': tone(600, 200, .6, 'triangle', .08); break;
       case 'clank': tone(180, 90, .12, 'square', .07); break;
       case 'clack': tone(320, 140, .07, 'square', .08); tone(90, 60, .1, 'triangle', .1); break;
-      case 'clunk': tone(200, 90, .09, 'square', .08); tone(70, 45, .14, 'triangle', .12); break;
-      case 'motor': tone(110, 170, .3, 'sawtooth', .025); break;
       case 'grab': tone(400, 800, .12, 'triangle', .08); break;
       case 'slip': tone(220, 80, .3, 'sawtooth', .05); break;
       case 'win': [523, 659, 784, 1047].forEach((f, i) => tone(f, 0, .18, 'square', .05, i * .09)); break;
@@ -1327,7 +1246,7 @@ addEventListener('blur', () => { keys.l = keys.r = keys.u = keys.d = false; });
 // in that gap. The scoreboard is on the machine itself, so nothing takes room at the top. On wide
 // screens the controls sit in the bottom corners, beside the machine, so they take no height.
 const FIT_CORNERS = [];
-for (const x of [-1, 1]) for (const y of [-1.72, 5.45]) for (const z of [-1, 1]) FIT_CORNERS.push(new THREE.Vector3(x * (CAB_W / 2 + .05), y, z * (CAB_D / 2 + .05)));
+for (const x of [-2.4, 2.4]) for (const y of [-1.72, 5.45]) for (const z of [-1.9, 1.9]) FIT_CORNERS.push(new THREE.Vector3(x, y, z));
 function fit() {
   const w = innerWidth, h = innerHeight, wide = w / h > 1.2;
   document.body.classList.toggle('wide', wide);
