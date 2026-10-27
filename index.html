@@ -114,6 +114,14 @@ const FLEX_GAIN = 6, FLEX_MAX = 1.1, FLEX_RETURN = 1.5, FLEX_MAX_ANGLE = 1.6;
 // finger's give the others follow while the claw comes down (see flexFingers)
 const FLEX_RATE = 1.8, FLEX_LINK = .8;
 const HOLD_SETTLE = 6;   // how fast (per second) a caught prize slides to the middle and the fingers even out
+// How a caught prize moves about inside the claw (see wobble): restoring spring and damping (per
+// second), how far it can go sideways and up, how much of its speed it keeps when it bounces off the
+// sides or the box, and its springy contact with the fingers under it (stiffness, damping, and the
+// deepest it may press in)
+const WOBBLE = { k: 30, c: 4, side: .025, up: .05, bounce: .5, floorK: 6000, floorC: 20, sink: .012 };
+// The closing motor speeds up (CLOSE_ACC, in open-fractions per second²) to CLOSE_SPEED, so the claw
+// shuts with a snap rather than easing in
+const CLOSE_SPEED = 5, CLOSE_ACC = 22;
 const CLOSE_GIVE = .03;  // while closing, how far a finger digs into a jammed prize before it gives way
 const CLOSE_HOLD = .35;  // seconds the motor keeps squeezing once fully closed, before lifting
 // Rope: velocity kept per step, link passes per step, and the sideways nudge that lets slack bow out
@@ -932,9 +940,46 @@ function carry(dt) {
   // splayed closes in to the cradle angle. The user asked for it (October 2026): the fingers used to
   // give way a little after closing, which looked like the claw opening again.
   for (let i = 0; i < c.flex.length; i++) if (c.flex[i] > hd.flex) c.flex[i] += (hd.flex - c.flex[i]) * k;
-  const was = [p.x, p.y, p.z];
-  [p.x, p.y, p.z] = clawPoint(f, hd.ox, hd.oz, hd.oy);
+  if (hd.oy <= hd.restOy) wobble(hd, p, h, f, dt);
+  const was = [p.x, p.y, p.z], wb = hd.wb || { u: 0, w: 0, y: 0 };
+  [p.x, p.y, p.z] = clawPoint(f, hd.ox + wb.u, hd.oz + wb.w, hd.oy + wb.y);
   p.vx = (p.x - was[0]) / dt; p.vy = (p.y - was[1]) / dt; p.vz = (p.z - was[2]) / dt;
+  hd.hv = [h.vx, h.vy, h.vz];
+}
+
+// Once lifted, the prize isn't glued to the claw: it moves a little inside it (hd.wb, offsets and
+// velocities along the claw's axes e1, e2 and up), as a loose ball on curved fingers would. The claw's
+// own accelerations throw it about: it drops onto the fingers when they pick it up and bounces a
+// little (WOBBLE.bounce), rocks back as the claw starts or brakes and rolls back to the middle, as in
+// a bowl (WOBBLE.k, damped by WOBBLE.c). The fingers below it and the box above it stop it, and it
+// stays within WOBBLE.side of the middle. The user found it too smooth and unreal (October 2026).
+function wobble(hd, p, h, f, dt) {
+  const up = f.d.map(v => -v), d3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  if (!hd.wb) {
+    // Picked up: it meets the fingers with its speed relative to them (it was resting on the pile)
+    const rv = [p.vx - h.vx, p.vy - h.vy, p.vz - h.vz];
+    hd.wb = { u: 0, w: 0, y: 0, vu: d3(rv, f.e1), vw: d3(rv, f.e2), vy: d3(rv, up) };
+  }
+  const wb = hd.wb, hv = hd.hv || [h.vx, h.vy, h.vz];
+  // In the claw's frame the prize feels gravity minus the claw's acceleration
+  const a = [-(h.vx - hv[0]) / dt, -G - (h.vy - hv[1]) / dt, -(h.vz - hv[2]) / dt];
+  wb.vu += (d3(a, f.e1) - WOBBLE.k * wb.u - WOBBLE.c * wb.vu) * dt;
+  wb.vw += (d3(a, f.e2) - WOBBLE.k * wb.w - WOBBLE.c * wb.vw) * dt;
+  wb.vy += d3(a, up) * dt;
+  wb.u += wb.vu * dt; wb.w += wb.vw * dt; wb.y += wb.vy * dt;
+  // Resting on the fingers: a stiff, springy contact, so a jolt (the cable taking the load as the claw
+  // starts to lift, the stop at the top) presses it in a hair and it bounces back up
+  if (wb.y < 0) {
+    wb.vy -= (WOBBLE.floorK * wb.y + WOBBLE.floorC * wb.vy) * dt;
+    if (wb.y < -WOBBLE.sink) { wb.y = -WOBBLE.sink; if (wb.vy < 0) wb.vy = 0; }
+  }
+  if (wb.y > WOBBLE.up) { wb.y = WOBBLE.up; if (wb.vy > 0) wb.vy *= -WOBBLE.bounce; }   // against the box
+  const s = Math.hypot(wb.u, wb.w);
+  if (s > WOBBLE.side) {
+    const nu = wb.u / s, nw = wb.w / s, vn = wb.vu * nu + wb.vw * nw;
+    wb.u = nu * WOBBLE.side; wb.w = nw * WOBBLE.side;
+    if (vn > 0) { wb.vu -= (1 + WOBBLE.bounce) * vn * nu; wb.vw -= (1 + WOBBLE.bounce) * vn * nw; }
+  }
 }
 
 // Carriage motor: approach the target velocity with limited acceleration, so it ramps up and brakes
@@ -1050,13 +1095,18 @@ function update(dt) {
       // isn't enough: a swinging claw slackens its elastic cable for a moment at each end of the swing,
       // and taking that for a landing pinned it in mid-air and killed the sway.
       if (!c.landed && c.len - c.dist > .03 && c.touching) { c.landed = [c.head.x, c.head.z]; sfx('clank'); }
-      if (c.t >= DROP_TIME + DROP_REST) { state = 'close'; c.winch = 0; pickTarget(); }
+      if (c.t >= DROP_TIME + DROP_REST) { state = 'close'; c.winch = 0; c.closeV = 0; pickTarget(); }
       break;
     case 'close': {
       // The motor closes all the way: each finger gives way against whatever it meets, prizes and the
       // hole walls alike (see flexFingers). Then it keeps squeezing for CLOSE_HOLD, so fingers that
       // had given way on the pile while landing get time to work their way back in.
-      c.open = Math.max(0, c.open - dt * 2.2);
+      // It closes hard: the motor speeds up to CLOSE_SPEED, so the fingers sweep in fast and shove
+      // what they meet (it used to close at a steady 2.2, which felt soft), and it clacks shut.
+      c.closeV = Math.min(CLOSE_SPEED, (c.closeV || 0) + CLOSE_ACC * dt);
+      const wasOpen = c.open > 0;
+      c.open = Math.max(0, c.open - dt * c.closeV);
+      if (wasOpen && c.open === 0) sfx('clack');
       c.closedFor = c.open > 0 ? 0 : (c.closedFor || 0) + dt;
       if (c.closedFor >= CLOSE_HOLD) {
         c.closedFor = 0;
@@ -1140,6 +1190,7 @@ function sfx(name) {
       case 'coin': tone(988, 0, .08, 'square', .05); tone(1319, 0, .25, 'square', .05, .08); break;
       case 'drop': tone(600, 200, .6, 'triangle', .08); break;
       case 'clank': tone(180, 90, .12, 'square', .07); break;
+      case 'clack': tone(320, 140, .07, 'square', .08); tone(90, 60, .1, 'triangle', .1); break;
       case 'grab': tone(400, 800, .12, 'triangle', .08); break;
       case 'slip': tone(220, 80, .3, 'sawtooth', .05); break;
       case 'win': [523, 659, 784, 1047].forEach((f, i) => tone(f, 0, .18, 'square', .05, i * .09)); break;
