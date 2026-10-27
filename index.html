@@ -214,7 +214,6 @@
 </div>
 <div id="gallery" class="screen" hidden>
   <h2>Cápsulas</h2>
-  <p id="galTotal" class="sub"></p>
   <div id="shelf" class="pages"></div>
   <div class="nav"><button id="galPrev" aria-label="Mundo anterior">‹</button><span id="galDots" class="dots"></span><button id="galNext" aria-label="Mundo siguiente">›</button></div>
   <div class="backs"><button id="galToChar" class="back alt">Colección</button><button id="galToLvl" class="back alt">★ Niveles</button><button id="galBack" class="back">Volver a la máquina</button></div>
@@ -450,7 +449,9 @@ const FINGER_ANGLES = [-Math.PI / 2, -Math.PI / 2 + 2 * Math.PI / 3, -Math.PI / 
 // won ever (balls) and towards the next character (prog, 0–9), and how many of each character
 // (chars, world:index, 0–19, the sheet's rows left to right). A new character also goes into newChars,
 // for the level's card.
-const META_KEY = 'clawMachine.meta', CHAR_EVERY = 10;
+// For testing, the user asked for a character with every capsule (October 2026): CHAR_EVERY is 1 for
+// now. Set it back to 10 to play the metagame as designed.
+const META_KEY = 'clawMachine.meta', CHAR_EVERY = 1;
 let meta = { balls: {}, prog: {}, chars: {} }, newChars = [];
 
 let prizes = [], claw, coins, score, won, state, aimT;
@@ -2138,8 +2139,6 @@ const lockedNote = w => `<p class="sub">Se abre en el nivel ${w * 5 + 1}</p>`;
 // won yet show as dark silhouettes; a world not open yet is locked. The game holds still and isn't
 // drawn while it is open.
 function openGallery() {
-  const total = Object.values(meta.balls).reduce((s, v) => s + v, 0);
-  $('galTotal').textContent = total ? `Atrapaste ${total} premio${total === 1 ? '' : 's'}` : 'Todavía no atrapaste ningún premio';
   galCar.fill(WORLDS.map((wd, w) => {
     const locked = !worldOpen(w), kinds = Object.fromEntries(worldKinds(w).map(k => [k.key, k]));
     const slots = worldKinds(w).map(k => {
@@ -2150,7 +2149,7 @@ function openGallery() {
         `<span class="tot">${n ? `${n} en total` : '&nbsp;'}</span></div>`;
     }).join('');
     return `<section class="season${locked ? ' locked' : ''}"><h3>Mundo ${w + 1} · ${wd.name}${locked ? '<span>🔒</span>' : ''}</h3>` +
-      (locked ? lockedNote(w) : '<p class="sub">Cada 10 de un color: un personaje de su rareza</p>') + `<div class="shelf">${slots}</div></section>`;
+      (locked ? lockedNote(w) : `<p class="sub">${CHAR_EVERY > 1 ? `Cada ${CHAR_EVERY} de un color` : 'Cada cápsula'}: un personaje de su rareza</p>`) + `<div class="shelf">${slots}</div></section>`;
   }).join(''), worldNow());
   showScreen('gallery');
 }
