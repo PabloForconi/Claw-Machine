@@ -419,9 +419,26 @@ function fingerPenOn(fg, p) {
 }
 
 // How deep a finger digs into the prizes it isn't holding
+// ...and into the hole's clear walls, so a finger gives way against them too instead of the whole claw
+// stopping short of closing
 function fingerPen(fg) {
   let m = 0;
   for (const p of prizes) if (p !== claw.held) m = Math.max(m, fingerPenOn(fg, p));
+  return Math.max(m, fingerWallPen(fg));
+}
+
+// How deep a finger digs into the hole walls, sampled along its parts
+function fingerWallPen(fg) {
+  let m = 0;
+  for (const [a, b] of fingerRods(fg)) for (let i = 0; i <= 6; i++) {
+    const q = lerp3(a, b, i / 6);
+    for (const w of WALLS) {
+      const c = q.map((v, k) => clamp(v, w.min[k], w.max[k])), d = Math.hypot(q[0] - c[0], q[1] - c[1], q[2] - c[2]);
+      // Inside the wall: as deep as the nearest face
+      const inside = d === 0 ? Math.min(...[0, 1, 2].map(k => Math.min(q[k] - w.min[k], w.max[k] - q[k]))) : 0;
+      m = Math.max(m, FINGER_R - d + inside);
+    }
+  }
   return m;
 }
 
@@ -573,14 +590,6 @@ function clawWallPush() {
     s[axis] += dir * best;
   }
   return s;
-}
-
-// Would the fingers, opened this much, run into a hole wall?
-function wallBlocks(open) {
-  const was = claw.open; claw.open = open;
-  const blocked = Math.hypot(...clawWallPush()) > .005;
-  claw.open = was;
-  return blocked;
 }
 
 
@@ -992,12 +1001,10 @@ function update(dt) {
       if (c.t >= DROP_TIME + DROP_REST) { state = 'close'; c.winch = 0; pickTarget(); }
       break;
     case 'close': {
-      // The motor closes all the way (each finger gives way against whatever it meets, see
-      // flexFingers), unless the fingers would run into a hole wall
-      const next = Math.max(0, c.open - dt * 2.2);
-      const stopped = wallBlocks(next);
-      if (!stopped) c.open = next;
-      if (stopped || c.open <= 0) {
+      // The motor closes all the way: each finger gives way against whatever it meets, prizes and the
+      // hole walls alike (see flexFingers)
+      c.open = Math.max(0, c.open - dt * 2.2);
+      if (c.open <= 0) {
         grabTarget();
         if (c.held) sfx('grab');
         state = 'lift'; c.t = 0;   // the winch first reels in the slack, so the cable straightens before it pulls

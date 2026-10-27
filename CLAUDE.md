@@ -69,7 +69,7 @@ The user asked for physically based motion when the claw brakes, drops, etc.
 - The claw is drawn tilted along the cable: `clawFrame()` gives the cable direction and two axes across it, and `clawPoint()` maps claw-frame offsets to the world (the fingers and the held prize use it).
 - The whole claw collides with the hole's clear walls (`clawWallPush()`: the head, points sampled along every finger segment and a held prize, pushed out as one rigid body in `swingHead()`).
   - Landing on a wall's top edge rests the claw there.
-  - Fingers stop closing if they would run into a wall (`wallBlocks()`).
+  - The claw always closes fully. A finger that runs into a wall gives way against it like against a prize: `fingerPen()` includes `fingerWallPen()`, sampled along the finger. Earlier, the whole claw stopped closing as soon as a finger would touch a wall, and rose open; the user asked for it to close anyway (October 2026).
   - The open claw is wider than the hole, so it can't drop into it.
   - The glass box walls still only clamp the head.
 
