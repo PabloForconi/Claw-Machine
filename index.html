@@ -132,14 +132,17 @@
   .cover { position: relative; height: 100%; max-width: 100%; aspect-ratio: 4 / 5; border-radius: 22px; border: 4px solid var(--gold); overflow: hidden;
     background: #000 center / cover no-repeat; box-shadow: 0 8px 24px rgba(0, 0, 0, .6); }
   .cover.locked { filter: grayscale(1) brightness(.55); border-color: #666; }
-  .winfo { position: absolute; left: 0; right: 0; bottom: 0; padding: 60px 14px 16px; text-align: center; background: linear-gradient(transparent, rgba(0, 0, 0, .85) 45%); }
-  .winfo h3 { margin: 0; font-size: 30px; color: var(--gold); text-shadow: 0 2px 4px #000; }
-  .winfo p { margin: 4px 0 10px; font-size: 17px; }
+  /* (the world's name and progress at the top of the cover, Jugar alone at the bottom, nothing darkening
+     the art: the user asked for it, October 2026) */
+  .winfo { position: absolute; left: 0; right: 0; top: 0; padding: 14px 14px 0; text-align: center; }
+  .winfo h3 { margin: 0; font-size: 30px; color: var(--gold); text-shadow: 0 2px 0 #000, 0 0 6px #000, 0 0 12px #000; }
+  .winfo p { margin: 2px 0 0; font-size: 17px; text-shadow: 0 1px 0 #000, 0 0 5px #000, 0 0 10px #000; }
   .winfo .lock { font-size: 20px; }
-  .winfo .play { font: inherit; font-size: 26px; color: #3a1f00; background: var(--gold); border: 4px solid #a8740a; border-radius: 16px; padding: 6px 44px;
+  .wplay { position: absolute; left: 0; right: 0; bottom: 16px; text-align: center; }
+  .wplay .play { font: inherit; font-size: 24px; color: #3a1f00; background: var(--gold); border: 4px solid #a8740a; border-radius: 16px; padding: 1px 44px;
     cursor: pointer; box-shadow: 0 5px 0 #a8740a; }
-  .winfo .play:active { transform: translateY(4px); box-shadow: 0 1px 0 #a8740a; }
-  #dailyBar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; max-width: 600px; margin: 6px 0 12px; padding: 8px 14px;
+  .wplay .play:active { transform: translateY(4px); box-shadow: 0 1px 0 #a8740a; }
+  #dailyBar { display: none; flex: none; align-items: center; justify-content: space-between; gap: 10px; width: 100%; max-width: 600px; margin: 6px 0 12px; padding: 8px 14px;
     font: inherit; font-size: 18px; color: var(--ink); background: var(--panel); border: 3px solid #4cc9f0; border-radius: 14px; cursor: pointer; text-align: left; }
   #dailyBar b { color: #4cc9f0; white-space: nowrap; }
   /* A world's boss level stands out */
@@ -305,7 +308,8 @@
 </div>
 <div id="worlds" class="screen" hidden>
   <h2>Mundos</h2>
-  <button id="dailyBar"></button>
+  <!-- (the daily challenge's strip, hidden for now: the user set it aside to decide later how to use it) -->
+  <button id="dailyBar" hidden></button>
   <div id="worldShelf" class="pages"></div>
   <div class="nav"><button id="worldPrev" aria-label="Mundo anterior">‹</button><span id="worldDots" class="dots"></span><button id="worldNext" aria-label="Mundo siguiente">›</button></div>
   <div class="backs"><button id="wToGal" class="back alt">Cápsulas</button><button id="wToChar" class="back alt">Colección</button><button id="wBack" class="back">Volver a la máquina</button></div>
@@ -526,7 +530,11 @@ function cookLevel(l, world) {
 }
 const LEVELS_KEY = 'clawMachine.levelsDone';   // how many levels have been cleared (they unlock in order)
 const STARS_KEY = 'clawMachine.stars';         // the most stars won on each level
-const worldOpen = w => levelsDone >= w * 5;    // a world opens with its first level
+// For testing the user asked for the whole game unlocked (October 2026): every world and level is open.
+// Set UNLOCK_ALL to false to unlock them in order again.
+const UNLOCK_ALL = true;
+const worldOpen = w => UNLOCK_ALL || levelsDone >= w * 5;   // a world opens with its first level
+const levelOpen = i => UNLOCK_ALL || i <= levelsDone;
 // Pedestals, as [x from, x to, height], all at the back half of the floor (STAND_Z): one in the middle,
 // two or three apart, or three in a row stepping up to the right
 const STANDS = {
@@ -673,7 +681,7 @@ const boardTex = canvasTex(1024, Math.round(1024 * BOARD_H / BOARD_W), (g, w, h)
     g.fillStyle = label === 'TIEMPO' && board.low ? '#ff5d8f' : label === 'FICHAS' && board.flash ? board.flash : '#fff6e0';
     g.font = '700 84px Kalam, cursive'; g.fillText(value, x, 108);
   });
-  g.fillStyle = '#b9a8e0'; g.font = '700 36px Kalam, cursive'; g.fillText(level < 0 ? 'DESAFÍO DEL DÍA' : `NIVEL ${level + 1}`, w / 2, 44);
+  g.fillStyle = '#b9a8e0'; g.font = '700 36px Kalam, cursive'; g.fillText(level < 0 ? 'DESAFÍO DEL DÍA' : `${WORLDS[lv.world].name.toUpperCase()} · NIVEL ${level % 5 + 1}`, w / 2, 44);
   // The goal: a capsule of each kind asked for and "won/needed", shrunk to fit between coins and time.
   // A kind asked for once is just its capsule, ticked once won (with six kinds "0/1" got too small to read).
   // An ordered goal has arrows between its parts, and the ones still to come are dimmed.
@@ -1182,7 +1190,7 @@ function reset() {
   rnd = Math.random;   // (the daily challenge seeds only its first pile)
   $('over').hidden = true;
   hud();
-  if (lv.tip) card({ title: level < 0 ? 'Desafío del día' : `Nivel ${level + 1}`, html: lv.tip, main: '¡Dale!', onMain: closeCard });
+  if (lv.tip) card({ title: level < 0 ? 'Desafío del día' : `${WORLDS[lv.world].name} · Nivel ${level % 5 + 1}`, html: lv.tip, main: '¡Dale!', onMain: closeCard });
 }
 
 // ---------- Physics: spheres with gravity, walls, the hole walls and the claw fingers as kinematic segments ----------
@@ -1970,7 +1978,7 @@ function levelCard(cleared) {
     }
     // (after a world's boss the next world opens: its cover comes up, see showIntro)
     const next = level >= 0 && !last, newWorld = next && level % 5 === 4;
-    card({ title: level < 0 ? '¡Desafío superado!' : `¡Nivel ${level + 1} superado!`, html: html + cardsHtml(),
+    card({ title: level < 0 ? '¡Desafío superado!' : `¡Nivel ${level % 5 + 1} superado!`, html: html + cardsHtml(),
       main: newWorld ? '¡Nuevo mundo!' : next ? 'Siguiente nivel' : 'Jugar de nuevo', onMain: newWorld ? () => showIntro((level + 1) / 5) : next ? () => startLevel(level + 1) : retry, levels: true });
   } else {
     const skull = lostTo === 'skull';
@@ -2198,13 +2206,14 @@ const banner = (w, title, right = '') => `<div class="banner${worldOpen(w) ? '' 
 // How far along a world is: levels cleared, stars, characters
 function worldStats(w) {
   const lvls = [0, 1, 2, 3, 4].map(i => w * 5 + i);
-  return { done: lvls.filter(i => i < levelsDone).length, stars: lvls.reduce((s, i) => s + (bestStars[i] || 0), 0),
+  return { done: lvls.filter(i => bestStars[i]).length, stars: lvls.reduce((s, i) => s + (bestStars[i] || 0), 0),
     chars: WORLDS[w].chars.filter((c, i) => meta.chars[`${WORLDS[w].id}:${i}`]).length };
 }
 
 // The worlds screen (the star, top left), as the user approved (October 2026): a page per world with
 // its cover, how far along it is, and Jugar, which opens its levels; a world not open yet is greyed out
-// with what opens it. The daily challenge is a strip above them. It opens on the world being played.
+// with what opens it. It opens on the world being played. (The daily challenge's strip above them is
+// hidden for now, see #dailyBar.)
 function openWorlds(at = worldNow()) {
   showScreen('worlds');
   const dl = genDaily(today()), run = daily.day === today() || daily.day === yesterday() ? daily.streak : 0;
@@ -2214,7 +2223,8 @@ function openWorlds(at = worldNow()) {
     const st = worldStats(w), open = worldOpen(w);
     return `<section class="season wpage"><div class="cover${open ? '' : ' locked'}" style="background-image:url(${coverSrc(w)})"><div class="winfo">` +
       `<h3>Mundo ${w + 1} · ${wd.name}</h3><p>Niveles ${st.done}/5 · ★ ${st.stars}/15 · Personajes ${st.chars}/20</p>` +
-      (open ? `<button class="play" data-w="${w}">Jugar</button>` : `<p class="lock">🔒 Superá el nivel ${w * 5}</p>`) + '</div></div></section>';
+      (open ? '' : `<p class="lock">🔒 Superá al jefe de ${WORLDS[w - 1].name}</p>`) + '</div>' +
+      (open ? `<div class="wplay"><button class="play" data-w="${w}">Jugar</button></div>` : '') + '</div></section>';
   }).join(''), at);
 }
 $('worldShelf').addEventListener('click', e => { const b = e.target.closest('.play'); if (b) openLevels(+b.dataset.w); });
@@ -2231,10 +2241,10 @@ function openLevels(w = worldNow()) {
   $('lvlTitle').textContent = `Mundo ${w + 1} · ${WORLDS[w].name}`;
   $('lvlSub').innerHTML = `Niveles ${st.done}/5 · ★ ${st.stars}/15`;
   $('lvlList').innerHTML = [0, 1, 2, 3, 4].map(k => {
-    const i = w * 5 + k, l = LEVELS[i], locked = i > levelsDone, boss = k === 4;
-    const st = i < levelsDone ? starsHtml(bestStars[i] || 1, 'stars sm') : locked ? '🔒' : '▶';
+    const i = w * 5 + k, l = LEVELS[i], locked = !levelOpen(i), boss = k === 4;
+    const st = bestStars[i] ? starsHtml(bestStars[i], 'stars sm') : locked ? '🔒' : '▶';
     return `<button class="lvl${i === level ? ' cur' : ''}${locked ? ' locked' : ''}${boss ? ' boss' : ''}" data-i="${i}"${locked ? ' disabled' : ''}>` +
-      `<span class="n">${boss ? '👑' : i + 1}</span><span class="goal">${boss ? `<b>Jefe · nivel ${i + 1}</b>` : ''}${goalHtml(l)}<span class="coins">${l.coins} fichas</span>${levelTags(l)}</span><span class="st">${st}</span></button>`;
+      `<span class="n">${boss ? '👑' : k + 1}</span><span class="goal">${boss ? '<b>Jefe · nivel 5</b>' : ''}${goalHtml(l)}<span class="coins">${l.coins} fichas</span>${levelTags(l)}</span><span class="st">${st}</span></button>`;
   }).join('');
 }
 $('lvlList').addEventListener('click', e => {
@@ -2328,7 +2338,7 @@ const charCar = carousel($('charShelf'), $('charPrev'), $('charNext'), $('charDo
 const worldCar = carousel($('worldShelf'), $('worldPrev'), $('worldNext'), $('worldDots'));
 // The world the screens open on: the one being played
 const worldNow = () => lv.world;
-const lockedNote = w => `<p class="sub">Se abre en el nivel ${w * 5 + 1}</p>`;
+const lockedNote = w => `<p class="sub">Se abre al superar al jefe de ${WORLDS[w - 1].name}</p>`;
 
 // The gallery (the capsule button, top left): a page per world with its nine capsules, each with its
 // rarity, how many were won and how far its card is to complete (a bar to CHAR_EVERY). A complete card
