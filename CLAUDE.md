@@ -140,9 +140,11 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
     - It stays open; it arrives open, so `settle` goes straight to the open hold and it shuts over the hole.
     - The user turned down two earlier moments (October 2026). First it opened about 1.1 from the hole, just before arriving. Then it opened 0.35 s after setting off, and they said it let go before the claw had really moved.
     - With the claw's full speed the prize often flies on into the hole: in 3 tries out of 3 it did.
-  - `'top'`: the stop at the top snaps the fingers open (`LOSE_TOP_RATE`, fully open in about 0.08 s, since it opens because it hit) as the claw sets off back, with a clunk.
-    - The jolt is when the claw tops out, not when the winch stops (`c.topHit` waits for `head.vy` to turn). On its stretched cable the claw rides on up for about 0.12–0.15 s after the winch stops at 1.7, and opening at the winch stop looked like opening before hitting the top (the user noticed, October 2026). The prize drops out there, and after `TOP_SHUT_IN` the motor shuts the claw again on the way (`restClose()`).
+  - `'top'`: the winch overruns its stop (the lift reels towards 0 instead of `L_MIN`) and slams the claw's box into the carriage at the lift speed, about 1.8. A normal lift peaks about 0.02 under the stop and never touches it.
+    - The blow is in `swingHead()`: the head bounces back down at `TOP_BOUNCE` of its speed, and `hitTop()` ends the lift, lets the cable back out to `L_MIN`, and knocks the fingers open at `TOP_KICK` times the impact speed (fully open in about 0.08 s), with a clank and a clunk.
+    - The prize is detached at the blow with the speed it was rising at. Nothing places it after that: it rises about 5 cm until it knocks the box, which is coming back down, while the claw recoils about 9 cm on its cable. Then it falls out between the open fingers. After `TOP_SHUT_IN` the motor shuts the claw again on the way (`restClose()`).
   - Earlier tries, which the user turned down:
+    - The claw opened at its highest point on its stretched cable (`c.topHit`), with no real blow and the prize held until the tips cleared it. The user didn't feel the hit shake it loose and asked for the box to hit the metal above and the prize to hop by physics (October 2026).
     - The claw stopped at the top to open and shut before heading back.
     - It let go early where a prize keeping the claw's speed would land short of the hole, which meant right as it set off.
     - The prize kept only part of the claw's speed, to drop short.

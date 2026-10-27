@@ -142,11 +142,12 @@ const CLOSE_SPEED = 5, CLOSE_ACC = 22;
 const OPEN_RATE = 2.5;
 const RELEASE_SPEED = 4, RELEASE_ACC = 16, OPEN_HOLD = .5, JOLT = .9;
 // Losing a catch on purpose (see slip): the chance (LOSE_BASE, plus LOSE_OFF the further off centre it
-// was caught; gold ones 1.6 times as often); how fast the fingers fly open when the stop at the top
-// shakes it loose (a snap: it opens because it hit) and how long before the motor shuts them again;
+// was caught; gold ones 1.6 times as often); how fast the fingers fly open when the box hits the
+// carriage (TOP_KICK times the speed of the blow) and how long before the motor shuts them again;
 // and for the other kind, how much of the way back the claw has covered when it lets go, and how fast
 // it opens
-const LOSE_BASE = .045, LOSE_OFF = .24, LOSE_TOP_RATE = 12, TOP_SHUT_IN = .3;
+const LOSE_BASE = .045, LOSE_OFF = .24, TOP_KICK = 7, TOP_SHUT_IN = .3;
+const TOP_BOUNCE = .35;   // how much of its speed the claw keeps, back down, when its box hits the carriage
 const LOSE_EARLY_AT = .4, LOSE_EARLY_RATE = 6;
 // For testing (the user asked for it, October 2026): catches go round this pattern, one lost on the
 // way to the hole, one shaken loose at the top, one carried home, whatever the grip. Only catches
@@ -882,7 +883,7 @@ function startRound() {
 
 function startDrop() {
   if (state !== 'aim') return;
-  state = 'drop'; claw.winch = 0; claw.t = 0; claw.landed = false; claw.target = null; claw.slipping = null; claw.lose = null; claw.letGo = 0; claw.reshut = false; claw.tripFrom = undefined; claw.topHit = false; keys.l = keys.r = keys.u = keys.d = false; sfx('drop');
+  state = 'drop'; claw.winch = 0; claw.t = 0; claw.landed = false; claw.target = null; claw.slipping = null; claw.lose = null; claw.letGo = 0; claw.reshut = false; claw.tripFrom = undefined; keys.l = keys.r = keys.u = keys.d = false; sfx('drop');
 }
 
 // When the claw starts closing, pickTarget() notes the prize right under it whose top half the closed
@@ -1073,8 +1074,12 @@ function swingHead(dt) {
     const n = s.map(v => v / sl), vn = h.vx * n[0] + h.vy * n[1] + h.vz * n[2];
     if (vn < 0) { h.vx -= 1.2 * vn * n[0]; h.vy -= 1.2 * vn * n[1]; h.vz -= 1.2 * vn * n[2]; }
   }
-  const top = CARRIAGE_Y - HOOK_UP - .05;   // the claw never rides up into the carriage
-  if (h.y > top) { h.y = top; if (h.vy > 0) h.vy = 0; }
+  // The claw never rides up into the carriage: its box hits it and bounces back down a little
+  const top = CARRIAGE_Y - HOOK_UP - .05;
+  if (h.y > top) {
+    h.y = top;
+    if (h.vy > 0) { if (state === 'lift' && c.held && c.lose === 'top') hitTop(h.vy); h.vy *= -TOP_BOUNCE; }
+  }
   const bx = BOX.x - .3, bz = BOX.z - .3;
   if (Math.abs(h.x) > bx) { h.x = Math.sign(h.x) * bx; h.vx *= -.3; }
   if (Math.abs(h.z) > bz) { h.z = Math.sign(h.z) * bz; h.vz *= -.3; }
@@ -1086,9 +1091,12 @@ function swingHead(dt) {
 // it rises. The user asked for these two kinds (October 2026); before, a slip could start at any
 // moment, mid-rise included, which looked odd. Either way the claw keeps going to the hole as usual,
 // and the prize just falls, with the claw's speed, wherever that leaves it.
-// - 'top': the jolt of the stop at the top (when the claw tops out, just after the end of lift)
-//   snaps the fingers open (LOSE_TOP_RATE) as the claw sets off back; after TOP_SHUT_IN the motor
-//   shuts them again on the way (restClose).
+// - 'top': the winch pulls the claw's box up into the carriage (see the lift and hitTop). The blow
+//   knocks the fingers open and the prize is loose from that moment, so nothing places it: it keeps
+//   going up with the speed it had, knocks against the box as the claw bounces back down, and falls
+//   out between the opening fingers. After TOP_SHUT_IN the motor shuts them again on the way
+//   (restClose). The user found the earlier version, which opened the claw at its highest point on
+//   its cable without any real blow, didn't feel like the hit shook the prize loose (October 2026).
 // - 'early': on the way back, once the claw has covered LOSE_EARLY_AT of the trip, it opens, a bit
 //   faster than letting go over the hole (LOSE_EARLY_RATE), and stays open; it shuts over the hole.
 //   (The user found opening just before the hole wrong, and then 0.35 s after setting off too soon.)
@@ -1102,19 +1110,22 @@ function slip(dt) {
     return;
   }
   if (c.reshut) { restClose(dt); if (c.open === 0) c.reshut = false; return; }
-  // The winch stops a moment before the claw does: on its stretched cable it rides on up for about
-  // 0.12 s. The jolt that shakes the prize loose is when it tops out, so it opens then, not when the
-  // winch stops (which looked like opening before hitting the top).
-  if (c.topHit) {
-    if (c.head.vy > 0) return;
-    c.topHit = false;
-    if (p) { c.slipping = p; c.letGo = LOSE_TOP_RATE; sfx('clunk'); }
-    return;
-  }
   if (!p || c.lose !== 'early' || state !== 'return') return;
   const d = Math.hypot(HOME.x - c.x, HOME.z - c.z);
   if (c.tripFrom === undefined) c.tripFrom = d;
   if (d <= c.tripFrom * (1 - LOSE_EARLY_AT)) { c.slipping = p; c.letGo = LOSE_EARLY_RATE; }
+}
+
+// The claw's box hits the carriage at speed v with a catch to be lost there. The winch's limit switch
+// cuts it and lets the cable back out to its normal length, so the claw bounces down on it. The blow
+// knocks the fingers open, faster the harder it hits (TOP_KICK), and the prize, no longer held, keeps
+// the speed it was rising with (it isn't stopped by the carriage, only by the box above it).
+function hitTop(v) {
+  const c = claw;
+  detach();
+  state = 'return'; c.winch = 0; c.len = L_MIN;
+  c.letGo = TOP_KICK * v;
+  sfx('clank'); sfx('clunk');
 }
 
 // Open the fingers at this rate. The prize stays in the claw while they open and only comes loose
@@ -1191,14 +1202,15 @@ function update(dt) {
       }
       break;
     }
-    case 'lift':
+    case 'lift': {
+      // A catch to be lost at the top: the winch overruns its stop and slams the claw's box into the
+      // carriage, which ends the lift (see hitTop)
+      const slam = c.held && c.lose === 'top';
       c.winch = Math.min(LIFT, c.winch + WINCH_ACC * dt);
-      c.len = Math.max(L_MIN, c.len - c.winch * dt); c.t += dt;
-      if (c.len <= L_MIN) {
-        state = 'return'; c.winch = 0; sfx('clank');
-        if (c.held && c.lose === 'top') c.topHit = true;   // to be shaken loose at the stop (see slip)
-      }
+      c.len = Math.max(slam ? 0 : L_MIN, c.len - c.winch * dt); c.t += dt;
+      if (!slam && c.len <= L_MIN) { state = 'return'; c.winch = 0; sfx('clank'); }
       break;
+    }
     case 'return':
       slip(dt);
       if (Math.hypot(HOME.x - c.x, HOME.z - c.z) < .01 && Math.hypot(c.vx, c.vz) < .05) {
