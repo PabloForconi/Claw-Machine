@@ -89,7 +89,6 @@ const CLAW_WALLS = [...WALLS,
   { min: [BOX.x, -1, -BOX.z - 1], max: [BOX.x + 1, 6, BOX.z + 1] },
 ];
 const HOME = { x: (-BOX.x + HOLE.x) / 2, z: (HOLE.z + BOX.z) / 2 };
-const LIMIT = { x: 1.7, z: 1.2 };
 // The claw's body is a small rounded box around the head point, like the carriage: HUB_R out to its
 // sides, from HUB_DOWN below the head point to HUB_UP above it, and it collides as a cylinder that
 // size. The cable hooks onto its top (HOOK_UP), and the fingers hinge at its bottom edge (PIVOT_R
@@ -103,6 +102,19 @@ const PIVOT_R = .15, PIVOT_DOWN = .12, CLOSED_TIP_DOWN = PIVOT_DOWN + FINGER_SHA
 // reaches, open or closed
 const OPEN_ANGLE = .5;
 const FINGER_REACH = PIVOT_DOWN + Math.max(...FINGER_SHAPE.flatMap(([u, d]) => [d, -u * Math.sin(OPEN_ANGLE) + d * Math.cos(OPEN_ANGLE)]));
+const FINGER_R = .045;   // collision radius of a finger (about half its width)
+// The claw is closed at the top and only opens on the way down (OPEN_RATE, open-fractions per second);
+// after letting go it closes again (REST_CLOSE_RATE). The carriage's travel (LIMIT) keeps the closed claw,
+// hanging straight, just clear of the cabinet's sides. It used to hang open at the top, about 0.6 wide
+// from its axis, and travel to 0.3 from the walls: the wall pushed it in while the carriage stayed out,
+// so it hung tilted at the edges (October 2026).
+const OPEN_RATE = 2.5, REST_CLOSE_RATE = 2;
+const CLOSED_REACH = PIVOT_R + Math.max(...FINGER_SHAPE.map(([u]) => u)) + FINGER_R;
+// (with room for the claw to swing on a bit when the carriage stops at the limit)
+const LIMIT = { x: BOX.x - CLOSED_REACH - .08, z: BOX.z - CLOSED_REACH - .08 };
+// Where the claw waits and lets go: over the hole (HOME, its middle), but nudged in so the closed claw
+// clears the two glass sides of that corner (HOME is only 0.45 from them, the closed claw 0.455 wide)
+const DROP_AT = { x: Math.max(HOME.x, -BOX.x + CLOSED_REACH + .03), z: Math.min(HOME.z, BOX.z - CLOSED_REACH - .03) };
 const CARRIAGE_Y = 4.3, HEAD0 = CARRIAGE_Y - HOOK_UP - .12;   // at the top the hook sits just under the carriage
 const G = 14, STEP = 1 / 120;
 const MOVE = 1.6, DROP = 2.2, LIFT = 1.8;
@@ -447,11 +459,12 @@ function fingerPenOn(fg, p) {
 
 // How deep a finger digs into the prizes it isn't holding
 // ...and into the walls (the hole's and the cabinet's), so a finger gives way against them too instead
-// of the whole claw stopping short of closing
+// of the whole claw stopping short of closing. A wall doesn't get the firm grip's CLOSE_GIVE: a finger
+// gives way as soon as it touches one rather than digging 3 cm into it (it can't shove a wall aside).
 function fingerPen(fg) {
   let m = 0;
   for (const p of prizes) if (p !== claw.held) m = Math.max(m, fingerPenOn(fg, p));
-  return Math.max(m, fingerWallPen(fg));
+  return Math.max(m, fingerWallPen(fg) + (gripFirm() ? CLOSE_GIVE : 0));
 }
 
 // How deep a finger digs into the walls, sampled along its parts
@@ -492,22 +505,42 @@ const gripFirm = () => ['close', 'lift', 'return', 'settle'].includes(state) || 
 // than one finger snapping open on its own.
 // Once closed (lift, return, settle) the claw stays shut until it lets go, as the user asked: no
 // finger gives way any more, the prizes in the way are pushed aside (see carry).
+const fingersShut = () => ['lift', 'return', 'settle'].includes(state);
+// Against a wall a finger bends whichever way gets it out: up and out off the hole walls' top edge,
+// but in (a negative flex, at most back to closed) against a wall beside it, such as a cabinet side
+// it is opening towards. Swinging out against a side wall only drove it further in, up to FLEX_MAX.
 function flexFingers(dt) {
   const fl = claw.flex, now = fingers(), firm = gripFirm(), give = firm ? CLOSE_GIVE : .002;
-  const shut = ['lift', 'return', 'settle'].includes(state);
+  const shut = fingersShut(), least = -claw.open * OPEN_ANGLE, step = FLEX_RATE * dt;
   for (let i = 0; i < fl.length; i++) {
+    fl[i] = Math.max(least, fl[i]);
     const pen = fingerPen(now[i]);
-    if (pen > give) { if (!shut) fl[i] = Math.min(FLEX_MAX, fl[i] + Math.min((pen - give) * FLEX_GAIN, FLEX_RATE * dt)); continue; }
+    if (pen > give) {
+      if (shut) continue;
+      if (fingerWallPen(now[i]) > 0) {
+        const up = fl.slice(), dn = fl.slice();
+        up[i] = Math.min(FLEX_MAX, fl[i] + step); dn[i] = Math.max(least, fl[i] - step);
+        fl[i] = fingerPen(fingers(dn)[i]) < fingerPen(fingers(up)[i]) ? dn[i] : up[i];
+      } else fl[i] = Math.min(FLEX_MAX, fl[i] + Math.min((pen - give) * FLEX_GAIN, step));
+      continue;
+    }
+    // Held in by a wall: back out towards the motor's angle as far as it stays clear
+    if (fl[i] < 0) {
+      const back = fl.slice(); back[i] = Math.min(0, fl[i] + FLEX_RETURN * dt);
+      if (fingerPen(fingers(back)[i]) <= give) fl[i] = back[i];
+      continue;
+    }
     // No springing back while a prize slips out or the claw lets go, or it would fight the opening
-    if (fl[i] <= 0 || claw.slipping || state === 'release') continue;
+    if (fl[i] === 0 || claw.slipping || state === 'release') continue;
     // Spring back as far as it stays clear; with a firm grip the motor drives it back in even
     // against the prizes around it, up to the same give
     const back = fl.slice(); back[i] = Math.max(0, fl[i] - FLEX_RETURN * (firm ? 2 : 1) * dt);
     if (fingerPen(fingers(back)[i]) <= give) fl[i] = back[i];
   }
   if (state === 'drop') {
+    // (a finger held in by a wall isn't pulled back out into it)
     const top = Math.max(...fl);
-    for (let i = 0; i < fl.length; i++) fl[i] = Math.max(fl[i], top * FLEX_LINK);
+    for (let i = 0; i < fl.length; i++) if (fl[i] >= 0) fl[i] = Math.max(fl[i], top * FLEX_LINK);
   }
 }
 
@@ -580,8 +613,8 @@ function reset() {
   prizes = [];
   // x, z, vx, vz: the carriage; len: cable paid out; winch: its current speed; head: the hanging claw
   claw = {
-    x: HOME.x, z: HOME.z, vx: 0, vz: 0, len: L_MIN, winch: 0, dist: L_MIN, open: 1, flex: FINGER_ANGLES.map(() => 0), held: null, q: 0, t: 0,
-    head: { x: HOME.x, y: CARRIAGE_Y - L_MIN, z: HOME.z, vx: 0, vy: 0, vz: 0, r: HUB_R },
+    x: DROP_AT.x, z: DROP_AT.z, vx: 0, vz: 0, len: L_MIN, winch: 0, dist: L_MIN, open: 0, flex: FINGER_ANGLES.map(() => 0), held: null, q: 0, t: 0,
+    head: { x: DROP_AT.x, y: CARRIAGE_Y - L_MIN, z: DROP_AT.z, vx: 0, vy: 0, vz: 0, r: HUB_R },
   };
   setMass(claw.head, HEAD_MASS, false);
   lastSegs = null;
@@ -595,8 +628,6 @@ function reset() {
 
 // ---------- Physics: spheres with gravity, walls, the hole walls and the claw fingers as kinematic segments ----------
 
-const FINGER_R = .045;   // collision radius of a finger (about half its width)
-
 // The two segments of each finger, pivot → knee and knee → tip
 function segments() {
   const out = [];
@@ -608,16 +639,23 @@ const closestOnSeg = (p, a, b) => lerp3(a, b, segParam(p, a, b));
 
 // The push that gets the whole claw (head, sampled finger segments and a held prize) out of the
 // hole's clear walls and the cabinet's sides (CLAW_WALLS). The claw is rigid, so every point moves by
-// the same push.
+// the same push. Against the cabinet's sides the fingers don't push the claw while they can still give
+// way: they bend against the side instead (flexFingers), so a claw opening by a wall comes down
+// straight. Pushed by its fingers, it was shoved up to 0.35 off its carriage and came down tilted.
 function clawWallPush() {
-  const h = claw.head, fr = clawFrame(), pts = [-HUB_DOWN + h.r, HUB_UP - h.r].map(up => [...clawPoint(fr, 0, 0, up), h.r]);
-  for (const [a, b] of segments()) for (let i = 0; i <= 6; i++) {
-    const t = i / 6;
-    pts.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, FINGER_R]);
-  }
-  if (claw.held) pts.push([claw.held.x, claw.held.y, claw.held.z, claw.held.r]);
+  const h = claw.head, fr = clawFrame(), pts = [-HUB_DOWN + h.r, HUB_UP - h.r].map(up => [...clawPoint(fr, 0, 0, up), h.r, false]);
+  // A finger can bend in against a side while it is open past closed and the claw isn't shut or
+  // carrying (carry drives the fingers then, letting go over the hole included); otherwise (closed,
+  // or bent all the way in) it pushes the claw like the rest of it
+  const least = -claw.open * OPEN_ANGLE, stiff = fingersShut() || !!claw.held;
+  fingers().forEach((fg, fi) => {
+    const bends = !stiff && claw.flex[fi] > least + 1e-3;
+    for (const [a, b] of fingerRods(fg)) for (let i = 0; i <= 6; i++) pts.push([...lerp3(a, b, i / 6), FINGER_R, bends]);
+  });
+  if (claw.held) pts.push([claw.held.x, claw.held.y, claw.held.z, claw.held.r, false]);
   const s = [0, 0, 0];
-  for (const w of CLAW_WALLS) for (const [x0, y0, z0, r] of pts) {
+  CLAW_WALLS.forEach((w, wi) => { for (const [x0, y0, z0, r, bends] of pts) {
+    if (bends && wi >= WALLS.length) continue;
     const p = [x0 + s[0], y0 + s[1], z0 + s[2]];
     const q = p.map((v, i) => clamp(v, w.min[i], w.max[i]));
     const d = Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
@@ -630,7 +668,7 @@ function clawWallPush() {
       if (dist < best) { best = dist; axis = i; dir = sg; }
     }
     s[axis] += dir * best;
-  }
+  } });
   return s;
 }
 
@@ -1007,8 +1045,13 @@ function driveCarriage(tx, tz, dt) {
   const c = claw, ax = tx - c.vx, az = tz - c.vz, a = Math.hypot(ax, az), m = ACC * dt;
   if (a > m) { c.vx += ax / a * m; c.vz += az / a * m; } else { c.vx = tx; c.vz = tz; }
   c.x += c.vx * dt; c.z += c.vz * dt;
-  if (Math.abs(c.x) > LIMIT.x) { c.x = Math.sign(c.x) * LIMIT.x; c.vx = 0; }
-  if (Math.abs(c.z) > LIMIT.z) { c.z = Math.sign(c.z) * LIMIT.z; c.vz = 0; }
+  // The player can't take it out past LIMIT. Only the way back goes to the hole's corner (DROP_AT is
+  // just outside it), and a round starting from there isn't snapped in: it just can't go further out.
+  if (state !== 'aim') return;
+  for (const [k, vk, lim] of [['x', 'vx', LIMIT.x], ['z', 'vz', LIMIT.z]]) {
+    const was = Math.abs(c[k] - c[vk] * dt);
+    if (Math.abs(c[k]) > lim && Math.abs(c[k]) > was) { c[k] = Math.sign(c[k]) * Math.max(lim, was); c[vk] = 0; }
+  }
 }
 
 // The head is a point mass on an elastic cable that can only pull (it goes slack when the head lands).
@@ -1093,7 +1136,7 @@ function update(dt) {
     tz = ((keys.d ? 1 : 0) - (keys.u ? 1 : 0)) * MOVE;
   } else if (state === 'return') {
     // Brake in time to stop over the hole
-    const dx = HOME.x - c.x, dz = HOME.z - c.z, d = Math.hypot(dx, dz);
+    const dx = DROP_AT.x - c.x, dz = DROP_AT.z - c.z, d = Math.hypot(dx, dz);
     const s = Math.min(MOVE, Math.sqrt(2 * ACC * .8 * d));
     if (d > 1e-4) { tx = dx / d * s; tz = dz / d * s; }
   }
@@ -1110,6 +1153,7 @@ function update(dt) {
       // pushes prizes aside (held in place sideways once landed, see swingHead). The winch keeps
       // letting out up to DROP_SLACK of loose cable, which bows out above the claw.
       c.t += dt;
+      c.open = Math.min(1, c.open + OPEN_RATE * dt);   // it opens as it starts down (closed at the top)
       c.winch = Math.min(DROP, c.winch + WINCH_ACC * dt);
       c.len = Math.min(L_MAX, c.len + c.winch * dt, c.dist + DROP_SLACK);
       // Landed means the cable is slack because the claw rests on something it touches. Slack alone
@@ -1144,8 +1188,8 @@ function update(dt) {
       break;
     case 'return':
       slip(dt);
-      if (Math.hypot(HOME.x - c.x, HOME.z - c.z) < .01 && Math.hypot(c.vx, c.vz) < .05) {
-        c.x = HOME.x; c.z = HOME.z; c.vx = c.vz = 0; state = 'settle'; c.t = 0;
+      if (Math.hypot(DROP_AT.x - c.x, DROP_AT.z - c.z) < .01 && Math.hypot(c.vx, c.vz) < .05) {
+        c.x = DROP_AT.x; c.z = DROP_AT.z; c.vx = c.vz = 0; state = 'settle'; c.t = 0;
       }
       break;
     case 'settle': {
@@ -1172,6 +1216,8 @@ function update(dt) {
       }
       break;
   }
+  // Empty and done, it closes again, so it is shut at the top for the next round (see LIMIT)
+  if (state === 'wait' || state === 'idle' || state === 'aim') c.open = Math.max(0, c.open - REST_CLOSE_RATE * dt);
   c.dist = swingHead(dt);
   cableStep(dt);
   if (c.held) carry(dt); else flexFingers(dt);
