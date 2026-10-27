@@ -104,11 +104,11 @@ const OPEN_ANGLE = .5;
 const FINGER_REACH = PIVOT_DOWN + Math.max(...FINGER_SHAPE.flatMap(([u, d]) => [d, -u * Math.sin(OPEN_ANGLE) + d * Math.cos(OPEN_ANGLE)]));
 const FINGER_R = .045;   // collision radius of a finger (about half its width)
 // The claw is closed at the top and only opens on the way down (OPEN_RATE, open-fractions per second);
-// after letting go it closes again (REST_CLOSE_RATE). The carriage's travel (LIMIT) keeps the closed claw,
+// after letting go it closes again (see restClose). The carriage's travel (LIMIT) keeps the closed claw,
 // hanging straight, just clear of the cabinet's sides. It used to hang open at the top, about 0.6 wide
 // from its axis, and travel to 0.3 from the walls: the wall pushed it in while the carriage stayed out,
 // so it hung tilted at the edges (October 2026).
-const OPEN_RATE = 2.5, REST_CLOSE_RATE = 2;
+const OPEN_RATE = 2.5;
 const CLOSED_REACH = PIVOT_R + Math.max(...FINGER_SHAPE.map(([u]) => u)) + FINGER_R;
 // (with room for the claw to swing on a bit when the carriage stops at the limit)
 const LIMIT = { x: BOX.x - CLOSED_REACH - .08, z: BOX.z - CLOSED_REACH - .08 };
@@ -144,6 +144,10 @@ const WOBBLE = { k: 30, c: 4, side: .025, up: .05, bounce: .5, floorK: 6000, flo
 // The closing motor speeds up (CLOSE_ACC, in open-fractions per second²) to CLOSE_SPEED, so the claw
 // shuts with a snap rather than easing in
 const CLOSE_SPEED = 5, CLOSE_ACC = 22;
+// Letting go over the hole is mechanical too (the user asked, October 2026): the motor speeds up to
+// RELEASE_SPEED and the fingers hit their stop with a clunk and a jolt (JOLT, an upward kick to the
+// head on its cable), it stays open OPEN_HOLD seconds, then shuts like the grab, with a clack
+const RELEASE_SPEED = 4, RELEASE_ACC = 16, OPEN_HOLD = .5, JOLT = .9;
 const CLOSE_GIVE = .03;  // while closing, how far a finger digs into a jammed prize before it gives way
 const CLOSE_HOLD = .35;  // seconds the motor keeps squeezing once fully closed, before lifting
 // Rope: velocity kept per step, link passes per step, and the sideways nudge that lets slack bow out
@@ -1127,6 +1131,18 @@ function win(p) {
   sfx('win'); hud();
 }
 
+// After letting go the claw stays open for OPEN_HOLD, then the motor shuts it the way it grabs: it
+// speeds up to CLOSE_SPEED and stops with a clack and a jolt. (It used to start closing at once, at
+// a steady rate, which felt soft.) The next round can start meanwhile; a drop opens it again.
+function restClose(dt) {
+  const c = claw;
+  if (c.open <= 0 || (c.shutIn = (c.shutIn || 0) - dt) > 0) return;
+  if (!c.closeV) sfx('motor');
+  c.closeV = Math.min(CLOSE_SPEED, (c.closeV || 0) + CLOSE_ACC * dt);
+  c.open = Math.max(0, c.open - c.closeV * dt);
+  if (c.open === 0) { c.closeV = 0; sfx('clack'); c.head.vy += JOLT * .6; }
+}
+
 function update(dt) {
   const c = claw;
   // Where the carriage wants to go; it only moves while aiming and on the way back
@@ -1197,13 +1213,14 @@ function update(dt) {
       // in the claw there is nothing to drop straight, so it opens right away
       c.t += dt; slip(dt);
       const h = c.head;
-      if (!c.held || Math.hypot(h.x - c.x, h.z - c.z) < .05 && Math.hypot(h.vx, h.vz) < .25 || c.t > 1) state = 'release';
+      if (!c.held || Math.hypot(h.x - c.x, h.z - c.z) < .05 && Math.hypot(h.vx, h.vz) < .25 || c.t > 1) { state = 'release'; c.openV = 0; sfx('motor'); }
       break;
     }
     case 'release':
       c.slipping = null;
-      loosen(dt, 2);
-      if (c.open >= 1) { state = 'wait'; c.t = 0; }
+      c.openV = Math.min(RELEASE_SPEED, c.openV + RELEASE_ACC * dt);
+      loosen(dt, c.openV);
+      if (c.open >= 1) { state = 'wait'; c.t = 0; c.shutIn = OPEN_HOLD; c.closeV = 0; sfx('clunk'); c.head.vy += JOLT; }
       break;
     case 'wait':
       c.t += dt;
@@ -1217,7 +1234,7 @@ function update(dt) {
       break;
   }
   // Empty and done, it closes again, so it is shut at the top for the next round (see LIMIT)
-  if (state === 'wait' || state === 'idle' || state === 'aim') c.open = Math.max(0, c.open - REST_CLOSE_RATE * dt);
+  if (state === 'wait' || state === 'idle' || state === 'aim') restClose(dt);
   c.dist = swingHead(dt);
   cableStep(dt);
   if (c.held) carry(dt); else flexFingers(dt);
@@ -1258,6 +1275,8 @@ function sfx(name) {
       case 'drop': tone(600, 200, .6, 'triangle', .08); break;
       case 'clank': tone(180, 90, .12, 'square', .07); break;
       case 'clack': tone(320, 140, .07, 'square', .08); tone(90, 60, .1, 'triangle', .1); break;
+      case 'clunk': tone(200, 90, .09, 'square', .08); tone(70, 45, .14, 'triangle', .12); break;
+      case 'motor': tone(110, 170, .3, 'sawtooth', .025); break;
       case 'grab': tone(400, 800, .12, 'triangle', .08); break;
       case 'slip': tone(220, 80, .3, 'sawtooth', .05); break;
       case 'win': [523, 659, 784, 1047].forEach((f, i) => tone(f, 0, .18, 'square', .05, i * .09)); break;

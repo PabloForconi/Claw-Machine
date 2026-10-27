@@ -77,7 +77,11 @@ The user asked for physically based motion when the claw brakes, drops, etc.
     - Before, only the head was clamped, 0.3 inside, and the open fingers reach about 0.6 out from it. They went through the back wall, which the user noticed (October 2026).
     - Now no finger gets more than about 5 mm past a wall, and the claw still catches capsules lying against the walls and in the corners.
     - The head clamp (`BOX - 0.3` in `swingHead()`) is still there as a backstop.
-  - The claw is closed at the top and opens on the way down (`OPEN_RATE`). After letting go it closes again (`REST_CLOSE_RATE`, in `wait`, `idle` and `aim`).
+  - The claw is closed at the top and opens on the way down (`OPEN_RATE`). After letting go it closes again (`restClose()`, in `wait`, `idle` and `aim`).
+  - Letting go is mechanical, as the user asked (October 2026), instead of a steady soft open and close.
+    - The motor speeds up (`RELEASE_ACC`) to `RELEASE_SPEED` and opens in about 0.35 s. The fingers hit their stop with a clunk, and `JOLT` kicks the head up on its cable, about 3 cm.
+    - It stays open `OPEN_HOLD` (0.5 s), then shuts like the grab: it speeds up to `CLOSE_SPEED` in about 0.3 s and stops with a clack and a smaller jolt. A short motor whine (`sfx('motor')`) starts each move.
+    - The next round can start during the hold; a drop opens the claw again.
     - The player's travel (`LIMIT`, applied only in `aim`) keeps the closed claw, hanging straight, clear of the sides with room to swing on when the carriage stops (`CLOSED_REACH` + 0.08). A round starting at `DROP_AT`, just outside `LIMIT`, isn't snapped in; it just can't go further out.
     - The user asked for this (October 2026). The claw used to hang open at the top, about 0.6 wide, and travel to 0.3 from the walls. Once the walls were solid, they pushed it in while the carriage stayed out, so it hung tilted at the edges.
   - Against the cabinet's sides, an open finger bends instead of shoving the whole claw away. So a claw opening next to a wall comes down straight; shoved by its fingers, it was pushed up to 0.35 off its carriage.
