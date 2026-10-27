@@ -453,20 +453,23 @@ const fingersOn = (p, gap = .004) => fingers().filter(fg => fingerPenOn(fg, p) >
 // instead of digging in. So when the claw has closed, every finger lies against whatever it met.
 // It springs back as far as it can without digging into anything. (While the claw carries a prize,
 // carry() drives the fingers instead.)
-// While closing, though, the motor is strong: a finger shoves the prizes in its way aside (the
-// contact solver pushes them with the finger's own motion) and only gives way to one that is jammed
-// and that it starts to dig into (CLOSE_GIVE). Otherwise, buried in a pile, the fingers gave way to
-// every capsule around them and ended up wider than the open claw.
+// From the moment it closes until it lets go, though, the motor holds the fingers shut with force
+// (gripFirm): a finger shoves the prizes in its way aside (the contact solver pushes them with the
+// finger's own motion) and only gives way to one that is jammed and that it starts to dig into
+// (CLOSE_GIVE). Otherwise, buried in a pile, the fingers gave way to every capsule around them and
+// ended up wider than the open claw; and with the soft give back on after closing, they swung open
+// again by up to 0.5 rad as the claw started to lift.
+const gripFirm = () => ['close', 'lift', 'return', 'settle'].includes(state);
 function flexFingers(dt) {
-  const fl = claw.flex, now = fingers(), give = state === 'close' ? CLOSE_GIVE : .002;
+  const fl = claw.flex, now = fingers(), firm = gripFirm(), give = firm ? CLOSE_GIVE : .002;
   for (let i = 0; i < fl.length; i++) {
     const pen = fingerPen(now[i]);
     if (pen > give) { fl[i] = Math.min(FLEX_MAX, fl[i] + (pen - give) * FLEX_GAIN); continue; }
     // No springing back while a prize slips out or the claw lets go, or it would fight the opening
     if (fl[i] <= 0 || claw.slipping || state === 'release') continue;
-    // Spring back as far as it stays clear; while closing, the motor drives it back in even against
-    // the prizes around it, up to the same give
-    const back = fl.slice(); back[i] = Math.max(0, fl[i] - FLEX_RETURN * (state === 'close' ? 2 : 1) * dt);
+    // Spring back as far as it stays clear; with a firm grip the motor drives it back in even
+    // against the prizes around it, up to the same give
+    const back = fl.slice(); back[i] = Math.max(0, fl[i] - FLEX_RETURN * (firm ? 2 : 1) * dt);
     if (fingerPen(fingers(back)[i]) <= give) fl[i] = back[i];
   }
 }
@@ -893,12 +896,12 @@ function carry(dt) {
   const c = claw, p = c.held, hd = c.hold, k = Math.min(1, HOLD_SETTLE * dt);
   if (!p) return;
   hd.ox *= 1 - k; hd.oz *= 1 - k; hd.oy += (hd.restOy - hd.oy) * k;
-  // Even out to the cradle angle, but a finger still pressing on a neighbour (lifting off the pile)
-  // gives way to it rather than digging in
+  // Even out to the cradle angle, but a finger jammed against a neighbour (lifting off the pile)
+  // gives way to it rather than digging in (with the same firm give as flexFingers)
   const now = fingers();
   for (let i = 0; i < c.flex.length; i++) {
     const pen = fingerPen(now[i]);
-    if (pen > .002) c.flex[i] = Math.min(FLEX_MAX, c.flex[i] + pen * FLEX_GAIN);
+    if (pen > CLOSE_GIVE) c.flex[i] = Math.min(FLEX_MAX, c.flex[i] + (pen - CLOSE_GIVE) * FLEX_GAIN);
     else c.flex[i] += (hd.flex - c.flex[i]) * k;
   }
   [p.x, p.y, p.z] = clawPoint(clawFrame(), hd.ox, hd.oz, hd.oy);
