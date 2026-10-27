@@ -68,14 +68,21 @@
 <script type="module">
 import * as THREE from 'three';
 
-// World units: the glass box is 4 wide (x), 3 deep (z), the floor is y = 0.
-// The prize hole is the front-left corner: x < HOLE.x and z > HOLE.z.
-const BOX = { x: 2, z: 1.5 };
-const HOLE = { x: -1.1, z: 0.6 };
+// World units: the glass box is 2 * BOX.x wide (x), 2 * BOX.z deep (z), the floor is y = 0.
+// The prize hole sits in the front-left corner: x from HOLE.x0 to HOLE.x, z from HOLE.z to HOLE.z1,
+// a 0.9 square fenced by clear walls on all four sides, with a strip of floor between it and the glass.
+// The glass box is just big enough for the claw to open over the hole without touching the glass: the
+// open claw reaches about 0.69 from its axis. It was 4 x 3 with the hole right in its corner, 0.45 from
+// both panes, so letting go bent the fingers against them (the user saw it, October 2026).
+const BOX = { x: 2.28, z: 1.78 };
+const HOLE = { x0: -2, x: -1.1, z: 0.6, z1: 1.5 };
+const inHole = (x, z) => x > HOLE.x0 && x < HOLE.x && z > HOLE.z && z < HOLE.z1;
 const HOLE_WALL_H = 1.1;
 const WALLS = [   // the clear walls around the hole, as boxes
-  { min: [HOLE.x - .03, 0, HOLE.z - .03], max: [HOLE.x + .03, HOLE_WALL_H, BOX.z] },
-  { min: [-BOX.x, 0, HOLE.z - .03], max: [HOLE.x + .03, HOLE_WALL_H, HOLE.z + .03] },
+  { min: [HOLE.x - .03, 0, HOLE.z - .03], max: [HOLE.x + .03, HOLE_WALL_H, HOLE.z1 + .03] },
+  { min: [HOLE.x0 - .03, 0, HOLE.z - .03], max: [HOLE.x + .03, HOLE_WALL_H, HOLE.z + .03] },
+  { min: [HOLE.x0 - .03, 0, HOLE.z - .03], max: [HOLE.x0 + .03, HOLE_WALL_H, HOLE.z1 + .03] },
+  { min: [HOLE.x0 - .03, 0, HOLE.z1 - .03], max: [HOLE.x + .03, HOLE_WALL_H, HOLE.z1 + .03] },
 ];
 // What the claw runs into: the hole walls, plus the cabinet's four sides (the wallpapered back, the
 // side and front glass) as thick boxes just outside the play area. The claw bumps off them as one body
@@ -88,7 +95,7 @@ const CLAW_WALLS = [...WALLS,
   { min: [-BOX.x - 1, -1, -BOX.z - 1], max: [-BOX.x, 6, BOX.z + 1] },
   { min: [BOX.x, -1, -BOX.z - 1], max: [BOX.x + 1, 6, BOX.z + 1] },
 ];
-const HOME = { x: (-BOX.x + HOLE.x) / 2, z: (HOLE.z + BOX.z) / 2 };
+const HOME = { x: (HOLE.x0 + HOLE.x) / 2, z: (HOLE.z + HOLE.z1) / 2 };
 // The claw's body is a small rounded box around the head point, like the carriage: HUB_R out to its
 // sides, from HUB_DOWN below the head point to HUB_UP above it, and it collides as a cylinder that
 // size. The cable hooks onto its top (HOOK_UP), and the fingers hinge at its bottom edge (PIVOT_R
@@ -111,11 +118,7 @@ const FINGER_R = .045;   // collision radius of a finger (about half its width)
 const OPEN_RATE = 2.5;
 const CLOSED_REACH = PIVOT_R + Math.max(...FINGER_SHAPE.map(([u]) => u)) + FINGER_R;
 // (with room for the claw to swing on a bit when the carriage stops at the limit)
-const LIMIT = { x: BOX.x - CLOSED_REACH - .08, z: BOX.z - CLOSED_REACH - .08 };
-// Where the claw waits and lets go: over the hole (HOME, its middle), but nudged in so the closed claw
-// clears the two glass sides of that corner (HOME is only 0.45 from them, the closed claw 0.455 wide)
-const DROP_AT = { x: Math.max(HOME.x, -BOX.x + CLOSED_REACH + .03), z: Math.min(HOME.z, BOX.z - CLOSED_REACH - .03) };
-const CARRIAGE_Y = 4.3, HEAD0 = CARRIAGE_Y - HOOK_UP - .12;   // at the top the hook sits just under the carriage
+const LIMIT = { x: BOX.x - CLOSED_REACH - .08, z: BOX.z - CLOSED_REACH - .08 };const CARRIAGE_Y = 4.3, HEAD0 = CARRIAGE_Y - HOOK_UP - .12;   // at the top the hook sits just under the carriage
 const G = 14, STEP = 1 / 120;
 const MOVE = 1.6, DROP = 2.2, LIFT = 1.8;
 // Claw dynamics: the carriage accelerates and brakes, the winch ramps up, and the head is a
@@ -202,7 +205,7 @@ const top = new THREE.DirectionalLight(0xffffff, 1.6);
 top.position.set(0, 10, 0.001);
 top.castShadow = true;
 top.shadow.mapSize.set(2048, 2048);
-Object.assign(top.shadow.camera, { left: -2.6, right: 2.6, top: 2.2, bottom: -2.2, near: 1, far: 14 });
+Object.assign(top.shadow.camera, { left: -BOX.x - .6, right: BOX.x + .6, top: BOX.z + .7, bottom: -BOX.z - .7, near: 1, far: 14 });
 top.shadow.bias = -0.0005;
 scene.add(top);
 const glow = new THREE.PointLight(0xffc0e0, 6, 8, 1.5);
@@ -243,16 +246,21 @@ const dots = (bg) => {
 // Floor slab with the hole cut out: two boxes forming an L, plus thick rims all round
 const floorTex = dots('#5a43a0'); floorTex.repeat.set(6, 4.5);
 const FLOOR = mat(0xffffff, { map: floorTex });
-const slabA = box(BOX.x - HOLE.x, .6, BOX.z * 2, FLOOR, (HOLE.x + BOX.x) / 2, -.3, 0);
-const slabB = box(HOLE.x + BOX.x, .6, HOLE.z + BOX.z, FLOOR, (HOLE.x - BOX.x) / 2, -.3, (HOLE.z - BOX.z) / 2);
-slabA.receiveShadow = slabB.receiveShadow = true;
-box(4.7, .62, .35, PINK, 0, -.29, BOX.z + .175);
-box(4.7, .62, .35, PINK, 0, -.29, -BOX.z - .175);
-box(.35, .62, 3.7, PINK, BOX.x + .175, -.29, 0);
-box(.35, .62, 3.7, PINK, -BOX.x - .175, -.29, 0);
-const holeIn = box(.88, .6, .88, new THREE.MeshStandardMaterial({ color: 0x120a20, side: THREE.BackSide }), HOME.x, -.3, HOME.z);
+// (the cabinet's outer size: the glass box plus its 0.35 frame all round)
+const CAB_W = BOX.x * 2 + .7, CAB_D = BOX.z * 2 + .7;
+// The floor slab with the hole cut out: four boxes, the hole's sides to the right, behind, left and in front
+const slab = (x0, x1, z0, z1) => { box(x1 - x0, .6, z1 - z0, FLOOR, (x0 + x1) / 2, -.3, (z0 + z1) / 2).receiveShadow = true; };
+slab(HOLE.x, BOX.x, -BOX.z, BOX.z);
+slab(-BOX.x, HOLE.x, -BOX.z, HOLE.z);
+slab(-BOX.x, HOLE.x0, HOLE.z, BOX.z);
+slab(HOLE.x0, HOLE.x, HOLE.z1, BOX.z);
+box(CAB_W, .62, .35, PINK, 0, -.29, BOX.z + .175);
+box(CAB_W, .62, .35, PINK, 0, -.29, -BOX.z - .175);
+box(.35, .62, CAB_D, PINK, BOX.x + .175, -.29, 0);
+box(.35, .62, CAB_D, PINK, -BOX.x - .175, -.29, 0);
+const holeIn = box(HOLE.x - HOLE.x0 - .02, .6, HOLE.z1 - HOLE.z - .02, new THREE.MeshStandardMaterial({ color: 0x120a20, side: THREE.BackSide }), HOME.x, -.3, HOME.z);
 holeIn.receiveShadow = true;
-box(4.7, 1.1, 3.7, PINK, 0, -1.15, 0);
+box(CAB_W, 1.1, CAB_D, PINK, 0, -1.15, 0);
 
 // Scoreboard on the front of the base: coins, points, time, and the hint while idle. It is part of the
 // machine (a canvas texture, repainted by hud() when something changes) so the screen above is all game.
@@ -271,11 +279,11 @@ const boardTex = canvasTex(1024, Math.round(1024 * BOARD_H / BOARD_W), (g, w, h)
   if (board.hint) { g.fillStyle = '#ffd23f'; g.font = '700 44px Kalam, cursive'; g.fillText(FREE_PLAY ? 'Tocá las flechas o ¡BAJAR!' : 'Tocá las flechas o ¡BAJAR! (1 ficha)', w / 2, h - 42); }
 });
 const boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(BOARD_W, BOARD_H), new THREE.MeshBasicMaterial({ map: boardTex, transparent: true }));
-boardMesh.position.set(0, -1.15, 1.86); scene.add(boardMesh);
+boardMesh.position.set(0, -1.15, CAB_D / 2 + .01); scene.add(boardMesh);
 
 // Pillars, roof, back wall, glass
 for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(.35, 4.6, .35, PINK, sx * (BOX.x + .175), 2.3, sz * (BOX.z + .175));
-box(4.7, .3, 3.7, PINK, 0, 4.75, 0);
+box(CAB_W, .3, CAB_D, PINK, 0, 4.75, 0);
 const backTex = dots('#2e2058'); backTex.repeat.set(6, 7);
 const back = new THREE.Mesh(new THREE.PlaneGeometry(BOX.x * 2, 4.6), mat(0xffffff, { map: backTex }));
 back.position.set(0, 2.3, -BOX.z); back.receiveShadow = true; scene.add(back);
@@ -296,20 +304,20 @@ for (const w of WALLS) {
 
 // Marquee with chasing bulbs: a thin strip on the roof (MARQUEE_H tall), so there is more room for the game
 const MARQUEE_H = .5, MARQUEE_Y = 4.9 + MARQUEE_H / 2;
-const marqueeTex = canvasTex(1024, Math.round(1024 * MARQUEE_H / 4.7), (g, w, h) => {
+const marqueeTex = canvasTex(1024, Math.round(1024 * MARQUEE_H / CAB_W), (g, w, h) => {
   g.fillStyle = '#3a1f6b'; g.fillRect(0, 0, w, h);
   g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .72)}px Kalam, cursive`;
   g.lineWidth = 10; g.strokeStyle = '#8a1f48'; g.strokeText('CLAW MACHINE', w / 2, h / 2 + 5);
   g.fillStyle = '#ffd23f'; g.fillText('CLAW MACHINE', w / 2, h / 2 + 5);
 });
 document.fonts.load('700 120px Kalam').then(() => { marqueeTex.repaint(); boardTex.repaint(); }).catch(() => {});
-box(4.7, MARQUEE_H, .3, [PINK, PINK, PINK, PINK, new THREE.MeshBasicMaterial({ map: marqueeTex }), PINK], 0, MARQUEE_Y, BOX.z + .2);
+box(CAB_W, MARQUEE_H, .3, [PINK, PINK, PINK, PINK, new THREE.MeshBasicMaterial({ map: marqueeTex }), PINK], 0, MARQUEE_Y, BOX.z + .2);
 const bulbs = [];
 const BULB_ON = new THREE.MeshBasicMaterial({ color: 0xfff3b0 }), BULB_OFF = new THREE.MeshBasicMaterial({ color: 0x8a6a2a });
 const BULB_GEO = new THREE.BoxGeometry(.075, .075, .04);   // little square lights, like the rest of the machine
 for (let i = 0; i < 22; i++) for (const y of [MARQUEE_Y - MARQUEE_H / 2 + .02, MARQUEE_Y + MARQUEE_H / 2 - .02]) {
   const b = new THREE.Mesh(BULB_GEO, BULB_OFF);
-  b.position.set(-2.2 + i * 4.4 / 21, y, BOX.z + .37); scene.add(b); bulbs.push([b, i]);
+  b.position.set(-CAB_W / 2 + .15 + i * (CAB_W - .3) / 21, y, BOX.z + .37); scene.add(b); bulbs.push([b, i]);
 }
 
 // Room floor
@@ -607,7 +615,7 @@ function mkPrize(x, y, z) {
 function spawn(n, y0) {
   for (let i = 0; i < n; i++) {
     let x, z;
-    do { x = (Math.random() * 2 - 1) * 1.7; z = (Math.random() * 2 - 1) * 1.2; } while (x < HOLE.x + .5 && z > HOLE.z - .5);
+    do { x = (Math.random() * 2 - 1) * (BOX.x - .3); z = (Math.random() * 2 - 1) * (BOX.z - .3); } while (x < HOLE.x + .5 && z > HOLE.z - .5);
     prizes.push(mkPrize(x, y0 + Math.floor(i / 12) * .75 + Math.random() * .2, z));
   }
 }
@@ -617,8 +625,8 @@ function reset() {
   prizes = [];
   // x, z, vx, vz: the carriage; len: cable paid out; winch: its current speed; head: the hanging claw
   claw = {
-    x: DROP_AT.x, z: DROP_AT.z, vx: 0, vz: 0, len: L_MIN, winch: 0, dist: L_MIN, open: 0, flex: FINGER_ANGLES.map(() => 0), held: null, q: 0, t: 0,
-    head: { x: DROP_AT.x, y: CARRIAGE_Y - L_MIN, z: DROP_AT.z, vx: 0, vy: 0, vz: 0, r: HUB_R },
+    x: HOME.x, z: HOME.z, vx: 0, vz: 0, len: L_MIN, winch: 0, dist: L_MIN, open: 0, flex: FINGER_ANGLES.map(() => 0), held: null, q: 0, t: 0,
+    head: { x: HOME.x, y: CARRIAGE_Y - L_MIN, z: HOME.z, vx: 0, vy: 0, vz: 0, r: HUB_R },
   };
   setMass(claw.head, HEAD_MASS, false);
   lastSegs = null;
@@ -763,7 +771,7 @@ function findContacts(segs, segVel, margin, withClaw) {
         toPoint(lerp3(s0, s1, t), FINGER_R, 'claw', segVel ? lerp3(segVel[k][0], segVel[k][1], t) : ZERO, h);
       });
     }
-    if (!(a.x < HOLE.x && a.z > HOLE.z)) add(null, 0, -1, 0, a.r - a.y, 'floor', ZERO);   // no floor over the hole
+    if (!inHole(a.x, a.z)) add(null, 0, -1, 0, a.r - a.y, 'floor', ZERO);   // no floor over the hole
     add(null, -1, 0, 0, a.r - (a.x + BOX.x), 'glass', ZERO);
     add(null, 1, 0, 0, a.r - (BOX.x - a.x), 'glass', ZERO);
     add(null, 0, 0, -1, a.r - (a.z + BOX.z), 'glass', ZERO);
@@ -1049,13 +1057,8 @@ function driveCarriage(tx, tz, dt) {
   const c = claw, ax = tx - c.vx, az = tz - c.vz, a = Math.hypot(ax, az), m = ACC * dt;
   if (a > m) { c.vx += ax / a * m; c.vz += az / a * m; } else { c.vx = tx; c.vz = tz; }
   c.x += c.vx * dt; c.z += c.vz * dt;
-  // The player can't take it out past LIMIT. Only the way back goes to the hole's corner (DROP_AT is
-  // just outside it), and a round starting from there isn't snapped in: it just can't go further out.
-  if (state !== 'aim') return;
-  for (const [k, vk, lim] of [['x', 'vx', LIMIT.x], ['z', 'vz', LIMIT.z]]) {
-    const was = Math.abs(c[k] - c[vk] * dt);
-    if (Math.abs(c[k]) > lim && Math.abs(c[k]) > was) { c[k] = Math.sign(c[k]) * Math.max(lim, was); c[vk] = 0; }
-  }
+  if (Math.abs(c.x) > LIMIT.x) { c.x = Math.sign(c.x) * LIMIT.x; c.vx = 0; }
+  if (Math.abs(c.z) > LIMIT.z) { c.z = Math.sign(c.z) * LIMIT.z; c.vz = 0; }
 }
 
 // The head is a point mass on an elastic cable that can only pull (it goes slack when the head lands).
@@ -1152,7 +1155,7 @@ function update(dt) {
     tz = ((keys.d ? 1 : 0) - (keys.u ? 1 : 0)) * MOVE;
   } else if (state === 'return') {
     // Brake in time to stop over the hole
-    const dx = DROP_AT.x - c.x, dz = DROP_AT.z - c.z, d = Math.hypot(dx, dz);
+    const dx = HOME.x - c.x, dz = HOME.z - c.z, d = Math.hypot(dx, dz);
     const s = Math.min(MOVE, Math.sqrt(2 * ACC * .8 * d));
     if (d > 1e-4) { tx = dx / d * s; tz = dz / d * s; }
   }
@@ -1204,8 +1207,8 @@ function update(dt) {
       break;
     case 'return':
       slip(dt);
-      if (Math.hypot(DROP_AT.x - c.x, DROP_AT.z - c.z) < .01 && Math.hypot(c.vx, c.vz) < .05) {
-        c.x = DROP_AT.x; c.z = DROP_AT.z; c.vx = c.vz = 0; state = 'settle'; c.t = 0;
+      if (Math.hypot(HOME.x - c.x, HOME.z - c.z) < .01 && Math.hypot(c.vx, c.vz) < .05) {
+        c.x = HOME.x; c.z = HOME.z; c.vx = c.vz = 0; state = 'settle'; c.t = 0;
       }
       break;
     case 'settle': {
@@ -1324,7 +1327,7 @@ addEventListener('blur', () => { keys.l = keys.r = keys.u = keys.d = false; });
 // in that gap. The scoreboard is on the machine itself, so nothing takes room at the top. On wide
 // screens the controls sit in the bottom corners, beside the machine, so they take no height.
 const FIT_CORNERS = [];
-for (const x of [-2.4, 2.4]) for (const y of [-1.72, 5.45]) for (const z of [-1.9, 1.9]) FIT_CORNERS.push(new THREE.Vector3(x, y, z));
+for (const x of [-1, 1]) for (const y of [-1.72, 5.45]) for (const z of [-1, 1]) FIT_CORNERS.push(new THREE.Vector3(x * (CAB_W / 2 + .05), y, z * (CAB_D / 2 + .05)));
 function fit() {
   const w = innerWidth, h = innerHeight, wide = w / h > 1.2;
   document.body.classList.toggle('wide', wide);
