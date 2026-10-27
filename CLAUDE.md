@@ -73,7 +73,10 @@ The user asked for physically based motion when the claw brakes, drops, etc.
   - Landing on a wall's top edge rests the claw there.
   - The claw always closes fully. A finger that runs into a wall gives way against it like against a prize: `fingerPen()` includes `fingerWallPen()`, sampled along the finger. Earlier, the whole claw stopped closing as soon as a finger would touch a wall, and rose open; the user asked for it to close anyway (October 2026).
   - The open claw is wider than the hole, so it can't drop into it.
-  - The glass box walls still only clamp the head.
+  - The cabinet's four sides (the wallpapered back, the side and front glass) work the same way for the claw. `CLAW_WALLS` adds them, as thick boxes just outside the play area, to the hole walls for `clawWallPush()` and `fingerWallPen()`. The capsules keep their own `glass` contacts.
+    - Before, only the head was clamped, 0.3 inside, and the open fingers reach about 0.6 out from it. They went through the back wall, which the user noticed (October 2026).
+    - Now no finger gets more than about 5 mm past a wall, and the claw still catches capsules lying against the walls and in the corners.
+    - The head clamp (`BOX - 0.3` in `swingHead()`) is still there as a backstop.
 
 ### Fingers and grabbing
 

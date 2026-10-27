@@ -77,6 +77,17 @@ const WALLS = [   // the clear walls around the hole, as boxes
   { min: [HOLE.x - .03, 0, HOLE.z - .03], max: [HOLE.x + .03, HOLE_WALL_H, BOX.z] },
   { min: [-BOX.x, 0, HOLE.z - .03], max: [HOLE.x + .03, HOLE_WALL_H, HOLE.z + .03] },
 ];
+// What the claw runs into: the hole walls, plus the cabinet's four sides (the wallpapered back, the
+// side and front glass) as thick boxes just outside the play area. The claw bumps off them as one body
+// and its fingers bend against them, like against the hole walls. Before, only the head was held 0.3
+// inside, so the open fingers (up to about 0.6 out) went through the back wall (October 2026).
+// The capsules have their own glass contacts (see findContacts).
+const CLAW_WALLS = [...WALLS,
+  { min: [-BOX.x - 1, -1, -BOX.z - 1], max: [BOX.x + 1, 6, -BOX.z] },
+  { min: [-BOX.x - 1, -1, BOX.z], max: [BOX.x + 1, 6, BOX.z + 1] },
+  { min: [-BOX.x - 1, -1, -BOX.z - 1], max: [-BOX.x, 6, BOX.z + 1] },
+  { min: [BOX.x, -1, -BOX.z - 1], max: [BOX.x + 1, 6, BOX.z + 1] },
+];
 const HOME = { x: (-BOX.x + HOLE.x) / 2, z: (HOLE.z + BOX.z) / 2 };
 const LIMIT = { x: 1.7, z: 1.2 };
 // The claw's body is a small rounded box around the head point, like the carriage: HUB_R out to its
@@ -435,20 +446,20 @@ function fingerPenOn(fg, p) {
 }
 
 // How deep a finger digs into the prizes it isn't holding
-// ...and into the hole's clear walls, so a finger gives way against them too instead of the whole claw
-// stopping short of closing
+// ...and into the walls (the hole's and the cabinet's), so a finger gives way against them too instead
+// of the whole claw stopping short of closing
 function fingerPen(fg) {
   let m = 0;
   for (const p of prizes) if (p !== claw.held) m = Math.max(m, fingerPenOn(fg, p));
   return Math.max(m, fingerWallPen(fg));
 }
 
-// How deep a finger digs into the hole walls, sampled along its parts
+// How deep a finger digs into the walls, sampled along its parts
 function fingerWallPen(fg) {
   let m = 0;
   for (const [a, b] of fingerRods(fg)) for (let i = 0; i <= 6; i++) {
     const q = lerp3(a, b, i / 6);
-    for (const w of WALLS) {
+    for (const w of CLAW_WALLS) {
       const c = q.map((v, k) => clamp(v, w.min[k], w.max[k])), d = Math.hypot(q[0] - c[0], q[1] - c[1], q[2] - c[2]);
       // Inside the wall: as deep as the nearest face
       const inside = d === 0 ? Math.min(...[0, 1, 2].map(k => Math.min(q[k] - w.min[k], w.max[k] - q[k]))) : 0;
@@ -596,7 +607,8 @@ function segments() {
 const closestOnSeg = (p, a, b) => lerp3(a, b, segParam(p, a, b));
 
 // The push that gets the whole claw (head, sampled finger segments and a held prize) out of the
-// hole's clear walls. The claw is rigid, so every point moves by the same push.
+// hole's clear walls and the cabinet's sides (CLAW_WALLS). The claw is rigid, so every point moves by
+// the same push.
 function clawWallPush() {
   const h = claw.head, fr = clawFrame(), pts = [-HUB_DOWN + h.r, HUB_UP - h.r].map(up => [...clawPoint(fr, 0, 0, up), h.r]);
   for (const [a, b] of segments()) for (let i = 0; i <= 6; i++) {
@@ -605,7 +617,7 @@ function clawWallPush() {
   }
   if (claw.held) pts.push([claw.held.x, claw.held.y, claw.held.z, claw.held.r]);
   const s = [0, 0, 0];
-  for (const w of WALLS) for (const [x0, y0, z0, r] of pts) {
+  for (const w of CLAW_WALLS) for (const [x0, y0, z0, r] of pts) {
     const p = [x0 + s[0], y0 + s[1], z0 + s[2]];
     const q = p.map((v, i) => clamp(v, w.min[i], w.max[i]));
     const d = Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
@@ -1025,7 +1037,8 @@ function swingHead(dt) {
   // over the round tops of the capsules under its fingers
   if (state === 'drop' && c.landed) { [h.x, h.z] = c.landed; h.vx = c.vx; h.vz = c.vz; }
   if (h.y < HEAD_MIN_Y) { h.y = HEAD_MIN_Y; if (h.vy < 0) h.vy *= -.2; h.vx *= .9; h.vz *= .9; }
-  // The hole walls stop the claw: it rests on their top edge or slides off their sides
+  // The walls stop the claw: it rests on the hole walls' top edge or slides off their sides, and it
+  // bumps off the cabinet's sides
   const s = clawWallPush(), sl = Math.hypot(...s);
   if (sl > 0) c.touching = true;
   if (sl > 0) {
