@@ -196,15 +196,23 @@ Each capsule (`mkPrize()`) is two solid halves of one colour, gold for the rare 
     - `order`: only the next part of the goal counts (`goalNow()`); prizes out of order don't count.
     - `size`: its capsules' radius range. Small ones (0.25–0.27) slip between the fingers, big ones (0.34–0.36) squeeze out.
     - `traps`: bombs and skulls in the pile. `bonus`: +2 capsules, only in the first pile, or every restock would bring a new one.
-    - `solids`: obstacles from `SOLIDS` (a pedestal, a clear divider). `onTop` sets that kind on the pedestal.
+    - `stands`: pedestals from `STANDS` (one, two or three apart, or `stairs`, three steps rising to the right), boxes at the back half of the floor (`STAND_Z`). `onTop` lists the kind set on each top (null for none), placed still.
+      - The user asked for these as a recurring twist (October 2026). They replaced a clear wall across the middle, which the user didn't like.
     - `bury`: that kind lies in the back right corner (`BURY_AT`) under a heap, in a pile of `pile` (48).
-    - `giant` + `open`: the boss, a giant gold capsule (`SPECIAL.giant`, radius 0.42) to push into the hole, with the hole walls taken away.
+    - `giant`: the boss, a big gold capsule (`SPECIAL.giant`, radius 0.36) that slips 3× more (`slip`).
+      - At first it was 0.42, to be pushed into a hole with its walls taken away. Bigger than the closed claw, it rode up wedged in the fingers and overlapped them and the box; the user found the claw looked broken.
+      - The user also disliked the hole without walls, and asked for the claw itself to stay as it was.
+      - At 0.36 the claw holds it like any capsule when it comes down within about 0.15 of its middle. Further off, it doesn't lift it.
     - `tip`: a card at the start explaining what is new (`card()`).
   - The curve, as discussed with the user:
     - Each new thing first comes in an easy level with its tip.
-    - A boss every five levels: the giant (5, 20), the gold on the pedestal (10), the buried gold (15).
+    - A boss every five levels: the giant (5, and 20 with a pedestal), the gold on the pedestal (10), the buried gold (15). Pedestals come back as two (12), stairs (16) and three (18).
     - An easier level after each hard one.
-  - The kinds kept in one place (`onTop`, `bury`) never appear elsewhere (`mkPrize()` rerolls them), and they aren't restocked.
+  - The colours kept in one place (`lv.kept`: those `onTop` and `bury`) never appear elsewhere (`mkPrize()` rerolls them), and they aren't restocked.
+  - Nothing falls in on its own when a level starts.
+    - While a reset settles the pile, the hole has a floor (`findContacts()` with `withClaw` off). Whatever ends up over the hole is taken away before the level shows.
+    - The placed prizes start still.
+    - Checked on all 20 levels: no prize fell in during 5 s without playing, and the pedestal prizes stayed on top. The user had seen capsules drop in by themselves as a level started (October 2026).
   - `SPECIAL` holds the non-colour kinds; none of them go to the gallery. Each is a capsule with its sign printed round it (`shellMat()` draws a canvas texture per half).
     - The bomb (💣 on a red disc, dark shell) takes a coin and ends the streak.
     - The skull (💀) loses the level after `CLEAR_DELAY` (`lostTo`). The user asked for both kinds of trap.
@@ -214,12 +222,12 @@ Each capsule (`mkPrize()`) is two solid halves of one colour, gold for the rare 
   - Streaks: `endRound()` judges a round when the next one starts, or before a level is lost, so a prize still dropping in counts.
     - A round whose prize counted for the goal (`roundGood`) adds to `streak`. `STREAK_N` (2) in a row win a coin.
     - The board's coins flash green for a coin won and red for a bomb (`flashCoins()`). While a streak is one short, the idle hint says so.
-  - `startLevel(i, data)` resets for level `i` (or -1 with the daily challenge's data): coins, `got`, the streak, the obstacles (`setSolids()`, which fills `WALLS` with the hole walls unless `open`, plus the obstacles), and `CELL` sized for the biggest capsule.
+  - `startLevel(i, data)` resets for level `i` (or -1 with the daily challenge's data): coins, `got`, the streak, the pedestals (`setSolids()`, which fills `WALLS` with the hole walls plus the pedestal boxes), and `CELL` sized for the biggest capsule.
   - The pile: `needed(initial)` lists what the pile is short of. That is each kind the level still needs with `PILE_SPARE` (2) to spare, or 1 when the goal has more than three kinds, plus its traps. `spawn()` makes those first, avoiding the hole and the obstacles. In `wait` it restocks when the pile is low or short of something.
   - The end of a level: clearing it (`levelMet()` in `win()`) or the skull sets `endT`. After `CLEAR_DELAY`, `levelCard()` comes up. No round can start meanwhile.
     - Cleared: the stars, the coins left, what 3 stars needs, a new gallery season if one opened, "Siguiente nivel" and "Niveles". The stars and `levelsDone` are saved here.
     - Out of coins: `wait` waits for the pile to settle (at most `LOSE_WAIT`), then "¡Sin fichas!" with what was missing. The skull gives "¡La calavera!". Both have "Reintentar".
-  - Safety caps added for the giant, which can ride up wedged in the closed fingers without being held: the jolt at the top shot it out at up to 27.
+  - Safety caps added for the first, bigger giant, which rode up wedged in the closed fingers without being held: the jolt at the top shot it out at up to 27. They only matter in extreme cases.
     - Anything the claw pushes leaves it at most `CLAW_PUSH_MAX` (3) faster than the head.
     - Nothing moves faster than `MAX_SPEED` (9).
   - The board shows FICHAS, NIVEL n (or DESAFÍO DEL DÍA) with the goal and TIEMPO.
@@ -234,7 +242,7 @@ Each capsule (`mkPrize()`) is two solid halves of one colour, gold for the rare 
     - The user wanted it to play alone, without comparing with anyone. `clawMachine.daily` keeps today's best stars and the run of days cleared in a row (`dailyDone()`).
   - Tested with a bot that aims at the highest prize of the right kind, dead centre or up to 0.15 off. It clears nearly everything with stars to spare, since real players are far less exact, so the coins need tuning by playing.
     - The pedestal and buried golds took 1–2 tries.
-    - The giant went in within 2–4 pushes in 4 of 5 runs, aiming 0.2 on the hole side of it; the closing fingers pull it under the claw.
+    - The 0.36 giant was held at the first try with aim up to 0.15 off. So level 5 has 7 coins, and the giant slips 3×.
     - The heap over the buried one is 2–4 capsules deep.
 - The gallery is a second screen the user asked for (October 2026), with a shelf per season (`SEASONS`: Clásicas, Rayadas, Lunares).
   - The user asked for collections where finishing one unlocks a new season. One of each of the six kinds finishes a season (`seasonDone()`) and opens the next (`seasonsOpen()`).
@@ -245,7 +253,12 @@ Each capsule (`mkPrize()`) is two solid halves of one colour, gold for the rare 
   - `#galBtn` (top left, after the levels star) opens `#gallery`.
     - Each season is a 3-column shelf of slots with a CSS-drawn capsule (`.cap`, `.cap.stripes`, `.cap.dots`), the count and the name.
     - Kinds not won yet are dark silhouettes. A locked season shows ? and what opens it.
-  - "Volver a la máquina" (`#galBack`) or Escape goes back. While it is open the game is paused, not drawn, and the keys don't play.
+  - The seasons are a carousel (`#shelf`, horizontal scroll snap), as the user asked (October 2026). Each is 86% wide, so the next one peeks in, cut, at the side.
+    - Swipe, or the arrows and dots under it (`#galNav`, `showSeason()`). Tapping the peeking one goes to it.
+    - It opens on the newest open season. `seasonIdx` is the one shown, read back from the scroll position once a swipe stops.
+    - `#shelf` must stay `position: relative`, since the slides' `offsetLeft` is measured from it.
+  - The gallery and the levels screen each have a button to the other (`#galToLvl`, `#lvlToGal`), as the user asked.
+  - "Volver a la máquina" (`#galBack`) or Escape goes back, and back to the level's card if it had ended. While it is open the game is paused, not drawn, and the keys don't play.
 - Sounds are synthesised with WebAudio in `sfx()`; there are no audio files yet.
 
 Controls: arrows or WASD to move (up/W moves the claw back, away from the camera), Space or Enter to drop. On screen there is the pad and the ¡BAJAR! button.

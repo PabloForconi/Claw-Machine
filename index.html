@@ -57,8 +57,22 @@
     background: radial-gradient(ellipse at 50% 0%, #3a2366, var(--bg) 70%); display: flex; flex-direction: column; align-items: center; }
   .screen h2 { margin: 6px 0 0; font-size: 38px; color: var(--gold); text-shadow: 0 3px 0 var(--pink-dark); }
   .screen .sub { margin: 0 0 18px; font-size: 20px; opacity: .85; text-align: center; }
-  #shelf { width: 100%; max-width: 560px; margin-bottom: 24px; }
-  .season { margin-bottom: 22px; }
+  /* The seasons side by side, one at a time: swipe (or the arrows) to the next, which peeks in at the
+     side. The user asked for it (October 2026); they were stacked one under the other. */
+  #shelf { position: relative; display: flex; gap: 14px; width: 100%; max-width: 600px; overflow-x: auto; scroll-snap-type: x mandatory; touch-action: pan-x pan-y;
+    scrollbar-width: none; overscroll-behavior-x: contain; }
+  #shelf::-webkit-scrollbar { display: none; }
+  .season { flex: 0 0 86%; scroll-snap-align: center; }
+  .season:not(.on) { cursor: pointer; }
+  #galNav { display: flex; align-items: center; gap: 14px; margin: 14px 0 22px; }
+  #galNav button { width: 40px; height: 40px; padding: 0; font: inherit; font-size: 28px; line-height: 1; color: var(--gold); background: var(--panel);
+    border: 3px solid var(--gold); border-radius: 50%; cursor: pointer; }
+  #galNav button:disabled { opacity: .3; cursor: default; }
+  #galDots { display: flex; gap: 8px; }
+  #galDots i { width: 10px; height: 10px; border-radius: 50%; background: var(--ink); opacity: .3; }
+  #galDots i.on { opacity: 1; background: var(--gold); }
+  .backs { margin-top: auto; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+  .back.alt { background: var(--panel); color: var(--ink); border-color: var(--gold); }
   .season h3 { display: flex; justify-content: space-between; margin: 0 4px 10px; font-size: 22px; color: var(--gold); }
   .season.locked .shelf { opacity: .5; }
   .shelf { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
@@ -89,7 +103,7 @@
   .slot.none .num, .slot.none .name { opacity: .45; }
   .slot .num { font-size: 30px; line-height: 1; color: var(--gold); }
   .slot .name { font-size: 17px; line-height: 1; }
-  .back { margin-top: auto; font: inherit; font-size: 24px; color: #3a1f00; background: var(--gold); border: 4px solid #a8740a; border-radius: 16px;
+  .back { font: inherit; font-size: 24px; color: #3a1f00; background: var(--gold); border: 4px solid #a8740a; border-radius: 16px;
     padding: 8px 24px; cursor: pointer; box-shadow: 0 5px 0 #a8740a; }
   .back:active { transform: translateY(4px); box-shadow: 0 1px 0 #a8740a; }
   /* Levels: one row each, with its number, its goal (capsules and how many), its coins and whether it
@@ -143,13 +157,14 @@
   <h2>Mis premios</h2>
   <p id="galTotal" class="sub"></p>
   <div id="shelf"></div>
-  <button id="galBack" class="back">Volver a la máquina</button>
+  <div id="galNav"><button id="galPrev" aria-label="Temporada anterior">‹</button><span id="galDots"></span><button id="galNext" aria-label="Temporada siguiente">›</button></div>
+  <div class="backs"><button id="galToLvl" class="back alt">★ Niveles</button><button id="galBack" class="back">Volver a la máquina</button></div>
 </div>
 <div id="levels" class="screen" hidden>
   <h2>Niveles</h2>
   <p id="lvlSub" class="sub"></p>
   <div id="lvlList"></div>
-  <button id="lvlBack" class="back">Volver a la máquina</button>
+  <div class="backs"><button id="lvlToGal" class="back alt">Galería</button><button id="lvlBack" class="back">Volver a la máquina</button></div>
 </div>
 <div id="opts" hidden>
   <div class="card">
@@ -178,7 +193,7 @@ const HOLE_WALLS = [   // the clear walls around the hole, as boxes
   { min: [-BOX.x, 0, HOLE.z - .03], max: [HOLE.x + .03, HOLE_WALL_H, HOLE.z + .03] },
 ];
 // Everything solid the prizes and the claw collide with besides the glass and the floor: the hole
-// walls (unless the level takes them away) and the level's obstacles (see setSolids)
+// walls and the level's pedestals (see setSolids)
 const WALLS = [...HOLE_WALLS];
 const HOME = { x: (-BOX.x + HOLE.x) / 2, z: (HOLE.z + BOX.z) / 2 };
 const LIMIT = { x: 1.7, z: 1.2 };
@@ -277,7 +292,11 @@ const SPECIAL = {
   bomb: { name: 'Bomba', css: '#2a2233', fg: '#ff5a4d', sign: '💣', disc: '#ff5a4d' },
   skull: { name: 'Calavera', css: '#2a2233', fg: '#f4f0ff', sign: '💀', disc: '#f4f0ff' },
   bonus: { name: '+2 fichas', css: '#fff6e0', fg: '#d99a00', sign: '+2' },
-  giant: { name: 'Gigante', css: '#ffd23f', r: .42 },
+  // The bosses' capsule: as big as the claw can hold, and it slips out more (slip times the usual
+  // chance). It was 0.42 at first, to be pushed into a hole without walls, but bigger than the closed
+  // claw it rode up wedged in the fingers, overlapping them and the box; the user found the claw looked
+  // broken. At 0.36 the claw holds it like any capsule when it comes down near its middle.
+  giant: { name: 'Gigante', css: '#ffd23f', r: .36, slip: 3 },
 };
 const kindKey = name => name === 'any' ? 'any' : (KINDS.find(k => k.name === name) || { key: name }).key;
 const kindCss = key => (KIND[key] || SPECIAL[key]).css;
@@ -289,9 +308,11 @@ const kindCss = key => (KIND[key] || SPECIAL[key]).css;
 // - order: the goal's kinds only count in the order listed;
 // - size: the radius range of its capsules (small ones slip between the fingers, big ones squeeze out);
 // - traps: so many bombs and skulls in the pile; bonus: so many +2 capsules;
-// - solids: obstacles (see SOLIDS), and onTop, a capsule set on the pedestal;
+// - stands: pedestals, one, two or three apart, or a staircase (see STANDS), and onTop, the capsule set
+//   on each one's top (null for none). The user asked for these instead of a wall across the middle,
+//   which they didn't like (October 2026);
 // - bury: a capsule buried under a pile of `pile` capsules;
-// - giant: the boss, a giant capsule to push into the hole, with the hole's walls taken away (open);
+// - giant: the boss, a giant capsule (see SPECIAL.giant);
 // - tip: a card at the start that explains what is new. Each new thing first comes in an easy level,
 //   the bosses come every five levels, and an easier level follows each hard one.
 const LEVELS = [
@@ -299,36 +320,42 @@ const LEVELS = [
   { goal: [['Celeste', 3]], coins: 10 },
   { goal: [['Verde', 2], ['Naranja', 2]], coins: 12 },
   { goal: [['Violeta', 3]], coins: 12, traps: { bomb: 2 }, tip: 'Ojo con las <b>bombas</b>: si una cae al hueco, perdés una ficha.' },
-  { goal: [['giant', 1]], coins: 12, giant: true, open: true, tip: '<b>¡Jefe!</b> La gigante no entra en la garra: empujala hasta el hueco. Esta vez el hueco no tiene paredes.' },
+  { goal: [['giant', 1]], coins: 7, giant: true, tip: '<b>¡Jefe!</b> La gigante es grande y pesada: la garra solo la levanta si la bajás justo en el medio, y se resbala más.' },
   { goal: [['any', 4]], coins: 10 },
   { goal: [['Rosa', 4]], coins: 9, bonus: 2, tip: 'Las cápsulas <b>+2</b> te dan dos fichas más. Y si sacás premios dos rondas seguidas, ganás una ficha.' },
   { goal: [['Celeste', 1], ['Verde', 1], ['Naranja', 1]], coins: 10, order: true, tip: 'Esta vez <b>en orden</b>: primero celeste, después verde, después naranja. Las que saques fuera de orden no cuentan.' },
   { goal: [['Verde', 3]], coins: 12, size: [.25, .27], tip: 'Cápsulas <b>chicas</b>: se escapan entre los dedos. Agarralas bien centradas.' },
-  { goal: [['Dorada', 1]], coins: 8, solids: ['pedestal'], onTop: 'Dorada', traps: { bomb: 2 }, tip: '<b>¡Jefe!</b> La dorada está arriba del pedestal.' },
+  { goal: [['Dorada', 1]], coins: 8, stands: 'one', onTop: ['Dorada'], traps: { bomb: 2 }, tip: '<b>¡Jefe!</b> La dorada está arriba del pedestal.' },
   { goal: [['Naranja', 3]], coins: 10, bonus: 1 },
-  { goal: [['Rosa', 2], ['Celeste', 2]], coins: 12, solids: ['divider'], tip: 'Una <b>pared</b> en el medio: la garra se apoya arriba si la bajás encima.' },
+  { goal: [['Rosa', 1], ['Celeste', 1]], coins: 9, stands: 'two', onTop: ['Rosa', 'Celeste'], tip: 'Ahora son <b>dos pedestales</b>, cada uno con su premio arriba.' },
   { goal: [['any', 4]], coins: 10, traps: { skull: 1, bomb: 1 }, tip: 'La <b>calavera</b>: si cae al hueco, perdés el nivel.' },
   { goal: [['Violeta', 3]], coins: 12, size: [.34, .36], tip: 'Cápsulas <b>grandes</b>: cuesta que entren en la garra.' },
   { goal: [['Dorada', 1]], coins: 9, bury: 'Dorada', pile: 48, tip: '<b>¡Jefe!</b> La dorada está enterrada debajo de las demás: desenterrala.' },
-  { goal: [['Rosa', 2], ['Verde', 2]], coins: 12, bonus: 1 },
+  { goal: [['Verde', 2], ['Dorada', 1]], coins: 12, bonus: 1, stands: 'stairs', onTop: [null, null, 'Dorada'], tip: 'Una <b>escalera</b>: la dorada está en el escalón más alto.' },
   { goal: [['Rosa', 1], ['Celeste', 1], ['Violeta', 1], ['Naranja', 1]], coins: 12, order: true, traps: { bomb: 2 } },
-  { goal: [['Dorada', 2], ['Celeste', 2]], coins: 14, size: [.26, .36], solids: ['divider'] },
+  { goal: [['Dorada', 2], ['Celeste', 2]], coins: 14, size: [.26, .36], stands: 'three', onTop: ['Dorada', 'bomb', 'Dorada'] },
   { goal: KINDS.slice(0, 5).map(k => [k.name, 1]), coins: 14, traps: { skull: 1, bomb: 2 } },
-  { goal: [['giant', 1], ['Dorada', 1]], coins: 14, giant: true, open: true, traps: { bomb: 2 }, tip: '<b>¡Jefe final!</b> La gigante y una dorada, con bombas.' },
+  { goal: [['giant', 1], ['Dorada', 1]], coins: 14, giant: true, stands: 'one', onTop: ['Dorada'], traps: { bomb: 2 }, tip: '<b>¡Jefe final!</b> La gigante y la dorada del pedestal, con bombas.' },
 ].map(cookLevel);
-// The level's goal as { key, n }, with its star thresholds filled in
+// The level's goal as { key, n }, with its star thresholds filled in. kept: the colours the level keeps
+// in one place (on the pedestals, buried), which aren't anywhere else in the pile.
 function cookLevel(l) {
+  const onTop = (l.onTop || []).map(n => n && kindKey(n)), bury = l.bury && kindKey(l.bury);
   return { ...l, goal: l.goal.map(([name, n]) => ({ key: kindKey(name), n })), stars: l.stars || [Math.round(l.coins * .2), Math.round(l.coins * .4)],
-    onTop: l.onTop && kindKey(l.onTop), bury: l.bury && kindKey(l.bury) };
+    onTop, bury, kept: new Set([...onTop, bury].filter(k => k && !SPECIAL[k])) };
 }
 const LEVELS_KEY = 'clawMachine.levelsDone';   // how many levels have been cleared (they unlock in order)
 const STARS_KEY = 'clawMachine.stars';         // the most stars won on each level
-// Obstacles a level can have, as boxes: a pedestal behind the middle, and a clear divider from the
-// back wall to the middle of the floor
-const SOLIDS = {
-  pedestal: { min: [-.32, 0, -.8], max: [.32, .7, -.16], look: 'solid' },
-  divider: { min: [.25, 0, -BOX.z], max: [.31, .85, .35], look: 'clear' },
+// Pedestals, as [x from, x to, height], all at the back half of the floor (STAND_Z): one in the middle,
+// two or three apart, or three in a row stepping up to the right
+const STANDS = {
+  one: [[-.32, .32, .7]],
+  two: [[-1.05, -.45, .7], [.45, 1.05, .7]],
+  three: [[-1.28, -.72, .7], [-.28, .28, .7], [.72, 1.28, .7]],
+  stairs: [[0, .6, .35], [.6, 1.2, .7], [1.2, 1.8, 1.05]],
 };
+const STAND_Z = [-.8, -.2];
+const standBox = ([x0, x1, h]) => ({ min: [x0, 0, STAND_Z[0]], max: [x1, h, STAND_Z[1]] });
 // Three prongs, one at the back. (A caught prize rides in the claw, so it can't slip out through the
 // gap between two fingers, which is why there were four for a while.)
 const FINGER_ANGLES = [-Math.PI / 2, -Math.PI / 2 + 2 * Math.PI / 3, -Math.PI / 2 + 4 * Math.PI / 3];
@@ -523,16 +550,15 @@ function wallMeshes(w, look) {
   if (look === 'solid') for (const m of out) m.castShadow = m.receiveShadow = true;
   return out;
 }
-const holeWallMeshes = HOLE_WALLS.flatMap(w => wallMeshes(w, 'clear'));
+HOLE_WALLS.forEach(w => wallMeshes(w, 'clear'));
 let solidMeshes = [];
-// Set the level's walls and obstacles, in the physics and on screen
+// Set the level's pedestals, in the physics (with the hole walls) and on screen
 function setSolids() {
   WALLS.length = 0;
-  if (!lv.open) WALLS.push(...HOLE_WALLS);
-  for (const m of holeWallMeshes) m.visible = !lv.open;
+  WALLS.push(...HOLE_WALLS);
   for (const m of solidMeshes) scene.remove(m);
   solidMeshes = [];
-  for (const name of lv.solids || []) { WALLS.push(SOLIDS[name]); solidMeshes.push(...wallMeshes(SOLIDS[name], SOLIDS[name].look)); }
+  for (const s of STANDS[lv.stands] || []) { const w = standBox(s); WALLS.push(w); solidMeshes.push(...wallMeshes(w, 'solid')); }
 }
 
 // Marquee with chasing bulbs: a thin strip on the roof (MARQUEE_H tall), so there is more room for the game
@@ -851,9 +877,9 @@ function pickDesign() {
 
 // A capsule: two solid halves (see shellMat) with a dark band where they meet. Its kind is a colour,
 // 'gold' (the rare ones) or a special one; if none is given it is a colour or gold at random, never the
-// kind the level keeps in one place (lv.onTop, lv.bury).
+// kind the level keeps in one place (lv.kept).
 function mkPrize(x, y, z, kind, design) {
-  if (!kind) do kind = rnd() < .12 ? 'gold' : COLORS[rnd() * COLORS.length | 0].toString(16); while (kind === lv.onTop || kind === lv.bury);
+  if (!kind) do kind = rnd() < .12 ? 'gold' : COLORS[rnd() * COLORS.length | 0].toString(16); while (lv.kept.has(kind));
   design = design || (SPECIAL[kind] ? 'plain' : pickDesign());
   const rare = kind === 'gold', size = lv.size || [R_MIN, R_MAX];
   const r = SPECIAL[kind]?.r || size[0] + rnd() * (size[1] - size[0]);
@@ -893,7 +919,7 @@ function spawn(n, y0, initial, around) {
 function needed(initial) {
   const goal = lv.goal, spare = goal.length > 3 ? 1 : PILE_SPARE, out = [];
   const want = (key, n) => { for (let i = prizes.filter(p => p.kind === key).length; i < n; i++) out.push(key); };
-  for (const g of goal) if (g.key !== 'any' && g.key !== 'giant' && g.key !== lv.onTop && g.key !== lv.bury) want(g.key, goalLeft(g) ? goalLeft(g) + spare : 0);
+  for (const g of goal) if (g.key !== 'any' && g.key !== 'giant' && !lv.kept.has(g.key)) want(g.key, goalLeft(g) ? goalLeft(g) + spare : 0);
   for (const [k, n] of Object.entries(lv.traps || {})) want(k, n);
   if (initial && lv.bonus) want('bonus', lv.bonus);
   return out;
@@ -901,7 +927,7 @@ function needed(initial) {
 
 // Where the bosses' giant capsule starts, and where a buried prize lies
 // (in the back right corner, where the glass on two sides keeps the heap over it from spreading out)
-const GIANT_AT = { x: .35, z: -.1 }, BURY_AT = { x: 1.6, z: -1.1 };
+const GIANT_AT = { x: .4, z: .45 }, BURY_AT = { x: 1.6, z: -1.1 };
 
 // Start (or retry) level i (-1: the daily challenge, see startDaily): its coins, nothing won towards it
 // yet, and a fresh pile with what it asks for
@@ -922,16 +948,24 @@ function reset() {
   lastSegs = null;
   resetCable();
   state = 'idle'; coins = lv.coins; score = 0; won = 0; caught = 0;
-  // The level's obstacles, and the contact grid sized for its biggest capsules
+  // The level's pedestals, and the contact grid sized for its biggest capsules
   setSolids();
   CELL = 2 * Math.max(R_MAX, lv.size ? lv.size[1] : 0, lv.giant ? SPECIAL.giant.r : 0) + .06;
-  // The prizes the level puts in place: the giant, the one on the pedestal, the buried one
-  if (lv.giant) prizes.push(mkPrize(GIANT_AT.x, SPECIAL.giant.r, GIANT_AT.z, 'giant'));
-  if (lv.onTop) { const s = SOLIDS.pedestal; prizes.push(mkPrize((s.min[0] + s.max[0]) / 2, s.max[1] + .34, (s.min[2] + s.max[2]) / 2, lv.onTop)); }
-  if (lv.bury) prizes.push(mkPrize(BURY_AT.x, .3, BURY_AT.z, lv.bury));
+  // The prizes the level puts in place, still: the giant, the ones on the pedestals, the buried one
+  const still = p => { p.vx = p.vz = 0; return p; };
+  if (lv.giant) prizes.push(still(mkPrize(GIANT_AT.x, SPECIAL.giant.r, GIANT_AT.z, 'giant')));
+  (STANDS[lv.stands] || []).forEach(([x0, x1, h], i) => {
+    const k = lv.onTop[i];
+    if (k) prizes.push(still(mkPrize((x0 + x1) / 2, h + R_MAX + .02, (STAND_Z[0] + STAND_Z[1]) / 2, k)));
+  });
+  if (lv.bury) prizes.push(still(mkPrize(BURY_AT.x, .3, BURY_AT.z, lv.bury)));
   const total = Math.max(lv.pile || PRIZE_COUNT, prizes.length + needed(true).length + 3);
   spawn(total - prizes.length, lv.bury ? .9 : 1, true, lv.bury && BURY_AT);
-  for (let i = 0; i < SETTLE_STEPS; i++) physics(STEP, true);   // let the pile settle before showing it
+  // Let the pile settle before showing it. Nothing may fall in on its own meanwhile: the hole has a
+  // floor while settling, and whatever ends up over it is taken away before the level is shown (the
+  // user saw capsules drop in by themselves as a level started, October 2026)
+  for (let i = 0; i < SETTLE_STEPS; i++) physics(STEP, true);
+  prizes = prizes.filter(p => !(p.x < HOLE.x && p.z > HOLE.z) || (scene.remove(p.mesh), false));
   rnd = Math.random;   // (the daily challenge seeds only its first pile)
   $('over').hidden = true;
   hud();
@@ -1066,7 +1100,7 @@ function findContacts(segs, segVel, margin, withClaw) {
         toPoint(lerp3(s0, s1, t), FINGER_R, 'claw', segVel ? lerp3(segVel[k][0], segVel[k][1], t) : ZERO, h);
       });
     }
-    if (!(a.x < HOLE.x && a.z > HOLE.z)) add(null, 0, -1, 0, a.r - a.y, 'floor', ZERO);   // no floor over the hole
+    if (!withClaw || !(a.x < HOLE.x && a.z > HOLE.z)) add(null, 0, -1, 0, a.r - a.y, 'floor', ZERO);   // no floor over the hole (but while settling, see reset)
     add(null, -1, 0, 0, a.r - (a.x + BOX.x), 'glass', ZERO);
     add(null, 1, 0, 0, a.r - (BOX.x - a.x), 'glass', ZERO);
     add(null, 0, 0, -1, a.r - (a.z + BOX.z), 'glass', ZERO);
@@ -1294,7 +1328,7 @@ function grabTarget() {
   // Will it be lost on the way (see slip)? About as often as the old per-second slips over a carry
   if (LOSE_PATTERN) claw.lose = LOSE_PATTERN[caught % LOSE_PATTERN.length];
   else {
-    const lose = (LOSE_BASE + (1 - claw.q) * LOSE_OFF) * (p.rare ? 1.6 : 1);
+    const lose = (LOSE_BASE + (1 - claw.q) * LOSE_OFF) * (p.rare ? 1.6 : 1) * (SPECIAL[p.kind]?.slip || 1);
     claw.lose = Math.random() < lose ? (Math.random() < .5 ? 'top' : 'early') : null;
   }
   caught++;
@@ -1835,7 +1869,7 @@ function genDaily(day) {
   const names = KINDS.slice(0, 5).map(k => k.name), goal = [];
   for (let i = 0, n = 2 + (r() < .5); i < n; i++) goal.push([pick(names), 1 + (r() < .5)]);
   if (r() < .3) goal[0] = ['Dorada', 1];
-  const l = { goal }, twists = ['order', 'small', 'big', 'bombs', 'skull', 'bonus', 'divider'];
+  const l = { goal }, twists = ['order', 'small', 'big', 'bombs', 'skull', 'bonus', 'pedestal'];
   for (let i = 0, n = 1 + (r() < .5); i < n; i++) {
     const t = pick(twists);
     if (t === 'order') l.order = true;
@@ -1844,7 +1878,8 @@ function genDaily(day) {
     if (t === 'bombs') l.traps = { ...l.traps, bomb: 2 };
     if (t === 'skull') l.traps = { ...l.traps, skull: 1 };
     if (t === 'bonus') l.bonus = 1;
-    if (t === 'divider') l.solids = ['divider'];
+    // (the first colour, just one, goes on a pedestal)
+    if (t === 'pedestal') { goal[0][1] = 1; l.stands = 'one'; l.onTop = [goal[0][0]]; }
   }
   l.coins = goal.reduce((s, [, n]) => s + n, 0) * 3 + 2 - (l.bonus ? 2 : 0);
   return cookLevel(l);
@@ -1871,7 +1906,7 @@ function levelTags(l, boss) {
   if (l.size) t.push(`<span class="tag">${l.size[1] <= .28 ? 'chicas' : l.size[0] >= .33 ? 'grandes' : 'de varios tamaños'}</span>`);
   for (const [k, n] of Object.entries(l.traps || {})) t.push(`<span class="tag">${capHtml(k)}${k === 'bomb' ? (n > 1 ? 'bombas' : 'bomba') : 'calavera'}</span>`);
   if (l.bonus) t.push(`<span class="tag">${capHtml('bonus')}fichas</span>`);
-  for (const s of l.solids || []) t.push(`<span class="tag">${s === 'pedestal' ? 'pedestal' : 'pared'}</span>`);
+  if (l.stands) t.push(`<span class="tag">${{ one: 'pedestal', two: '2 pedestales', three: '3 pedestales', stairs: 'escalera' }[l.stands]}</span>`);
   if (l.bury) t.push('<span class="tag">enterrada</span>');
   return t.length ? `<span class="tags">${t.join('')}</span>` : '';
 }
@@ -1927,11 +1962,45 @@ function openGallery() {
     return `<section class="season${locked ? ' locked' : ''}"><h3>Temporada ${i + 1} · ${s.name}<span>${locked ? '🔒' : have === KINDS.length ? '✓' : `${have}/${KINDS.length}`}</span></h3>` +
       (locked ? `<p class="sub">Atrapá una de cada en la temporada ${i} para abrirla</p>` : '') + `<div class="shelf">${slots}</div></section>`;
   }).join('');
+  $('galDots').innerHTML = SEASONS.map(() => '<i></i>').join('');
   $('galBtn').classList.remove('new');
   $('gallery').hidden = false; paused = true; stickEnd();
   keys.l = keys.r = keys.u = keys.d = false;
+  showSeason(open - 1, false);   // it opens on the newest season
 }
-function closeGallery() { $('gallery').hidden = true; paused = false; }
+// The seasons' carousel: which one is in the middle, going to one, and the dots and arrows to match
+const seasonEls = () => [...$('shelf').children];
+function seasonNow() {
+  const sh = $('shelf'), mid = sh.scrollLeft + sh.clientWidth / 2;
+  let best = 0, bd = 1e9;
+  seasonEls().forEach((el, i) => { const d = Math.abs(el.offsetLeft + el.offsetWidth / 2 - mid); if (d < bd) { bd = d; best = i; } });
+  return best;
+}
+// seasonIdx is the one shown: set when going to one, and from the scroll position once a swipe stops
+let seasonIdx = 0, seasonSettle = 0;
+function showSeason(i, smooth = true) {
+  const sh = $('shelf'), el = seasonEls()[i];
+  if (!el) return;
+  seasonIdx = i;
+  sh.scrollTo({ left: el.offsetLeft - (sh.clientWidth - el.offsetWidth) / 2, behavior: smooth ? 'smooth' : 'instant' });
+  markSeason(i);
+}
+function markSeason(i) {
+  seasonEls().forEach((el, k) => el.classList.toggle('on', k === i));
+  [...$('galDots').children].forEach((d, k) => d.classList.toggle('on', k === i));
+  $('galPrev').disabled = i === 0; $('galNext').disabled = i === SEASONS.length - 1;
+}
+$('shelf').addEventListener('scroll', () => { clearTimeout(seasonSettle); seasonSettle = setTimeout(() => markSeason(seasonIdx = seasonNow()), 150); });
+$('shelf').addEventListener('click', e => { const el = e.target.closest('.season'); if (el && !el.classList.contains('on')) showSeason(seasonEls().indexOf(el)); });
+$('galPrev').addEventListener('click', () => showSeason(Math.max(0, seasonIdx - 1)));
+$('galNext').addEventListener('click', () => showSeason(Math.min(SEASONS.length - 1, seasonIdx + 1)));
+// From one screen to the other: the gallery and the levels each have a button for the other
+$('galToLvl').addEventListener('click', () => { $('gallery').hidden = true; openLevels(); });
+$('lvlToGal').addEventListener('click', () => { $('levels').hidden = true; openGallery(); });
+function closeGallery() {
+  $('gallery').hidden = true; paused = false;
+  if (state === 'over') $('over').hidden = false;   // back to the card of the level that ended
+}
 $('galBtn').style.setProperty('--c', KINDS[0].css);
 $('galBtn').addEventListener('click', openGallery);
 $('galBack').addEventListener('click', closeGallery);
