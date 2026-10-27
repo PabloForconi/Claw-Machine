@@ -18,7 +18,7 @@ To run it, open `index.html` in a browser; it needs internet for Three.js and th
 
 The pane only repaints while its tab is fronted (`tabs_select`); otherwise screenshots show a stale frame.
 
-`game.claw` is replaced on `reset()` (and so by `game.startLevel(i)`), so read it again after a reset. `game.level` and `game.got` show the level being played and what was won towards it. In the in-app browser's `data:` preview `localStorage` is disabled, so cleared levels and the gallery are only kept until the page reloads (and editing `index.html` reloads it). With 66 capsules a round is about 900 steps (1.5 s of work), so keep test batches to about 8 rounds per browser tool call, or the call times out ("Internal error").
+`game.claw` is replaced on `reset()` (and so by `game.startLevel(i)`), so read it again after a reset. `game.level` and `game.got` show the level being played and what was won towards it, `game.collection` is the gallery's (editable, to test seasons), and `game.startDaily()` starts the daily challenge. In the in-app browser's `data:` preview `localStorage` is disabled, so cleared levels and the gallery are only kept until the page reloads (and editing `index.html` reloads it). With 66 capsules a round is about 900 steps (1.5 s of work), so keep test batches to about 8 rounds per browser tool call, or the call times out ("Internal error").
 
 ## How the game works
 
@@ -190,24 +190,61 @@ Each capsule (`mkPrize()`) is two solid halves of one colour, gold for the rare 
 - A prize that falls below y = -0.75 counts in `win()`, towards the level's goal and the gallery, with a jingle. It still adds points (1, 5 for a gold one, `score`), but they are no longer shown anywhere. The board's PUNTOS gave way to the goal, and the best score (`clawMachine.best`) was dropped with the game-over card. The floating "+1" / "+5 ¡Dorada!" text over the hole was removed at the user's request (October 2026).
   - Before that, the user reported a brief odd flash, "like text or numbers", on the inner hole wall just before the "+1". It wasn't reproduced and they said to look at it later.
 - `fit()` frames the machine by projecting the cabinet's corners (`FIT_CORNERS`). It searches for the camera distance at which they just fit between the top of the screen and the controls, then centres them there with `setViewOffset`. This works for any camera angle and screen shape. On wide screens (`body.wide`) the controls go to the bottom corners and take no height. A fixed half-height guess stopped fitting when the camera was lowered, since the near base looks bigger.
-- Levels: the user asked for goals of rising difficulty, each unlocking the next (October 2026). They also chose a limited number of coins per level, a levels screen, and 10 levels to start with.
-  - `LEVELS` gives each level a goal (a list of `{ key, n }`: so many of a kind, `'any'` for any kind) and its coins. They go from 3 pink in 12 coins to one of each of the six kinds in 15.
-  - Difficulty comes from more prizes, several kinds at once, gold ones (they slip 1.6× more) and fewer coins to spare.
-  - `startLevel(i)` resets the machine for level `i`: its coins, `got` cleared (what has been won towards the goal, kind → count) and a fresh pile.
-  - The pile: `needed()` lists the kinds the pile is short of, so each kind the level still needs is there with `PILE_SPARE` (2) to spare, or 1 when the goal has more than three kinds. `spawn()` makes those first and the rest at random.
-  - At a reset there are at least `PRIZE_COUNT`. In `wait` it restocks from the top when the pile is low or short of a needed kind.
-  - Clearing a level (`levelMet()` in `win()`) saves `levelsDone` to `localStorage` (`clawMachine.levelsDone`), which unlocks the next. After `CLEAR_DELAY` the card `levelCard(true)` comes up: "¡Nivel N superado!", the coins left, "Siguiente nivel" and "Niveles".
-  - Out of coins, `wait` waits until no prize is still moving or in the hole column (at most `LOSE_WAIT`), so a last prize dropping in counts. Then `levelCard(false)`: "¡Sin fichas!", what was missing, "Reintentar" and "Niveles". The card's main button is `#again` (it starts `nextLevel`).
-  - The game opens on the first level not cleared.
-  - The board shows FICHAS, NIVEL n with the goal (a capsule per kind and "won/needed", shrunk to fit; a kind asked for once is just its capsule, ticked once won), and TIEMPO.
-  - The levels screen (`#levels`, opened by the star `#lvlBtn`, top left before the gallery button) lists the levels with their goal (CSS capsules, `.cap.mini`), their coins and a status: ★ cleared, ▶ open, 🔒 locked.
+- Levels: the user asked for goals of rising difficulty, each unlocking the next (October 2026), with limited coins per level and a levels screen. Then they asked for harder levels that stay fun, and approved a list of ideas to build in order of priority. The list stays a single run of 20 levels for now; the user said to split it into worlds later if it works.
+  - `LEVELS` gives each level a goal (a list of `{ key, n }`: so many of a kind; `'any'` is any colour) and its coins. `cookLevel()` turns names into keys and fills in the star thresholds.
+  - Twists a level can have:
+    - `order`: only the next part of the goal counts (`goalNow()`); prizes out of order don't count.
+    - `size`: its capsules' radius range. Small ones (0.25–0.27) slip between the fingers, big ones (0.34–0.36) squeeze out.
+    - `traps`: bombs and skulls in the pile. `bonus`: +2 capsules, only in the first pile, or every restock would bring a new one.
+    - `solids`: obstacles from `SOLIDS` (a pedestal, a clear divider). `onTop` sets that kind on the pedestal.
+    - `bury`: that kind lies in the back right corner (`BURY_AT`) under a heap, in a pile of `pile` (48).
+    - `giant` + `open`: the boss, a giant gold capsule (`SPECIAL.giant`, radius 0.42) to push into the hole, with the hole walls taken away.
+    - `tip`: a card at the start explaining what is new (`card()`).
+  - The curve, as discussed with the user:
+    - Each new thing first comes in an easy level with its tip.
+    - A boss every five levels: the giant (5, 20), the gold on the pedestal (10), the buried gold (15).
+    - An easier level after each hard one.
+  - The kinds kept in one place (`onTop`, `bury`) never appear elsewhere (`mkPrize()` rerolls them), and they aren't restocked.
+  - `SPECIAL` holds the non-colour kinds; none of them go to the gallery. Each is a capsule with its sign printed round it (`shellMat()` draws a canvas texture per half).
+    - The bomb (💣 on a red disc, dark shell) takes a coin and ends the streak.
+    - The skull (💀) loses the level after `CLEAR_DELAY` (`lostTo`). The user asked for both kinds of trap.
+    - The +2 capsule gives two coins.
+    - A plain text "-1" sign wasn't readable on the capsule.
+  - Stars: 1 to 3 for the coins left (`starsFor()`, thresholds `lv.stars`, by default a fifth and two fifths of the coins). The best per level is in `localStorage` (`clawMachine.stars`).
+  - Streaks: `endRound()` judges a round when the next one starts, or before a level is lost, so a prize still dropping in counts.
+    - A round whose prize counted for the goal (`roundGood`) adds to `streak`. `STREAK_N` (2) in a row win a coin.
+    - The board's coins flash green for a coin won and red for a bomb (`flashCoins()`). While a streak is one short, the idle hint says so.
+  - `startLevel(i, data)` resets for level `i` (or -1 with the daily challenge's data): coins, `got`, the streak, the obstacles (`setSolids()`, which fills `WALLS` with the hole walls unless `open`, plus the obstacles), and `CELL` sized for the biggest capsule.
+  - The pile: `needed(initial)` lists what the pile is short of. That is each kind the level still needs with `PILE_SPARE` (2) to spare, or 1 when the goal has more than three kinds, plus its traps. `spawn()` makes those first, avoiding the hole and the obstacles. In `wait` it restocks when the pile is low or short of something.
+  - The end of a level: clearing it (`levelMet()` in `win()`) or the skull sets `endT`. After `CLEAR_DELAY`, `levelCard()` comes up. No round can start meanwhile.
+    - Cleared: the stars, the coins left, what 3 stars needs, a new gallery season if one opened, "Siguiente nivel" and "Niveles". The stars and `levelsDone` are saved here.
+    - Out of coins: `wait` waits for the pile to settle (at most `LOSE_WAIT`), then "¡Sin fichas!" with what was missing. The skull gives "¡La calavera!". Both have "Reintentar".
+  - Safety caps added for the giant, which can ride up wedged in the closed fingers without being held: the jolt at the top shot it out at up to 27.
+    - Anything the claw pushes leaves it at most `CLAW_PUSH_MAX` (3) faster than the head.
+    - Nothing moves faster than `MAX_SPEED` (9).
+  - The board shows FICHAS, NIVEL n (or DESAFÍO DEL DÍA) with the goal and TIEMPO.
+    - The goal is a capsule per kind and "won/needed", shrunk to fit; a kind asked for once is just its capsule, ticked once won.
+    - An ordered goal has › between parts and the parts still to come dimmed.
+  - The levels screen (`#levels`, the star `#lvlBtn`, top left) starts with the daily challenge. Then each level shows its goal, coins, twists as tags (`levelTags()`, JEFE for the bosses) and its status: its stars, ▶ open, or 🔒 locked.
+    - The header totals the stars.
     - Picking one starts it; the one being played just goes back to it unless it is over.
     - "Volver a la máquina" or Escape goes back, and back to the level's card if it had ended. The game is paused and not drawn meanwhile (`screenOpen()`).
-  - Tested with a bot that aims dead centre at the highest prize of the right kind: level 1 took 5 coins, and 7 of 7 rounds delivered on level 6 (aimed off gold). Real players are far less exact, so the coins may need tuning after playing.
-- The gallery is a second screen the user asked for (October 2026). It lists every kind of prize and how many of each were ever won.
-  - The kinds (`KINDS`) are the five `COLORS` plus gold, with Spanish names. Each prize carries its `kind` (its hex colour, or `'gold'`).
-  - `win()` adds the prize to `collection`, kept in `localStorage` under `clawMachine.collection`. It survives levels and new games.
-  - `#galBtn` (top left, a little capsule, after the levels star; the gear is top right) opens `#gallery`, a full-screen page with a 3-column shelf of slots: a CSS-drawn capsule (`.cap`), the count and the name. Kinds not won yet are dark silhouettes with a 0.
+  - The daily challenge (`genDaily(day)`, `startDaily()`): a level made from the date with a seeded random (`mulberry32`), so it is the same all day.
+    - It has two or three colours (sometimes a gold one) and one or two twists. The first pile is seeded too (`rnd` stands in for `Math.random` in the pile code).
+    - The user wanted it to play alone, without comparing with anyone. `clawMachine.daily` keeps today's best stars and the run of days cleared in a row (`dailyDone()`).
+  - Tested with a bot that aims at the highest prize of the right kind, dead centre or up to 0.15 off. It clears nearly everything with stars to spare, since real players are far less exact, so the coins need tuning by playing.
+    - The pedestal and buried golds took 1–2 tries.
+    - The giant went in within 2–4 pushes in 4 of 5 runs, aiming 0.2 on the hole side of it; the closing fingers pull it under the claw.
+    - The heap over the buried one is 2–4 capsules deep.
+- The gallery is a second screen the user asked for (October 2026), with a shelf per season (`SEASONS`: Clásicas, Rayadas, Lunares).
+  - The user asked for collections where finishing one unlocks a new season. One of each of the six kinds finishes a season (`seasonDone()`) and opens the next (`seasonsOpen()`).
+    - Its capsules then turn up in the machine (`pickDesign()`): about half of the random ones, mostly the newest.
+    - The card says so and the gallery button gets a dot (`.new`).
+  - The kinds (`KINDS`) are the five `COLORS` plus gold, with Spanish names. Each prize carries its `kind` (its hex colour, or `'gold'`) and its `design`. Goals count the colour whatever the design.
+  - `win()` adds a colour to `collection` (`clawMachine.collection`): plain ones under their kind, the others as `design:kind` (`colKey()`). It survives levels and new games.
+  - `#galBtn` (top left, after the levels star) opens `#gallery`.
+    - Each season is a 3-column shelf of slots with a CSS-drawn capsule (`.cap`, `.cap.stripes`, `.cap.dots`), the count and the name.
+    - Kinds not won yet are dark silhouettes. A locked season shows ? and what opens it.
   - "Volver a la máquina" (`#galBack`) or Escape goes back. While it is open the game is paused, not drawn, and the keys don't play.
 - Sounds are synthesised with WebAudio in `sfx()`; there are no audio files yet.
 

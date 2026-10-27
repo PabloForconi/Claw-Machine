@@ -57,7 +57,33 @@
     background: radial-gradient(ellipse at 50% 0%, #3a2366, var(--bg) 70%); display: flex; flex-direction: column; align-items: center; }
   .screen h2 { margin: 6px 0 0; font-size: 38px; color: var(--gold); text-shadow: 0 3px 0 var(--pink-dark); }
   .screen .sub { margin: 0 0 18px; font-size: 20px; opacity: .85; text-align: center; }
-  #shelf { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; width: 100%; max-width: 560px; margin-bottom: 24px; }
+  #shelf { width: 100%; max-width: 560px; margin-bottom: 24px; }
+  .season { margin-bottom: 22px; }
+  .season h3 { display: flex; justify-content: space-between; margin: 0 4px 10px; font-size: 22px; color: var(--gold); }
+  .season.locked .shelf { opacity: .5; }
+  .shelf { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  /* Season patterns over the capsule's colour: white stripes, white dots */
+  .cap.stripes { background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .8) 0 6%, transparent 20%),
+      repeating-linear-gradient(-50deg, rgba(255, 255, 255, .55) 0 12%, transparent 12% 30%),
+      radial-gradient(circle at 50% 38%, var(--c) 0 50%, color-mix(in srgb, var(--c) 55%, #000) 100%); }
+  .cap.dots { background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .8) 0 6%, transparent 20%),
+      radial-gradient(circle, rgba(255, 255, 255, .75) 0 18%, transparent 20%) 0 0 / 34% 34%,
+      radial-gradient(circle at 50% 38%, var(--c) 0 50%, color-mix(in srgb, var(--c) 55%, #000) 100%); }
+  /* A special capsule's sign (bomb -1, skull, +2) */
+  .cap.sign::before { content: attr(data-sign); top: 0; height: auto; display: grid; place-items: center; background: none; color: var(--fg);
+    font: 700 15px/1 Kalam, sans-serif; z-index: 1; transform: rotate(18deg); }
+  #galBtn.new::after { content: ''; position: absolute; top: -5px; right: -5px; width: 12px; height: 12px; border-radius: 50%; background: var(--pink); border: 2px solid var(--ink); }
+  .stars { font-size: 44px; color: var(--gold); letter-spacing: 2px; }
+  .stars i { font-style: normal; opacity: .25; }
+  .stars.sm { font-size: 22px; letter-spacing: 0; }
+  .card small { font-size: 17px; opacity: .8; }
+  .lvl .tags { display: flex; flex-wrap: wrap; gap: 4px 6px; width: 100%; font-size: 15px; }
+  .lvl .tag { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 8px; background: rgba(255, 255, 255, .1); }
+  .lvl .tag .cap.mini { width: 18px; height: 18px; }
+  .lvl .tag.boss { background: var(--pink); }
+  .lvl.daily { border-color: #4cc9f0; }
+  .lvl.daily .n { background: #4cc9f0; color: #13223a; }
+  .lvl .goal b { width: 100%; font-size: 20px; color: #4cc9f0; }
   .slot { background: var(--panel); border: 4px solid var(--pink-dark); border-radius: 18px; padding: 16px 6px 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
   .slot.none .cap { filter: grayscale(1) brightness(.35); box-shadow: none; }
   .slot.none .num, .slot.none .name { opacity: .45; }
@@ -147,10 +173,13 @@ import * as THREE from 'three';
 const BOX = { x: 2, z: 1.5 };
 const HOLE = { x: -1.1, z: 0.6 };
 const HOLE_WALL_H = 1.1;
-const WALLS = [   // the clear walls around the hole, as boxes
+const HOLE_WALLS = [   // the clear walls around the hole, as boxes
   { min: [HOLE.x - .03, 0, HOLE.z - .03], max: [HOLE.x + .03, HOLE_WALL_H, BOX.z] },
   { min: [-BOX.x, 0, HOLE.z - .03], max: [HOLE.x + .03, HOLE_WALL_H, HOLE.z + .03] },
 ];
+// Everything solid the prizes and the claw collide with besides the glass and the floor: the hole
+// walls (unless the level takes them away) and the level's obstacles (see setSolids)
+const WALLS = [...HOLE_WALLS];
 const HOME = { x: (-BOX.x + HOLE.x) / 2, z: (HOLE.z + BOX.z) / 2 };
 const LIMIT = { x: 1.7, z: 1.2 };
 // The claw's body is a small rounded box around the head point, like the carriage: HUB_R out to its
@@ -240,44 +269,103 @@ const COLORS = [0xff5d8f, 0x4cc9f0, 0x80ed99, 0xb388ff, 0xff9f43];
 const KINDS = [...COLORS.map((c, i) => ({ key: c.toString(16), css: '#' + c.toString(16).padStart(6, '0'), name: ['Rosa', 'Celeste', 'Verde', 'Violeta', 'Naranja'][i] })),
   { key: 'gold', css: '#ffd23f', name: 'Dorada' }];
 const KIND = Object.fromEntries(KINDS.map(k => [k.key, k]));
-const kindKey = name => KINDS.find(k => k.name === name).key;
 
-// Levels (the user asked for them, October 2026): each asks for so many prizes of some kinds ('any' is
-// any kind) with so many coins. Running out of coins first means trying again; clearing one unlocks the
-// next. Difficulty rises with more prizes, several kinds at once, gold ones (they slip more) and fewer
-// coins to spare.
+// Prizes that aren't colours: traps and a bonus (not in the gallery), and the bosses' giant capsule.
+// A bomb in the hole costs a coin, the skull loses the level, the +2 one gives two coins. They are
+// dark or white capsules with their sign printed round them (see iconMat).
+const SPECIAL = {
+  bomb: { name: 'Bomba', css: '#2a2233', fg: '#ff5a4d', sign: '💣', disc: '#ff5a4d' },
+  skull: { name: 'Calavera', css: '#2a2233', fg: '#f4f0ff', sign: '💀', disc: '#f4f0ff' },
+  bonus: { name: '+2 fichas', css: '#fff6e0', fg: '#d99a00', sign: '+2' },
+  giant: { name: 'Gigante', css: '#ffd23f', r: .42 },
+};
+const kindKey = name => name === 'any' ? 'any' : (KINDS.find(k => k.name === name) || { key: name }).key;
+const kindCss = key => (KIND[key] || SPECIAL[key]).css;
+
+// Levels (the user asked for them, October 2026, then for harder ones that stay fun). Each asks for so
+// many prizes of some kinds ('any' is any colour) with so many coins; running out first means trying
+// again, and clearing one unlocks the next, with 1 to 3 stars for the coins left (stars: the coins left
+// for 2 and 3 stars; by default a fifth and two fifths of them). On top of that a level can have:
+// - order: the goal's kinds only count in the order listed;
+// - size: the radius range of its capsules (small ones slip between the fingers, big ones squeeze out);
+// - traps: so many bombs and skulls in the pile; bonus: so many +2 capsules;
+// - solids: obstacles (see SOLIDS), and onTop, a capsule set on the pedestal;
+// - bury: a capsule buried under a pile of `pile` capsules;
+// - giant: the boss, a giant capsule to push into the hole, with the hole's walls taken away (open);
+// - tip: a card at the start that explains what is new. Each new thing first comes in an easy level,
+//   the bosses come every five levels, and an easier level follows each hard one.
 const LEVELS = [
   { goal: [['Rosa', 3]], coins: 12 },
   { goal: [['Celeste', 3]], coins: 10 },
   { goal: [['Verde', 2], ['Naranja', 2]], coins: 12 },
-  { goal: [['Violeta', 4]], coins: 11 },
-  { goal: [['any', 5]], coins: 10 },
-  { goal: [['Dorada', 1]], coins: 7 },
-  { goal: [['Rosa', 2], ['Celeste', 2], ['Verde', 2]], coins: 14 },
-  { goal: [['Naranja', 5]], coins: 12 },
-  { goal: [['Dorada', 2], ['Violeta', 3]], coins: 14 },
-  { goal: KINDS.map(k => [k.name, 1]), coins: 15 },
-].map(l => ({ ...l, goal: l.goal.map(([name, n]) => ({ key: name === 'any' ? 'any' : kindKey(name), n })) }));
+  { goal: [['Violeta', 3]], coins: 12, traps: { bomb: 2 }, tip: 'Ojo con las <b>bombas</b>: si una cae al hueco, perdés una ficha.' },
+  { goal: [['giant', 1]], coins: 12, giant: true, open: true, tip: '<b>¡Jefe!</b> La gigante no entra en la garra: empujala hasta el hueco. Esta vez el hueco no tiene paredes.' },
+  { goal: [['any', 4]], coins: 10 },
+  { goal: [['Rosa', 4]], coins: 9, bonus: 2, tip: 'Las cápsulas <b>+2</b> te dan dos fichas más. Y si sacás premios dos rondas seguidas, ganás una ficha.' },
+  { goal: [['Celeste', 1], ['Verde', 1], ['Naranja', 1]], coins: 10, order: true, tip: 'Esta vez <b>en orden</b>: primero celeste, después verde, después naranja. Las que saques fuera de orden no cuentan.' },
+  { goal: [['Verde', 3]], coins: 12, size: [.25, .27], tip: 'Cápsulas <b>chicas</b>: se escapan entre los dedos. Agarralas bien centradas.' },
+  { goal: [['Dorada', 1]], coins: 8, solids: ['pedestal'], onTop: 'Dorada', traps: { bomb: 2 }, tip: '<b>¡Jefe!</b> La dorada está arriba del pedestal.' },
+  { goal: [['Naranja', 3]], coins: 10, bonus: 1 },
+  { goal: [['Rosa', 2], ['Celeste', 2]], coins: 12, solids: ['divider'], tip: 'Una <b>pared</b> en el medio: la garra se apoya arriba si la bajás encima.' },
+  { goal: [['any', 4]], coins: 10, traps: { skull: 1, bomb: 1 }, tip: 'La <b>calavera</b>: si cae al hueco, perdés el nivel.' },
+  { goal: [['Violeta', 3]], coins: 12, size: [.34, .36], tip: 'Cápsulas <b>grandes</b>: cuesta que entren en la garra.' },
+  { goal: [['Dorada', 1]], coins: 9, bury: 'Dorada', pile: 48, tip: '<b>¡Jefe!</b> La dorada está enterrada debajo de las demás: desenterrala.' },
+  { goal: [['Rosa', 2], ['Verde', 2]], coins: 12, bonus: 1 },
+  { goal: [['Rosa', 1], ['Celeste', 1], ['Violeta', 1], ['Naranja', 1]], coins: 12, order: true, traps: { bomb: 2 } },
+  { goal: [['Dorada', 2], ['Celeste', 2]], coins: 14, size: [.26, .36], solids: ['divider'] },
+  { goal: KINDS.slice(0, 5).map(k => [k.name, 1]), coins: 14, traps: { skull: 1, bomb: 2 } },
+  { goal: [['giant', 1], ['Dorada', 1]], coins: 14, giant: true, open: true, traps: { bomb: 2 }, tip: '<b>¡Jefe final!</b> La gigante y una dorada, con bombas.' },
+].map(cookLevel);
+// The level's goal as { key, n }, with its star thresholds filled in
+function cookLevel(l) {
+  return { ...l, goal: l.goal.map(([name, n]) => ({ key: kindKey(name), n })), stars: l.stars || [Math.round(l.coins * .2), Math.round(l.coins * .4)],
+    onTop: l.onTop && kindKey(l.onTop), bury: l.bury && kindKey(l.bury) };
+}
 const LEVELS_KEY = 'clawMachine.levelsDone';   // how many levels have been cleared (they unlock in order)
+const STARS_KEY = 'clawMachine.stars';         // the most stars won on each level
+// Obstacles a level can have, as boxes: a pedestal behind the middle, and a clear divider from the
+// back wall to the middle of the floor
+const SOLIDS = {
+  pedestal: { min: [-.32, 0, -.8], max: [.32, .7, -.16], look: 'solid' },
+  divider: { min: [.25, 0, -BOX.z], max: [.31, .85, .35], look: 'clear' },
+};
 // Three prongs, one at the back. (A caught prize rides in the claw, so it can't slip out through the
 // gap between two fingers, which is why there were four for a while.)
 const FINGER_ANGLES = [-Math.PI / 2, -Math.PI / 2 + 2 * Math.PI / 3, -Math.PI / 2 + 4 * Math.PI / 3];
 const COLLECTION_KEY = 'clawMachine.collection';   // how many of each kind were won, ever (see the gallery)
+// Gallery seasons (the user asked for collections, each unlocking a new season, October 2026): a design
+// of the six kinds each. Winning one of each finishes a season and opens the next, whose capsules start
+// turning up in the machine. In the collection a plain capsule is its kind, the others design:kind.
+const SEASONS = [{ id: 'plain', name: 'Clásicas' }, { id: 'stripes', name: 'Rayadas' }, { id: 'dots', name: 'Lunares' }];
+const colKey = (design, kind) => design === 'plain' ? kind : design + ':' + kind;
+const seasonDone = i => KINDS.every(k => collection[colKey(SEASONS[i].id, k.key)] > 0);
+function seasonsOpen() { let n = 1; while (n < SEASONS.length && seasonDone(n - 1)) n++; return n; }
 
 let prizes = [], claw, coins, score, won, state, aimT, collection = {};
-// The level being played, what has been won towards its goal (kind → count), how many levels are
-// cleared, and once this one is cleared, the countdown to its card
-let level = 0, got = {}, levelsDone = 0, clearT = null;
-let caught = 0;   // catches made since the reset (they go round LOSE_PATTERN)
+// The level being played (its index, or -1 for the daily challenge, and lv, its data), what has been
+// won towards its goal (kind → count), how many levels are cleared and the stars won on each, and once
+// it is over (cleared, or lost to the skull), the countdown to its card
+let level = 0, lv = null, got = {}, levelsDone = 0, bestStars = [], endT = null, endWon = false;
+// Streaks: catches in a row that counted (see endRound); roundGood is whether this round's did
+let streak = 0, roundGood = false, roundOpen = false, coinFlash = 0;
+let caught = 0;   // catches made since the reset (they go round LOSE_PATTERN, if there is one)
 const keys = { l: false, r: false, u: false, d: false };
+let rnd = Math.random;   // the pile's random numbers: seeded for the daily challenge, so it is the same all day
 
 try { collection = JSON.parse(localStorage.getItem(COLLECTION_KEY)) || {}; } catch (e) {}
 try { levelsDone = Math.min(LEVELS.length, +localStorage.getItem(LEVELS_KEY) || 0); } catch (e) {}
+try { bestStars = JSON.parse(localStorage.getItem(STARS_KEY)) || []; } catch (e) {}
 level = Math.min(levelsDone, LEVELS.length - 1);   // start on the first level not cleared yet
+lv = LEVELS[level];
 
-// How many more of a goal's kind are still needed this level
-const goalLeft = g => Math.max(0, g.n - (g.key === 'any' ? Object.values(got).reduce((s, v) => s + v, 0) : got[g.key] || 0));
-const levelMet = () => LEVELS[level].goal.every(g => goalLeft(g) === 0);
+// How many more of a goal's kind are still needed this level ('any' counts the colours, not the specials)
+const goalLeft = g => Math.max(0, g.n - (g.key === 'any' ? KINDS.reduce((s, k) => s + (got[k.key] || 0), 0) : got[g.key] || 0));
+const levelMet = () => lv.goal.every(g => goalLeft(g) === 0);
+// In an ordered goal, the part being played (the first not done yet)
+const goalNow = () => lv.goal.find(goalLeft);
+// Stars for the coins left: 1, 2 or 3
+const starsFor = left => 1 + (left >= lv.stars[0]) + (left >= lv.stars[1]);
+const STREAK_N = 2;   // catches in a row that win a coin
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const $ = id => document.getElementById(id);
@@ -363,7 +451,7 @@ box(4.7, 1.1, 3.7, PINK, 0, -1.15, 0);
 // Scoreboard on the front of the base: coins, the level's goal and how far along it is, time, and the
 // hint while idle. It is part of the machine (a canvas texture, repainted by hud() when something
 // changes) so the screen above is all game. (It showed points before the levels.)
-const board = { coins: 0, goal: '', time: '–', low: false, hint: true };
+const board = { coins: 0, goal: '', time: '–', low: false, hint: '', flash: false };
 const BOARD_W = 4.2, BOARD_H = .95;
 const boardTex = canvasTex(1024, Math.round(1024 * BOARD_H / BOARD_W), (g, w, h) => {
   g.clearRect(0, 0, w, h);
@@ -373,22 +461,27 @@ const boardTex = canvasTex(1024, Math.round(1024 * BOARD_H / BOARD_W), (g, w, h)
   [['FICHAS', board.coins, .11], ['TIEMPO', board.time, .89]].forEach(([label, value, at]) => {
     const x = w * at;
     g.fillStyle = '#b9a8e0'; g.font = '700 36px Kalam, cursive'; g.fillText(label, x, 44);
-    g.fillStyle = label === 'TIEMPO' && board.low ? '#ff5d8f' : '#fff6e0'; g.font = '700 84px Kalam, cursive'; g.fillText(value, x, 108);
+    // (the coins light up green when a streak or a +2 capsule wins some, red when a bomb takes one)
+    g.fillStyle = label === 'TIEMPO' && board.low ? '#ff5d8f' : label === 'FICHAS' && board.flash ? board.flash : '#fff6e0';
+    g.font = '700 84px Kalam, cursive'; g.fillText(value, x, 108);
   });
-  g.fillStyle = '#b9a8e0'; g.font = '700 36px Kalam, cursive'; g.fillText(`NIVEL ${level + 1}`, w / 2, 44);
+  g.fillStyle = '#b9a8e0'; g.font = '700 36px Kalam, cursive'; g.fillText(level < 0 ? 'DESAFÍO DEL DÍA' : `NIVEL ${level + 1}`, w / 2, 44);
   // The goal: a capsule of each kind asked for and "won/needed", shrunk to fit between coins and time.
   // A kind asked for once is just its capsule, ticked once won (with six kinds "0/1" got too small to read).
-  const goal = LEVELS[level].goal, rows = goal.map(gl => ({ gl, text: gl.n === 1 ? '' : `${gl.n - goalLeft(gl)}/${gl.n}` }));
+  // An ordered goal has arrows between its parts, and the ones still to come are dimmed.
+  const goal = lv.goal, now = lv.order && goalNow(), rows = goal.map(gl => ({ gl, text: gl.n === 1 ? '' : `${gl.n - goalLeft(gl)}/${gl.n}` }));
   let size = 72, width;
-  const measure = () => { g.font = `700 ${size}px Kalam, cursive`; return rows.reduce((s, r) => s + size * .9 + g.measureText(r.text).width, 0) + (rows.length - 1) * size * .45; };
+  const gap = () => size * (lv.order ? .8 : .45);
+  const measure = () => { g.font = `700 ${size}px Kalam, cursive`; return rows.reduce((s, r) => s + size * .9 + g.measureText(r.text).width, 0) + (rows.length - 1) * gap(); };
   while ((width = measure()) > w * .58 && size > 30) size -= 4;
   let x = w / 2 - width / 2;
   g.textAlign = 'left';
-  for (const { gl, text } of rows) {
+  for (const [i, { gl, text }] of rows.entries()) {
     const cr = size * .34, cx = x + cr, cy = 110;
+    g.globalAlpha = now && goalLeft(gl) && gl !== now ? .4 : 1;
     if (gl.key === 'any') {
       COLORS.forEach((c, i) => { g.fillStyle = '#' + c.toString(16).padStart(6, '0'); g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, cr, i * 2 * Math.PI / 5, (i + 1) * 2 * Math.PI / 5); g.fill(); });
-    } else { g.fillStyle = KIND[gl.key].css; g.beginPath(); g.arc(cx, cy, cr, 0, 7); g.fill(); }
+    } else { g.fillStyle = kindCss(gl.key); g.beginPath(); g.arc(cx, cy, gl.key === 'giant' ? cr * 1.25 : cr, 0, 7); g.fill(); }
     g.fillStyle = '#2a1d40'; g.fillRect(cx - cr, cy - cr * .1, cr * 2, cr * .2);   // the band
     if (!text && !goalLeft(gl)) {
       g.strokeStyle = '#2a1d40'; g.lineWidth = cr * .6; g.lineCap = 'round'; g.beginPath();
@@ -397,10 +490,13 @@ const boardTex = canvasTex(1024, Math.round(1024 * BOARD_H / BOARD_W), (g, w, h)
     }
     g.fillStyle = goalLeft(gl) ? '#fff6e0' : '#80ed99';
     g.fillText(text, x + size * .9, cy + 4);
-    x += size * .9 + g.measureText(text).width + size * .45;
+    x += size * .9 + g.measureText(text).width;
+    g.globalAlpha = 1;
+    if (lv.order && i < rows.length - 1) { g.fillStyle = '#b9a8e0'; g.fillText('›', x + gap() * .3, cy); }
+    x += gap();
   }
   g.textAlign = 'center';
-  if (board.hint) { g.fillStyle = '#ffd23f'; g.font = '700 44px Kalam, cursive'; g.fillText(FREE_PLAY ? 'Mové el pad o tocá ¡BAJAR!' : 'Mové el pad o tocá ¡BAJAR! (1 ficha)', w / 2, h - 42); }
+  if (board.hint) { g.fillStyle = '#ffd23f'; g.font = '700 44px Kalam, cursive'; g.fillText(board.hint, w / 2, h - 42); }
 });
 const boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(BOARD_W, BOARD_H), new THREE.MeshBasicMaterial({ map: boardTex, transparent: true }));
 boardMesh.position.set(0, -1.15, 1.86); scene.add(boardMesh);
@@ -420,10 +516,23 @@ for (const sx of [-1, 1]) {
 }
 // Clear walls around the hole, with a yellow top edge
 const ACRYLIC = new THREE.MeshStandardMaterial({ color: 0xffd23f, transparent: true, opacity: .28, depthWrite: false });
-for (const w of WALLS) {
+// A wall of acrylic with a gold top edge, or a solid block (a pedestal), as meshes
+function wallMeshes(w, look) {
   const s = w.max.map((v, i) => v - w.min[i]), c = w.max.map((v, i) => (v + w.min[i]) / 2);
-  box(s[0], s[1], s[2], ACRYLIC, c[0], c[1], c[2]);
-  box(s[0] + .02, .05, s[2] + .02, GOLD, c[0], HOLE_WALL_H, c[2]);
+  const out = [box(s[0], s[1], s[2], look === 'solid' ? PINK_DARK : ACRYLIC, c[0], c[1], c[2]), box(s[0] + .02, .05, s[2] + .02, GOLD, c[0], w.max[1], c[2])];
+  if (look === 'solid') for (const m of out) m.castShadow = m.receiveShadow = true;
+  return out;
+}
+const holeWallMeshes = HOLE_WALLS.flatMap(w => wallMeshes(w, 'clear'));
+let solidMeshes = [];
+// Set the level's walls and obstacles, in the physics and on screen
+function setSolids() {
+  WALLS.length = 0;
+  if (!lv.open) WALLS.push(...HOLE_WALLS);
+  for (const m of holeWallMeshes) m.visible = !lv.open;
+  for (const m of solidMeshes) scene.remove(m);
+  solidMeshes = [];
+  for (const name of lv.solids || []) { WALLS.push(SOLIDS[name]); solidMeshes.push(...wallMeshes(SOLIDS[name], SOLIDS[name].look)); }
 }
 
 // Marquee with chasing bulbs: a thin strip on the roof (MARQUEE_H tall), so there is more room for the game
@@ -702,51 +811,102 @@ const BAND = new THREE.TorusGeometry(1, .04, 6, 32), BAND_MAT = mat(0x2a1d40);
 const colorMats = new Map();
 const colorMat = c => colorMats.get(c) || colorMats.set(c, mat(c, { roughness: .35 })).get(c);
 const GOLD_SHELL = mat(0xffd23f, { metalness: .6, roughness: .25 });
+// The shell of a capsule: its colour, plain or with its season's pattern (white stripes or dots), or a
+// special one's colour with its sign printed round it. The texture covers each half, top to bottom.
+const shellMats = new Map();
+function shellMat(kind, design) {
+  const sp = SPECIAL[kind], gold = kind === 'gold' || kind === 'giant';
+  if (!sp?.sign && design === 'plain') return gold ? GOLD_SHELL : colorMat(parseInt(kind, 16));
+  const key = kind + design;
+  if (shellMats.has(key)) return shellMats.get(key);
+  const tex = canvasTex(512, 128, (g, w, h) => {
+    g.fillStyle = gold ? '#ffd23f' : sp ? sp.css : KIND[kind].css; g.fillRect(0, 0, w, h);
+    if (sp?.sign) {
+      // (the traps' signs are emoji, on a disc so they stand out from the dark shell)
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '700 76px Kalam, "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
+      for (let i = 0; i < 4; i++) {
+        const x = w * (i + .5) / 4, y = h * .52;
+        if (sp.disc) { g.fillStyle = sp.disc; g.beginPath(); g.arc(x, y, 50, 0, 7); g.fill(); }
+        g.fillStyle = sp.fg; g.fillText(sp.sign, x, y + 4);
+      }
+    } else if (design === 'stripes') {
+      g.fillStyle = 'rgba(255,255,255,.6)';
+      for (let x = -h; x < w; x += 48) { g.beginPath(); g.moveTo(x, h); g.lineTo(x + 18, h); g.lineTo(x + 18 + h, 0); g.lineTo(x + h, 0); g.fill(); }
+    } else if (design === 'dots') {
+      g.fillStyle = 'rgba(255,255,255,.75)';
+      for (let y = 20; y < h; y += 44) for (let x = (y / 44 % 2) * 26 + 13; x < w; x += 52) { g.beginPath(); g.arc(x, y, 9, 0, 7); g.fill(); }
+    }
+  });
+  const m = mat(0xffffff, gold ? { map: tex, metalness: .6, roughness: .25 } : { map: tex, roughness: .35 });
+  shellMats.set(key, m);
+  return m;
+}
+// The design of a capsule that isn't asked for in particular: now and then one of the newer seasons'
+// once they are open (mostly the newest), otherwise plain
+function pickDesign() {
+  const open = seasonsOpen(), r = rnd();
+  if (open === 1 || r > .5) return 'plain';
+  return SEASONS[r < .35 ? open - 1 : 1 + (rnd() * (open - 1) | 0)].id;
+}
 
-// A capsule: two solid halves of one colour (gold for the rare ones) with a dark band where they meet
-function mkPrize(x, y, z, kind) {
-  const rare = kind ? kind === 'gold' : Math.random() < .12;
-  const col = kind && !rare ? parseInt(kind, 16) : COLORS[Math.random() * COLORS.length | 0];
-  const r = R_MIN + Math.random() * (R_MAX - R_MIN);
-  const g = new THREE.Group(), shell = rare ? GOLD_SHELL : colorMat(col);
+// A capsule: two solid halves (see shellMat) with a dark band where they meet. Its kind is a colour,
+// 'gold' (the rare ones) or a special one; if none is given it is a colour or gold at random, never the
+// kind the level keeps in one place (lv.onTop, lv.bury).
+function mkPrize(x, y, z, kind, design) {
+  if (!kind) do kind = rnd() < .12 ? 'gold' : COLORS[rnd() * COLORS.length | 0].toString(16); while (kind === lv.onTop || kind === lv.bury);
+  design = design || (SPECIAL[kind] ? 'plain' : pickDesign());
+  const rare = kind === 'gold', size = lv.size || [R_MIN, R_MAX];
+  const r = SPECIAL[kind]?.r || size[0] + rnd() * (size[1] - size[0]);
+  const g = new THREE.Group(), shell = shellMat(kind, design);
   const halves = [new THREE.Mesh(HEMI_TOP, shell), new THREE.Mesh(HEMI_BOT, shell)];
   for (const m of halves) m.castShadow = m.receiveShadow = true;
   const band = new THREE.Mesh(BAND, BAND_MAT); band.rotation.x = Math.PI / 2;
   g.add(...halves, band);
   g.scale.setScalar(r);
-  g.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+  g.rotation.set(rnd() * 6, rnd() * 6, rnd() * 6);
   scene.add(g);
-  const p = { x, y, z, vx: (Math.random() - .5) * .4, vy: 0, vz: (Math.random() - .5) * .4, wx: 0, wy: 0, wz: 0, r, rare, kind: rare ? 'gold' : col.toString(16), held: false, mesh: g };
+  const p = { x, y, z, vx: (rnd() - .5) * .4, vy: 0, vz: (rnd() - .5) * .4, wx: 0, wy: 0, wz: 0, r, rare, kind, design, held: false, mesh: g };
   setMass(p, (r / .3) ** 3);   // bigger capsules are heavier
   return p;
 }
 
 // Drop n prizes in from y0 up, in loose layers of a dozen so a big batch settles quickly. The first
-// ones are the kinds the level still needs and the pile is short of (see needed), the rest are random.
-function spawn(n, y0) {
-  const kinds = needed().sort(() => Math.random() - .5);
+// ones are the kinds the level needs and the pile is short of (see needed), the rest are random. They
+// land anywhere on the floor but the hole and the obstacles; with `around` (a buried prize, in a
+// corner) the first dozen are heaped over it, four to a layer.
+function spawn(n, y0, initial, around) {
+  const kinds = needed(initial).sort(() => rnd() - .5);
   for (let i = 0; i < n; i++) {
-    let x, z;
-    do { x = (Math.random() * 2 - 1) * 1.7; z = (Math.random() * 2 - 1) * 1.2; } while (x < HOLE.x + .5 && z > HOLE.z - .5);
-    prizes.push(mkPrize(x, y0 + Math.floor(i / 12) * .75 + Math.random() * .2, z, kinds[i]));
+    let x, z, tries = 0;
+    do {
+      if (around && i < 12) { x = clamp(around.x - rnd() * .9, -1.7, 1.7); z = clamp(around.z + rnd() * .9, -1.2, 1.2); }
+      else { x = (rnd() * 2 - 1) * 1.7; z = (rnd() * 2 - 1) * 1.2; }
+    } while (++tries < 50 && ((x < HOLE.x + .5 && z > HOLE.z - .5) || WALLS.some(w => x > w.min[0] - .35 && x < w.max[0] + .35 && z > w.min[2] - .35 && z < w.max[2] + .35)));
+    prizes.push(mkPrize(x, y0 + Math.floor(i / (around && i < 12 ? 4 : 12)) * .7 + rnd() * .2, z, kinds[i]));
   }
 }
 
-// The kinds the pile must get so that each one the level still needs is there with some to spare
-// (PILE_SPARE, or 1 when the goal has many kinds, to keep the pile small): one entry per prize missing
-function needed() {
-  const goal = LEVELS[level].goal, spare = goal.length > 3 ? 1 : PILE_SPARE, out = [];
-  for (const g of goal) {
-    if (g.key === 'any') continue;
-    const left = goalLeft(g), have = prizes.filter(p => p.kind === g.key).length;
-    for (let i = have; i < (left ? left + spare : 0); i++) out.push(g.key);
-  }
+// The kinds the pile must get: each kind the level still needs with some to spare (PILE_SPARE, or 1
+// when the goal has many kinds, to keep the pile small), and its traps. One entry per prize missing.
+// The +2 capsules only come with the first pile (initial), or every restock would bring a new one.
+// The kinds the level keeps in one place (on the pedestal, buried) and the giant aren't restocked.
+function needed(initial) {
+  const goal = lv.goal, spare = goal.length > 3 ? 1 : PILE_SPARE, out = [];
+  const want = (key, n) => { for (let i = prizes.filter(p => p.kind === key).length; i < n; i++) out.push(key); };
+  for (const g of goal) if (g.key !== 'any' && g.key !== 'giant' && g.key !== lv.onTop && g.key !== lv.bury) want(g.key, goalLeft(g) ? goalLeft(g) + spare : 0);
+  for (const [k, n] of Object.entries(lv.traps || {})) want(k, n);
+  if (initial && lv.bonus) want('bonus', lv.bonus);
   return out;
 }
 
-// Start (or retry) level i: its coins, nothing won towards it yet, and a fresh pile with what it asks for
-function startLevel(i) {
-  level = i; got = {}; clearT = null;
+// Where the bosses' giant capsule starts, and where a buried prize lies
+// (in the back right corner, where the glass on two sides keeps the heap over it from spreading out)
+const GIANT_AT = { x: .35, z: -.1 }, BURY_AT = { x: 1.6, z: -1.1 };
+
+// Start (or retry) level i (-1: the daily challenge, see startDaily): its coins, nothing won towards it
+// yet, and a fresh pile with what it asks for
+function startLevel(i, data) {
+  level = i; lv = data || LEVELS[i]; got = {}; endT = null; lostTo = null; streak = 0; roundOpen = false; coinFlash = 0;
   reset();
 }
 
@@ -761,11 +921,21 @@ function reset() {
   setMass(claw.head, HEAD_MASS, false);
   lastSegs = null;
   resetCable();
-  state = 'idle'; coins = LEVELS[level].coins; score = 0; won = 0; caught = 0;
-  spawn(Math.max(PRIZE_COUNT, needed().length + 3), 1);
+  state = 'idle'; coins = lv.coins; score = 0; won = 0; caught = 0;
+  // The level's obstacles, and the contact grid sized for its biggest capsules
+  setSolids();
+  CELL = 2 * Math.max(R_MAX, lv.size ? lv.size[1] : 0, lv.giant ? SPECIAL.giant.r : 0) + .06;
+  // The prizes the level puts in place: the giant, the one on the pedestal, the buried one
+  if (lv.giant) prizes.push(mkPrize(GIANT_AT.x, SPECIAL.giant.r, GIANT_AT.z, 'giant'));
+  if (lv.onTop) { const s = SOLIDS.pedestal; prizes.push(mkPrize((s.min[0] + s.max[0]) / 2, s.max[1] + .34, (s.min[2] + s.max[2]) / 2, lv.onTop)); }
+  if (lv.bury) prizes.push(mkPrize(BURY_AT.x, .3, BURY_AT.z, lv.bury));
+  const total = Math.max(lv.pile || PRIZE_COUNT, prizes.length + needed(true).length + 3);
+  spawn(total - prizes.length, lv.bury ? .9 : 1, true, lv.bury && BURY_AT);
   for (let i = 0; i < SETTLE_STEPS; i++) physics(STEP, true);   // let the pile settle before showing it
+  rnd = Math.random;   // (the daily challenge seeds only its first pile)
   $('over').hidden = true;
   hud();
+  if (lv.tip) card({ title: level < 0 ? 'Desafío del día' : `Nivel ${level + 1}`, html: lv.tip, main: '¡Dale!', onMain: closeCard });
 }
 
 // ---------- Physics: spheres with gravity, walls, the hole walls and the claw fingers as kinematic segments ----------
@@ -830,6 +1000,7 @@ const ROLL_DAMP = 1.2;   // rolling resistance, per second, while touching somet
 // pushed out. Both are immovable to it, so a narrow wedge closing shot it out at up to 8 once the
 // fingers stopped giving way after closing; real fingers and capsules would yield a little instead.
 const SQUEEZE_MAX = 1;
+const MAX_SPEED = 9, CLAW_PUSH_MAX = 3;
 const ZERO = [0, 0, 0];
 
 // Mass and inverse inertia (solid sphere); bodies that don't spin get iI = 0
@@ -857,7 +1028,7 @@ const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, 
 // velocity plus that, so when a contact brakes the claw the fingers brake with it instead of pushing on.
 // Prizes sorted into a grid of cells as big as the largest pair can reach, so each prize is only
 // checked against those in its own and the neighbouring cells, not against every other prize
-const CELL = 2 * R_MAX + .06;
+let CELL = 2 * R_MAX + .06;   // (bigger in a level with bigger capsules, see reset)
 const cellKey = (cx, cy, cz) => ((cx + 50) * 128 + (cy + 50)) * 128 + (cz + 50);
 function prizeGrid() {
   const grid = new Map();
@@ -1010,8 +1181,21 @@ function physics(dt, settling) {
       if (s > SQUEEZE_MAX) { const k = SQUEEZE_MAX / s; p.vx = h.vx + v[0] * k; p.vy = h.vy + v[1] * k; p.vz = h.vz + v[2] * k; }
     }
   }
+  // Likewise anything the claw pushes never leaves it faster than CLAW_PUSH_MAX (the fingers sweep in at
+  // under 2): a loose capsule wedged in the closed fingers was shot out by the jolt at the top
+  for (const c of cs) {
+    const p = c.a;
+    if (c.jn <= 0 || c.b !== h) continue;
+    const v = [p.vx - h.vx, p.vy - h.vy, p.vz - h.vz], s = Math.hypot(...v);
+    if (s > CLAW_PUSH_MAX) { const k = CLAW_PUSH_MAX / s; p.vx = h.vx + v[0] * k; p.vy = h.vy + v[1] * k; p.vz = h.vz + v[2] * k; }
+  }
   for (const p of prizes) {
     if (p.held) continue;
+    // A safety net: nothing in the machine moves faster than MAX_SPEED (a capsule dropped from the top
+    // reaches about 8). The bosses' giant capsule, too big to be held, can ride up wedged in the closed
+    // fingers, and the jolt at the top shot it out at up to 27.
+    const s = Math.hypot(p.vx, p.vy, p.vz);
+    if (s > MAX_SPEED) { const k = MAX_SPEED / s; p.vx *= k; p.vy *= k; p.vz *= k; }
     p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
     if (touching.has(p)) { const k = 1 - ROLL_DAMP * dt; p.wx *= k; p.wy *= k; p.wz *= k; }
     const w = Math.hypot(p.wx, p.wy, p.wz);
@@ -1027,8 +1211,21 @@ function physics(dt, settling) {
 
 // ---------- Game flow ----------
 
+// A round is judged when the next one starts (or, out of coins, before the level is lost), so a prize
+// still dropping into the hole when the claw is back counts for it. A round that won a prize the goal
+// wanted adds to the streak; STREAK_N in a row win a coin. One that didn't (or dropped a bomb in) ends it.
+function endRound() {
+  if (!roundOpen) return;
+  roundOpen = false;
+  streak = roundGood ? streak + 1 : 0;
+  if (streak >= STREAK_N) { streak = 0; coins++; flashCoins('#80ed99'); sfx('coin'); }
+}
+const flashCoins = color => { coinFlash = 1.2; board.flashColor = color; };
+
 function startRound() {
-  if (state !== 'idle' || coins <= 0) return;
+  if (state !== 'idle' || coins <= 0 || endT !== null) return;   // (not while a cleared or lost level's card is coming)
+  endRound();
+  roundOpen = true; roundGood = false;
   if (!FREE_PLAY) coins--;
   state = 'aim'; aimT = AIM_TIME; sfx('coin'); hud();
 }
@@ -1307,25 +1504,37 @@ function loosen(dt, rate) {
 
 // A prize in the hole scores on the board, with a jingle. There is no floating "+1" / "+5 ¡Dorada!"
 // text any more: the user asked to drop it (October 2026).
+// The specials do their thing instead: a bomb takes a coin (and ends the streak), the skull loses the
+// level, a +2 capsule gives two coins.
 function win(p) {
+  if (state === 'over' || (endT !== null && !endWon)) return;
+  if (p.kind === 'bomb') { coins = Math.max(0, coins - 1); roundGood = false; streak = 0; flashCoins('#ff5d8f'); sfx('boom'); hud(); return; }
+  if (p.kind === 'skull') { if (endT === null) { endT = CLEAR_DELAY; endWon = false; lostTo = 'skull'; } sfx('boom'); return; }
+  if (p.kind === 'bonus') { coins += 2; flashCoins('#80ed99'); sfx('coin'); hud(); return; }
   score += p.rare ? 5 : 1; won++;
-  // It goes into the collection, kept across games (see the gallery)
-  collection[p.kind] = (collection[p.kind] || 0) + 1;
-  try { localStorage.setItem(COLLECTION_KEY, JSON.stringify(collection)); } catch (e) {}
-  // And towards the level's goal. Once that is met the level is cleared (the next one unlocks), and
-  // its card comes up CLEAR_DELAY later, so the prize is seen dropping in first.
-  got[p.kind] = (got[p.kind] || 0) + 1;
-  if (clearT === null && levelMet()) {
-    clearT = CLEAR_DELAY;
-    levelsDone = Math.max(levelsDone, level + 1);
-    try { localStorage.setItem(LEVELS_KEY, levelsDone); } catch (e) {}
+  // A colour goes into the collection, kept across games (see the gallery); finishing a season opens
+  // the next one, which the level's card then tells about
+  if (KIND[p.kind]) {
+    const open = seasonsOpen(), k = colKey(p.design, p.kind);
+    collection[k] = (collection[k] || 0) + 1;
+    try { localStorage.setItem(COLLECTION_KEY, JSON.stringify(collection)); } catch (e) {}
+    if (seasonsOpen() > open) { newSeason = SEASONS[open].name; $('galBtn').classList.add('new'); }
   }
+  // And towards the level's goal, if the goal still wants it (in an ordered goal, only the part being
+  // played counts). Once the goal is met the level is cleared, and its card comes up CLEAR_DELAY later,
+  // so the prize is seen dropping in first.
+  const wants = g => goalLeft(g) && (g.key === p.kind || (g.key === 'any' && KIND[p.kind]));
+  if (lv.order ? goalNow()?.key === p.kind : lv.goal.some(wants)) { got[p.kind] = (got[p.kind] || 0) + 1; roundGood = true; }
+  if (endT === null && levelMet()) { endT = CLEAR_DELAY; endWon = true; }
   sfx('win'); hud();
 }
+let newSeason = null;   // the gallery season just opened, to tell about on the next card
+let lostTo = null;      // 'skull' when the skull lost the level (otherwise it was the coins)
 
 function update(dt) {
   const c = claw;
-  if (clearT !== null && state !== 'over' && (clearT -= dt) <= 0) levelCard(true);
+  if (endT !== null && state !== 'over' && (endT -= dt) <= 0) levelCard(endWon);
+  if (coinFlash > 0 && (coinFlash -= dt) <= 0) hud();
   // Where the carriage wants to go; it only moves while aiming and on the way back
   let tx = 0, tz = 0;
   if (state === 'aim') {
@@ -1414,7 +1623,10 @@ function update(dt) {
       break;
     case 'wait':
       c.t += dt;
-      if (c.t > WAIT_TIME && clearT === null) {
+      if (c.t > WAIT_TIME && endT === null) {
+        // Out of coins, the last round is judged once its prize is in: a streak may still win a coin
+        const quiet = c.t > LOSE_WAIT || prizes.every(p => Math.hypot(p.vx, p.vy, p.vz) < .3 && !(p.x < HOLE.x && p.z > HOLE.z));
+        if (coins <= 0 && !FREE_PLAY && quiet) endRound();
         if (coins > 0 || FREE_PLAY) {
           state = 'idle';
           // Restock from the top when the pile runs low or is out of a kind the level still needs
@@ -1423,7 +1635,7 @@ function update(dt) {
           hud();
         // Out of coins: the level is lost, once nothing is still on its way into the hole (or after
         // LOSE_WAIT at most), so a last prize dropping in still counts
-        } else if (c.t > LOSE_WAIT || prizes.every(p => Math.hypot(p.vx, p.vy, p.vz) < .3 && !(p.x < HOLE.x && p.z > HOLE.z))) levelCard(false);
+        } else if (quiet) levelCard(false);
       }
       break;
   }
@@ -1446,33 +1658,56 @@ function restClose(dt) {
   if (c.open === 0) { c.closeV = 0; sfx('clack'); c.head.vy += JOLT * .6; }
 }
 
-// A level is over: cleared (with the coins left over, and on to the next) or lost for lack of coins
-// (with what was still missing, and a retry). Either way the levels screen is a button away.
+// The card over the machine (#over): a title, some text and a main button, plus "Niveles" unless it is
+// a level's opening tip
+let cardMain = null;
+function card({ title, html, main, onMain, levels = false }) {
+  $('ovTitle').textContent = title; $('ovStats').innerHTML = html; $('again').textContent = main;
+  $('ovLevels').hidden = !levels; cardMain = onMain; $('over').hidden = false;
+}
+const closeCard = () => { $('over').hidden = true; };
+
+// A level is over: cleared (with its stars for the coins left, and on to the next), or lost, for lack
+// of coins (with what was still missing) or to the skull, with a retry. The stars and the unlocking are
+// saved here. The daily challenge keeps its own record (see dailyDone).
 function levelCard(cleared) {
-  state = 'over'; clearT = null; stickEnd();
-  const last = level === LEVELS.length - 1;
+  state = 'over'; endT = null; stickEnd();
+  const retry = () => level < 0 ? startDaily() : startLevel(level);
   if (cleared) {
-    $('ovTitle').textContent = `¡Nivel ${level + 1} superado!`;
-    $('ovStats').textContent = last ? '¡Completaste todos los niveles!' : coins ? `Te sobraron ${coins} ficha${coins === 1 ? '' : 's'}` : '¡Justo con la última ficha!';
-    $('again').textContent = last ? 'Jugarlo de nuevo' : 'Siguiente nivel';
-    nextLevel = last ? level : level + 1;
+    const st = starsFor(coins), last = level === LEVELS.length - 1;
+    let html = starsHtml(st) + '<br>' + (coins ? `Te sobraron ${coins} ficha${coins === 1 ? '' : 's'}` : '¡Justo con la última ficha!');
+    if (st < 3) html += `<br><small>3 ★ con ${lv.stars[1]} fichas de sobra</small>`;
+    if (level < 0) html += `<br>Racha: ${dailyDone(st)} día${daily.streak === 1 ? '' : 's'} seguidos`;
+    else {
+      bestStars[level] = Math.max(bestStars[level] || 0, st);
+      levelsDone = Math.max(levelsDone, level + 1);
+      try { localStorage.setItem(LEVELS_KEY, levelsDone); localStorage.setItem(STARS_KEY, JSON.stringify(bestStars)); } catch (e) {}
+      if (last) html += '<br>¡Completaste todos los niveles!';
+    }
+    if (newSeason) { html += `<br>¡Nueva temporada en la galería: ${newSeason}!`; newSeason = null; }
+    const next = level >= 0 && !last;
+    card({ title: level < 0 ? '¡Desafío superado!' : `¡Nivel ${level + 1} superado!`, html, main: next ? 'Siguiente nivel' : 'Jugar de nuevo', onMain: next ? () => startLevel(level + 1) : retry, levels: true });
   } else {
-    $('ovTitle').textContent = '¡Sin fichas!';
-    $('ovStats').innerHTML = 'Te faltaron:<br>' + LEVELS[level].goal.filter(goalLeft).map(g => `<span class="goal">${capHtml(g.key)} ${goalLeft(g)}</span>`).join('');
-    $('again').textContent = 'Reintentar';
-    nextLevel = level;
+    const skull = lostTo === 'skull';
+    const html = skull ? 'Cayó la calavera al hueco: perdiste el nivel.'
+      : 'Te faltaron:<br>' + lv.goal.filter(goalLeft).map(g => `<span class="goal">${capHtml(g.key)} ${goalLeft(g)}</span>`).join('');
+    card({ title: skull ? '¡La calavera!' : '¡Sin fichas!', html, main: 'Reintentar', onMain: retry, levels: true });
   }
   sfx(cleared ? 'win' : 'clunk');
-  $('over').hidden = false;
 }
-let nextLevel = 0;   // what the card's main button starts
+// Stars as ★★☆ (the ones not won dimmed)
+const starsHtml = (n, cls = 'stars') => `<span class="${cls}">${'★'.repeat(n)}<i>${'★'.repeat(3 - n)}</i></span>`;
 
-// A little CSS capsule of a kind ('any' is all the colours)
-const capHtml = key => key === 'any' ? '<span class="cap mini any"></span>' : `<span class="cap mini" style="--c:${KIND[key].css}"></span>`;
+// A little CSS capsule of a kind ('any' is all the colours; a special one shows its sign)
+const capHtml = key => key === 'any' ? '<span class="cap mini any"></span>'
+  : `<span class="cap mini${SPECIAL[key]?.sign ? ' sign' : ''}" style="--c:${kindCss(key)}${SPECIAL[key]?.sign ? `;--fg:${SPECIAL[key].fg}" data-sign="${SPECIAL[key].sign}` : ''}"></span>`;
 
-// Update the scoreboard on the base; it is only repainted when something on it changes
+// Update the scoreboard on the base; it is only repainted when something on it changes. While idle its
+// hint says how to play, or that one more catch wins a coin when a streak is going.
 function hud() {
-  const next = { coins: FREE_PLAY ? '∞' : coins, goal: level + ':' + LEVELS[level].goal.map(goalLeft).join(), time: state === 'aim' ? String(Math.ceil(aimT)) : '–', low: state === 'aim' && aimT < 5, hint: state === 'idle' };
+  const hint = state !== 'idle' ? '' : streak === STREAK_N - 1 ? '¡Uno más seguido y ganás una ficha!' : FREE_PLAY ? 'Mové el pad o tocá ¡BAJAR!' : 'Mové el pad o tocá ¡BAJAR! (1 ficha)';
+  const next = { coins: FREE_PLAY ? '∞' : coins, goal: level + ':' + lv.goal.map(goalLeft).join(), time: state === 'aim' ? String(Math.ceil(aimT)) : '–', low: state === 'aim' && aimT < 5, hint,
+    flash: coinFlash > 0 && board.flashColor };
   if (Object.keys(next).some(k => next[k] !== board[k])) { Object.assign(board, next); boardTex.repaint(); }
 }
 const hudTime = hud;
@@ -1502,6 +1737,7 @@ function sfx(name) {
       case 'grab': tone(400, 800, .12, 'triangle', .08); break;
       case 'slip': tone(220, 80, .3, 'sawtooth', .05); break;
       case 'win': [523, 659, 784, 1047].forEach((f, i) => tone(f, 0, .18, 'square', .05, i * .09)); break;
+      case 'boom': tone(160, 40, .45, 'sawtooth', .09); tone(60, 30, .5, 'triangle', .14); break;
     }
   } catch (e) {}
 }
@@ -1522,7 +1758,7 @@ addEventListener('keydown', e => {
   if (screenOpen()) { if (k === 'Escape') { if (!$('levels').hidden) closeLevels(); else closeGallery(); } return; }
   if (k === ' ' || k === 'Enter' || KEY_DIR[k]) e.preventDefault();
   if (e.repeat) return;
-  if (state === 'over') { if (k === ' ' || k === 'Enter') $('again').click(); return; }
+  if (!$('over').hidden) { if (k === ' ' || k === 'Enter') $('again').click(); return; }
   if (KEY_DIR[k]) press(KEY_DIR[k]);
   else if (k === ' ' || k === 'Enter') dropButton();
 });
@@ -1577,20 +1813,86 @@ try { setSwap(localStorage.getItem(SWAP_KEY) === '1'); } catch (e) {}
 $('swap').addEventListener('change', e => setSwap(e.target.checked));
 $('gear').addEventListener('click', () => { $('opts').hidden = false; paused = true; stickEnd(); });
 $('optsOk').addEventListener('click', () => { $('opts').hidden = true; paused = false; });
-$('again').addEventListener('click', () => startLevel(nextLevel));
+$('again').addEventListener('click', () => cardMain && cardMain());
 $('ovLevels').addEventListener('click', () => { $('over').hidden = true; openLevels(); });
 
-// The levels screen (the star, top left): every level with its goal and coins, cleared ones with a
-// star, the first not cleared open to play and the rest locked. Picking one starts it (the one being
-// played just goes back to it, unless it is over). The game holds still while it is open.
+// The daily challenge: a level made from the date (the same all day, its first pile too), to play on
+// its own. It keeps the most stars won today and how many days in a row it was cleared. The user asked
+// for it to play alone, without comparing with anyone (October 2026).
+const DAILY_KEY = 'clawMachine.daily';
+let daily = { day: '', stars: 0, streak: 0 };
+try { daily = { ...daily, ...JSON.parse(localStorage.getItem(DAILY_KEY)) }; } catch (e) {}
+const dayKey = d => d.toLocaleDateString('sv');   // YYYY-MM-DD, local time
+const today = () => dayKey(new Date());
+const yesterday = () => { const d = new Date(); d.setDate(d.getDate() - 1); return dayKey(d); };
+const hashStr = s => [...s].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 2654435761) >>> 0, 2166136261);
+function mulberry32(a) {
+  return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+// Two or three colours (sometimes a gold one), one or two of each, with one or two twists
+function genDaily(day) {
+  const r = mulberry32(hashStr(day)), pick = a => a.splice(r() * a.length | 0, 1)[0];
+  const names = KINDS.slice(0, 5).map(k => k.name), goal = [];
+  for (let i = 0, n = 2 + (r() < .5); i < n; i++) goal.push([pick(names), 1 + (r() < .5)]);
+  if (r() < .3) goal[0] = ['Dorada', 1];
+  const l = { goal }, twists = ['order', 'small', 'big', 'bombs', 'skull', 'bonus', 'divider'];
+  for (let i = 0, n = 1 + (r() < .5); i < n; i++) {
+    const t = pick(twists);
+    if (t === 'order') l.order = true;
+    if (t === 'small') l.size = [.25, .27];
+    if (t === 'big' && !l.size) l.size = [.34, .36];
+    if (t === 'bombs') l.traps = { ...l.traps, bomb: 2 };
+    if (t === 'skull') l.traps = { ...l.traps, skull: 1 };
+    if (t === 'bonus') l.bonus = 1;
+    if (t === 'divider') l.solids = ['divider'];
+  }
+  l.coins = goal.reduce((s, [, n]) => s + n, 0) * 3 + 2 - (l.bonus ? 2 : 0);
+  return cookLevel(l);
+}
+function startDaily() {
+  const day = today();
+  rnd = mulberry32(hashStr(day) + 1);
+  startLevel(-1, genDaily(day));
+}
+// The daily challenge cleared with st stars: today's best and the run of days. Returns the run.
+function dailyDone(st) {
+  const day = today();
+  if (daily.day !== day) { daily.streak = daily.day === yesterday() ? daily.streak + 1 : 1; daily.day = day; daily.stars = 0; }
+  daily.stars = Math.max(daily.stars, st);
+  try { localStorage.setItem(DAILY_KEY, JSON.stringify(daily)); } catch (e) {}
+  return daily.streak;
+}
+
+// What a level has besides its goal, as little tags for the levels screen
+function levelTags(l, boss) {
+  const t = [];
+  if (boss) t.push('<span class="tag boss">JEFE</span>');
+  if (l.order) t.push('<span class="tag">en orden</span>');
+  if (l.size) t.push(`<span class="tag">${l.size[1] <= .28 ? 'chicas' : l.size[0] >= .33 ? 'grandes' : 'de varios tamaños'}</span>`);
+  for (const [k, n] of Object.entries(l.traps || {})) t.push(`<span class="tag">${capHtml(k)}${k === 'bomb' ? (n > 1 ? 'bombas' : 'bomba') : 'calavera'}</span>`);
+  if (l.bonus) t.push(`<span class="tag">${capHtml('bonus')}fichas</span>`);
+  for (const s of l.solids || []) t.push(`<span class="tag">${s === 'pedestal' ? 'pedestal' : 'pared'}</span>`);
+  if (l.bury) t.push('<span class="tag">enterrada</span>');
+  return t.length ? `<span class="tags">${t.join('')}</span>` : '';
+}
+const goalHtml = l => l.goal.map(g => `<span>${capHtml(g.key)}${g.key === 'any' ? 'Cualquiera ' : ''}×${g.n}</span>`).join(l.order ? '<span>›</span>' : '');
+
+// The levels screen (the star, top left): the daily challenge, then every level with its goal, coins
+// and twists; cleared ones show their stars, the first not cleared is open to play and the rest are
+// locked. Picking one starts it (the one being played just goes back to it, unless it is over). The
+// game holds still while it is open.
 function openLevels() {
-  $('lvlSub').textContent = `Superaste ${levelsDone} de ${LEVELS.length}`;
-  $('lvlList').innerHTML = LEVELS.map((l, i) => {
-    const locked = i > levelsDone, st = i < levelsDone ? '★' : locked ? '🔒' : '▶';
-    const goal = l.goal.map(g => `<span>${capHtml(g.key)}${g.key === 'any' ? 'Cualquiera ' : ''}×${g.n}</span>`).join('');
-    return `<button class="lvl${i === level ? ' cur' : ''}${locked ? ' locked' : ''}" data-i="${i}"${locked ? ' disabled' : ''}>` +
-      `<span class="n">${i + 1}</span><span class="goal">${goal}<span class="coins">${l.coins} fichas</span></span><span class="st">${st}</span></button>`;
-  }).join('');
+  const total = bestStars.reduce((s, v) => s + (v || 0), 0), dl = genDaily(today());
+  const run = daily.day === today() || daily.day === yesterday() ? daily.streak : 0;
+  $('lvlSub').innerHTML = `Superaste ${levelsDone} de ${LEVELS.length} · ★ ${total} de ${LEVELS.length * 3}`;
+  $('lvlList').innerHTML = `<button class="lvl daily${level < 0 ? ' cur' : ''}" data-i="-1"><span class="n">☀</span><span class="goal"><b>Desafío del día</b>${goalHtml(dl)}` +
+    `<span class="coins">${dl.coins} fichas${run ? ` · racha: ${run} día${run === 1 ? '' : 's'}` : ''}</span>${levelTags(dl)}</span>` +
+    `<span class="st">${daily.day === today() ? starsHtml(daily.stars, 'stars sm') : '▶'}</span></button>` +
+    LEVELS.map((l, i) => {
+      const locked = i > levelsDone, st = i < levelsDone ? starsHtml(bestStars[i] || 1, 'stars sm') : locked ? '🔒' : '▶';
+      return `<button class="lvl${i === level ? ' cur' : ''}${locked ? ' locked' : ''}" data-i="${i}"${locked ? ' disabled' : ''}>` +
+        `<span class="n">${i + 1}</span><span class="goal">${goalHtml(l)}<span class="coins">${l.coins} fichas</span>${levelTags(l, (i + 1) % 5 === 0)}</span><span class="st">${st}</span></button>`;
+    }).join('');
   $('levels').hidden = false; paused = true; stickEnd();
   keys.l = keys.r = keys.u = keys.d = false;
 }
@@ -1602,24 +1904,30 @@ $('lvlList').addEventListener('click', e => {
   const b = e.target.closest('.lvl');
   if (!b || b.disabled) return;
   const i = +b.dataset.i;
-  if (i !== level || state === 'over') startLevel(i);
   $('levels').hidden = true; paused = false;
+  if (i !== level || state === 'over') i < 0 ? startDaily() : startLevel(i);
 });
 $('lvlBtn').addEventListener('click', openLevels);
 $('lvlBack').addEventListener('click', closeLevels);
 const screenOpen = () => !$('gallery').hidden || !$('levels').hidden;
 
-// The gallery (the capsule button, top left): a screen of its own listing every kind of prize with how
-// many were won, from the collection. Kinds not won yet show as dark silhouettes. The game holds still
-// and isn't drawn while it is open.
+// The gallery (the capsule button, top left): a screen of its own with a shelf per season, every kind
+// with how many were won, from the collection. Kinds not won yet show as dark silhouettes; a season not
+// open yet is locked, with what opens it. The game holds still and isn't drawn while it is open.
 function openGallery() {
-  const total = KINDS.reduce((s, k) => s + (collection[k.key] || 0), 0);
+  const total = Object.values(collection).reduce((s, v) => s + v, 0), open = seasonsOpen();
   $('galTotal').textContent = total ? `Atrapaste ${total} premio${total === 1 ? '' : 's'}` : 'Todavía no atrapaste ningún premio';
-  $('shelf').innerHTML = KINDS.map(k => {
-    const n = collection[k.key] || 0;
-    return `<div class="slot${n ? '' : ' none'}"><div class="cap${k.key === 'gold' ? ' gold' : ''}" style="--c:${k.css}"></div>` +
-      `<span class="num">${n}</span><span class="name">${k.name}</span></div>`;
+  $('shelf').innerHTML = SEASONS.map((s, i) => {
+    const locked = i >= open, have = KINDS.filter(k => collection[colKey(s.id, k.key)] > 0).length;
+    const slots = KINDS.map(k => {
+      const n = collection[colKey(s.id, k.key)] || 0;
+      return `<div class="slot${n ? '' : ' none'}"><div class="cap ${s.id}${k.key === 'gold' ? ' gold' : ''}" style="--c:${k.css}"></div>` +
+        `<span class="num">${locked ? '?' : n}</span><span class="name">${k.name}</span></div>`;
+    }).join('');
+    return `<section class="season${locked ? ' locked' : ''}"><h3>Temporada ${i + 1} · ${s.name}<span>${locked ? '🔒' : have === KINDS.length ? '✓' : `${have}/${KINDS.length}`}</span></h3>` +
+      (locked ? `<p class="sub">Atrapá una de cada en la temporada ${i} para abrirla</p>` : '') + `<div class="shelf">${slots}</div></section>`;
   }).join('');
+  $('galBtn').classList.remove('new');
   $('gallery').hidden = false; paused = true; stickEnd();
   keys.l = keys.r = keys.u = keys.d = false;
 }
@@ -1687,7 +1995,7 @@ function draw(now) {
 }
 
 // Handle for poking at the game from the console
-window.game = { get state() { return state; }, get paused() { return paused; }, set paused(v) { paused = v; }, get claw() { return claw; }, get prizes() { return prizes; }, get score() { return score; }, get level() { return level; }, get got() { return got; }, startLevel, startRound, startDrop, segments, cable,
+window.game = { get state() { return state; }, get paused() { return paused; }, set paused(v) { paused = v; }, get claw() { return claw; }, get prizes() { return prizes; }, get score() { return score; }, get level() { return level; }, get got() { return got; }, get collection() { return collection; }, startLevel, startDaily, startRound, startDrop, segments, cable,
   // Run n simulation steps right now, without waiting for frames (fast, repeatable tests)
   step(n = 1) { for (let i = 0; i < n; i++) { update(STEP); physics(STEP, false); } },
   // Draw the current state right now (the browser pane may not be asking for frames)
