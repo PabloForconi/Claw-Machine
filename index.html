@@ -462,7 +462,9 @@ const fingersOn = (p, gap = .004) => fingers().filter(fg => fingerPenOn(fg, p) >
 // (CLOSE_GIVE). Otherwise, buried in a pile, the fingers gave way to every capsule around them and
 // ended up wider than the open claw; and with the soft give back on after closing, they swung open
 // again by up to 0.5 rad as the claw started to lift.
-const gripFirm = () => ['close', 'lift', 'return', 'settle'].includes(state);
+// It is firm from the moment the claw lands, too: settling into the pile with the soft give, the
+// fingers kept swinging open for a whole second before closing, nearly flat by the time it closed.
+const gripFirm = () => ['close', 'lift', 'return', 'settle'].includes(state) || (state === 'drop' && !!claw.landed);
 // A finger never swings out faster than FLEX_RATE: hit faster than that, it pushes the prize instead
 // of flicking open. And while the claw comes down open, the fingers are linked (FLEX_LINK): when one
 // is pushed open the others follow part of the way, so the whole claw opens wider on landing rather
