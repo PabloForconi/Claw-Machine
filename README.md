@@ -1,5 +1,7 @@
 # Claw Machine
 
+**Jugar:** https://pabloforconi.github.io/Claw-Machine/
+
 Prototipo de juego 3D para el navegador: una máquina de garra llena de cápsulas. Todo está en `index.html`, sin build; usa Three.js desde CDN, así que se abre directo en el navegador (con internet).
 
 ## Cómo se juega

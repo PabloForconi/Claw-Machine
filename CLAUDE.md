@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Browser 3D game prototype: a claw machine full of capsule toys. The user asked for it in 3D (an earlier 2D canvas version was replaced). All the code lives in `index.html` (inline CSS and an inline ES module, no build step). External resources: Three.js 0.170.0 from jsDelivr through an import map (`three` and `three/addons/`, only `RoundedBoxGeometry` is used from the addons), and the Google Fonts font Kalam (bold, 700) with a cursive fallback, the same UI font as the sibling prototype `../Laberinto` (Maze Mouse). UI text is in Spanish (rioplatense: "Tocá", "querés").
 
-To run it, open `index.html` in a browser; it needs internet for Three.js and the font.
+To run it, open `index.html` in a browser; it needs internet for Three.js and the font. It is published with GitHub Pages from `main` (the repo is public, like `../Laberinto`): https://pabloforconi.github.io/Claw-Machine/. Every push to `main` redeploys it in about a minute.
 
 ### Testing from the console
 
