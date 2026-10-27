@@ -259,12 +259,19 @@ The user asked for collectable characters as a metagame (October 2026), differen
   - Each cut is 220 px square, with its soft shadow. `tools/png.mjs` reads and writes PNGs with Node's zlib only.
   - The sheet's row is the rarity, as the user chose: row 1 common … row 4 legendary. The names are in `WORLDS[w].chars`.
 - `winBall()`: every world capsule won counts (`meta.balls`, ever) and adds to its colour's counter (`meta.prog`).
-  - The `CHAR_EVERY`-th gives a random character of that rarity. It is designed as 10, but for now it is 1: the user asked for a character with every capsule, to test (October 2026). The rainbow gives one of any rarity by the tiers' shares.
+  - Every `CHAR_EVERY` of them complete that colour's card once. It is designed as 10, but for now it is 1: the user asked for a character with every capsule, to test (October 2026). `meta.prog` keeps counting, so a card can be complete several times over.
+  - A card just completed pops up at the top (`#toast`, `cardToast()`, `sfx('prize')`). It is counted on the level's card (`newCards`, `cardsHtml()`, with a button to Cápsulas), and the gallery button gets a dot.
+  - The player opens a complete card by tapping it in the gallery (`openCard()`), as the user asked (October 2026); at first the character came on its own when the card filled.
+    - Opening gives a random character of the card's rarity. The rainbow card gives one of any rarity by the tiers' shares.
+    - `#reveal` shows it: the capsule shakes, splits into two halves that fly apart, and the character pops out of a glow in its rarity's colour. Then its name, rarity and "¡Nuevo personaje!" or "Repetido · tenés n" appear.
+    - "¡Genial!" goes back to the same page of the gallery. The collection button gets a dot.
   - Characters repeat, and are counted (`meta.chars`). All of it is in `localStorage` under `clawMachine.meta`.
-  - A new character pops up at the top (`#toast`, `charToast()`, `sfx('prize')`), is listed on the level's card (`newChars`, `charsWonHtml()`), and puts a dot on the exhibitor button.
 - On screen the gallery is called "Cápsulas" and the exhibitor "Colección", titles and buttons alike, as the user asked (October 2026); the code still says gallery and chars.
 - The screens (`.screen`) keep the title at the top and the buttons at the bottom always in view, like the maze game; only the middle scrolls: each carousel page (`.season`, vertical scroll) and the levels list. The user asked for it (October 2026). On a computer the pages are up to 900 px wide, and the capsules go five to a row from 760 px.
-- The gallery (`#gallery`, capsule button) now has a page per world. Each of its nine capsules shows its finish, name, rarity, a bar to the next character (`prog/CHAR_EVERY`) and the total won. The header no longer says how many were won in all: the user asked to drop it.
+- The gallery (`#gallery`, capsule button) now has a page per world. Each of its nine capsules shows its finish, name, rarity, a bar to its card being complete (`prog/CHAR_EVERY`) and the total won.
+  - A complete card (`.slot.ready`) glows, its capsule wiggles, and it says "¡Abrir!" (×n if it can be opened more than once).
+  - The header no longer says how many were won in all: the user asked to drop it.
+  - The carousels' mouse drag only starts after 6 px of movement, so a click on a card still reaches it.
   - It replaced the earlier seasons (Clásicas/Rayadas/Lunares), since the finishes now mean rarity.
 - The exhibitor (`#chars`, `#charBtn` with the bear, top left after the gallery button) has a page per world. Each page has four shelves (`.rack`, one per rarity, wooden board; gold for legendary) of five characters.
   - Owned characters show their picture, name and ×n when repeated. The rest are black silhouettes with "?".

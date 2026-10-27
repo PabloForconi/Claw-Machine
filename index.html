@@ -109,12 +109,40 @@
   @keyframes toast { 0% { transform: translate(-50%, -160%); opacity: 0; } 10%, 85% { transform: translate(-50%, 0); opacity: 1; } 100% { transform: translate(-50%, -160%); opacity: 0; } }
   #toast img { width: 56px; height: 56px; }
   #toast small { display: block; font-size: 14px; }
-  /* The characters won in a level, on its card */
+  /* A complete card in the gallery: it glows and asks to be opened */
+  .slot.ready { cursor: pointer; border-color: var(--gold); animation: ready 1.2s ease-in-out infinite alternate; }
+  @keyframes ready { from { box-shadow: 0 0 0 rgba(255, 210, 63, 0); } to { box-shadow: 0 0 18px rgba(255, 210, 63, .75); } }
+  .slot.ready .cap { animation: wiggle 1.2s ease-in-out infinite; }
+  @keyframes wiggle { 0%, 70%, 100% { transform: rotate(-18deg); } 78% { transform: rotate(-30deg); } 86% { transform: rotate(-6deg); } 94% { transform: rotate(-22deg); } }
+  .slot .open { margin: 2px 0; padding: 3px 10px; border-radius: 12px; background: var(--gold); color: #3a1f00; font-size: 16px; white-space: nowrap; }
+  /* Opening a card: its capsule shakes, splits in two halves flying apart, and the character pops out
+     of a glow in its rarity's colour */
+  #reveal { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; background: rgba(10, 5, 25, .8); padding: 16px; }
+  #revealStage { position: relative; width: 200px; height: 200px; margin: 0 auto 6px; }
+  #revealStage > * { position: absolute; inset: 0; margin: auto; }
+  #revealStage img { width: 190px; height: 190px; transform: scale(0); }
+  #revealStage .glow { width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, var(--g) 0, transparent 68%); opacity: 0; }
+  #revealStage .half { width: 150px; height: 150px; }
+  #revealStage .half .cap { display: block; width: 150px; height: 150px; transform: none; }
+  #revealStage .half.top { clip-path: inset(0 0 50% 0); }
+  #revealStage .half.bot { clip-path: inset(50% 0 0 0); }
+  #reveal.go .half { animation: shake .7s ease-in-out both; }
+  #reveal.go .half.top { animation: shake .7s ease-in-out, flyTop .55s .7s ease-in both; }
+  #reveal.go .half.bot { animation: shake .7s ease-in-out, flyBot .55s .7s ease-in both; }
+  #reveal.go img { animation: pop .5s .75s cubic-bezier(.3, 1.6, .5, 1) both; }
+  #reveal.go .glow { animation: glow .8s .7s ease-out both; }
+  @keyframes shake { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-9deg); } 40% { transform: rotate(8deg); } 60% { transform: rotate(-6deg); } 80% { transform: rotate(5deg); } }
+  @keyframes flyTop { to { transform: translate(-40px, -150px) rotate(-40deg); opacity: 0; } }
+  @keyframes flyBot { to { transform: translate(40px, 150px) rotate(30deg); opacity: 0; } }
+  @keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
+  @keyframes glow { 0% { opacity: 0; transform: scale(.4); } 40% { opacity: 1; } 100% { opacity: .8; transform: scale(1.15); } }
+  #revealText { font-size: 30px; line-height: 1.2; }
+  #reveal.go #revealText, #reveal.go #revealOk { animation: fadeIn .4s 1s both; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } }
+  #revealText small { display: block; font-size: 18px; }
+  /* The cards completed in a level, on its card */
   .card .won { display: block; margin-top: 10px; }
-  .card .won small { display: block; }
-  .card .char { display: inline-flex; flex-direction: column; align-items: center; width: 86px; font-size: 15px; line-height: 1.1; vertical-align: top; }
-  .card .char img { width: 64px; height: 64px; }
-  .card .char i { font-style: normal; opacity: .7; font-size: 13px; }
+  .card .won button { display: block; margin: 8px auto 0; font-size: 20px; }
   /* Levels by world */
   #lvlList h3.world { margin: 10px 4px 0; font-size: 22px; color: var(--gold); }
   /* The rarity finishes on the CSS capsules: metallic (a hard shine) and rainbow */
@@ -205,6 +233,13 @@
 <button id="galBtn" aria-label="Cápsulas"><div class="cap"></div></button>
 <button id="charBtn" aria-label="Colección de personajes"><img src="assets/chars/animales/00.png" alt=""></button>
 <div id="toast"></div>
+<div id="reveal" hidden>
+  <div class="card">
+    <div id="revealStage"></div>
+    <p id="revealText"></p>
+    <button id="revealOk">¡Genial!</button>
+  </div>
+</div>
 <div id="chars" class="screen" hidden>
   <h2>Colección</h2>
   <p id="charTotal" class="sub"></p>
@@ -447,12 +482,12 @@ const standBox = ([x0, x1, h]) => ({ min: [x0, 0, STAND_Z[0]], max: [x1, h, STAN
 const FINGER_ANGLES = [-Math.PI / 2, -Math.PI / 2 + 2 * Math.PI / 3, -Math.PI / 2 + 4 * Math.PI / 3];
 // The metagame, kept in localStorage (META_KEY): for each world's capsule (world:index) how many were
 // won ever (balls) and towards the next character (prog, 0–9), and how many of each character
-// (chars, world:index, 0–19, the sheet's rows left to right). A new character also goes into newChars,
-// for the level's card.
+// (chars, world:index, 0–19, the sheet's rows left to right). newCards counts the cards completed in
+// the level, for its card.
 // For testing, the user asked for a character with every capsule (October 2026): CHAR_EVERY is 1 for
 // now. Set it back to 10 to play the metagame as designed.
 const META_KEY = 'clawMachine.meta', CHAR_EVERY = 1;
-let meta = { balls: {}, prog: {}, chars: {} }, newChars = [];
+let meta = { balls: {}, prog: {}, chars: {} }, newCards = 0;
 
 let prizes = [], claw, coins, score, won, state, aimT;
 // The level being played (its index, or -1 for the daily challenge, and lv, its data), what has been
@@ -1031,7 +1066,7 @@ const GIANT_AT = { x: .4, z: .45 }, BURY_AT = { x: 1.6, z: -1.1 };
 // Start (or retry) level i (-1: the daily challenge, see startDaily): its coins, nothing won towards it
 // yet, and a fresh pile with what it asks for
 function startLevel(i, data) {
-  level = i; lv = data || LEVELS[i]; got = {}; endT = null; lostTo = null; streak = 0; roundOpen = false; coinFlash = 0; newChars = [];
+  level = i; lv = data || LEVELS[i]; got = {}; endT = null; lostTo = null; streak = 0; roundOpen = false; coinFlash = 0; newCards = 0;
   KINDS = worldKinds(lv.world); KIND = Object.fromEntries(KINDS.map(k => [k.key, k]));
   reset();
 }
@@ -1655,37 +1690,51 @@ function win(p) {
   if (endT === null && levelMet()) { endT = CLEAR_DELAY; endWon = true; }
   sfx('win'); hud();
 }
-// The metagame: a world capsule won counts in the gallery and towards its colour's next character. The
-// CHAR_EVERY-th gives one of its rarity's five, at random (they can repeat: the exhibitor counts them);
-// a rainbow one gives one of any rarity, by the rarities' shares. It is announced at once (charToast)
-// and again on the level's card, and the exhibitor's button gets a dot.
+// The metagame: a world capsule won counts in the gallery and towards its colour's card (meta.prog).
+// Every CHAR_EVERY of them complete the card once; the player opens it in the gallery, by tapping it
+// (openCard), and gets a character of its rarity. The user asked for that (October 2026); at first the
+// character came on its own. A card just completed is announced at once (cardToast) and on the level's
+// card (newCards), and the gallery's button gets a dot.
 function winBall(kind) {
   const w = WORLDS[lv.world].id, k = `${w}:${kind.slice(1)}`;
   meta.balls[k] = (meta.balls[k] || 0) + 1;
   meta.prog[k] = (meta.prog[k] || 0) + 1;
-  if (meta.prog[k] >= CHAR_EVERY) {
-    meta.prog[k] = 0;
-    let tier = KIND[kind].tier;
-    if (tier === 4) { let r = Math.random() * TIERS.slice(0, 4).reduce((s, t) => s + t.w, 0); tier = 0; while (r > TIERS[tier].w) r -= TIERS[tier++].w; }
-    const i = tier * 5 + (Math.random() * 5 | 0), ck = `${w}:${i}`, fresh = !meta.chars[ck];
-    meta.chars[ck] = (meta.chars[ck] || 0) + 1;
-    newChars.push({ world: lv.world, i, fresh });
-    charToast(lv.world, i, fresh);
-    $('charBtn').classList.add('new');
-  }
+  if (meta.prog[k] % CHAR_EVERY === 0) { newCards++; cardToast(kind); $('galBtn').classList.add('new'); }
   try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (e) {}
 }
+// A card just completed: a moment at the top of the screen with its capsule
+function cardToast(kind) {
+  const t = $('toast'), k = KIND[kind], c = capOf(kind);
+  t.innerHTML = `<span class="cap ${c.cls}" style="${c.style}"></span><span><small style="color:${TIERS[k.tier].css}">¡Cápsula completa! · ${TIERS[k.tier].name}</small>Abrila en Cápsulas</span>`;
+  t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
+  sfx('prize');
+}
+// Opening a complete card (world w, capsule index b): a character of its rarity at random (they can
+// repeat: the collection counts them); the rainbow card gives one of any rarity, by the rarities'
+// shares. It is shown coming out of its capsule (#reveal), and the collection's button gets a dot.
+function openCard(w, b) {
+  const wd = WORLDS[w], k = `${wd.id}:${b}`;
+  if ((meta.prog[k] || 0) < CHAR_EVERY) return;
+  meta.prog[k] -= CHAR_EVERY;
+  let tier = b === 8 ? 4 : b >> 1;
+  if (tier === 4) { let r = Math.random() * TIERS.slice(0, 4).reduce((s, t) => s + t.w, 0); tier = 0; while (r > TIERS[tier].w) r -= TIERS[tier++].w; }
+  const i = tier * 5 + (Math.random() * 5 | 0), ck = `${wd.id}:${i}`, n = (meta.chars[ck] || 0) + 1;
+  meta.chars[ck] = n;
+  try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (e) {}
+  $('charBtn').classList.add('new');
+  const kind = worldKinds(w)[b], c = capOf(kind.key, { [kind.key]: kind }), half = `<span class="cap ${c.cls}" style="${c.style}"></span>`;
+  $('revealStage').innerHTML = `<span class="glow" style="--g:${TIERS[tier].css}"></span><img src="${charSrc(w, i)}" alt="">` +
+    `<span class="half top">${half}</span><span class="half bot">${half}</span>`;
+  $('revealText').innerHTML = `<small style="color:${TIERS[tier].css}">${CHAR_TIERS[tier]}</small>${charName(w, i)}<small>${n > 1 ? `Repetido · tenés ${n}` : '¡Nuevo personaje!'}</small>`;
+  const r = $('reveal');
+  r.hidden = false; r.classList.remove('go'); void r.offsetWidth; r.classList.add('go');
+  sfx('motor'); setTimeout(() => sfx('prize'), 700);
+}
+$('revealOk').addEventListener('click', () => { $('reveal').hidden = true; openGallery(galCar.idx); });
 // A character's picture (cut from the concept sheets by tools/cut-characters.mjs) and name
 const charSrc = (w, i) => `assets/chars/${WORLDS[w].id}/${Math.floor(i / 5)}${i % 5}.png`;
 const charName = (w, i) => WORLDS[w].chars[i];
 const CHAR_TIERS = ['Común', 'Infrecuente', 'Raro', 'Legendario'];
-// A character just won pops up at the top of the screen for a moment, with its rarity
-function charToast(w, i, fresh) {
-  const t = $('toast');
-  t.innerHTML = `<img src="${charSrc(w, i)}" alt=""><span><small style="color:${TIERS[i / 5 | 0].css}">${fresh ? '¡Nuevo personaje!' : 'Repetido'} · ${CHAR_TIERS[i / 5 | 0]}</small>${charName(w, i)}</span>`;
-  t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
-  sfx('prize');
-}
 let lostTo = null;      // 'skull' when the skull lost the level (otherwise it was the coins)
 
 function update(dt) {
@@ -1843,18 +1892,18 @@ function levelCard(cleared) {
     }
     if (level >= 0 && !last && level % 5 === 4) html += `<br>¡Se abrió el mundo ${WORLDS[(level + 1) / 5].name}!`;
     const next = level >= 0 && !last;
-    card({ title: level < 0 ? '¡Desafío superado!' : `¡Nivel ${level + 1} superado!`, html: html + charsWonHtml(), main: next ? 'Siguiente nivel' : 'Jugar de nuevo', onMain: next ? () => startLevel(level + 1) : retry, levels: true });
+    card({ title: level < 0 ? '¡Desafío superado!' : `¡Nivel ${level + 1} superado!`, html: html + cardsHtml(), main: next ? 'Siguiente nivel' : 'Jugar de nuevo', onMain: next ? () => startLevel(level + 1) : retry, levels: true });
   } else {
     const skull = lostTo === 'skull';
     const html = skull ? 'Cayó la calavera al hueco: perdiste el nivel.'
       : 'Te faltaron:<br>' + lv.goal.filter(goalLeft).map(g => `<span class="goal">${capHtml(g.key)} ${goalLeft(g)}</span>`).join('');
-    card({ title: skull ? '¡La calavera!' : '¡Sin fichas!', html: html + charsWonHtml(), main: 'Reintentar', onMain: retry, levels: true });
+    card({ title: skull ? '¡La calavera!' : '¡Sin fichas!', html: html + cardsHtml(), main: 'Reintentar', onMain: retry, levels: true });
   }
   sfx(cleared ? 'win' : 'clunk');
 }
-// The characters won during the level, for its card (they are kept whether it was cleared or not)
-const charsWonHtml = () => newChars.length ? '<span class="won"><small>Personajes que ganaste</small>' +
-  newChars.map(c => `<span class="char t${c.i / 5 | 0}"><img src="${charSrc(c.world, c.i)}" alt="">${charName(c.world, c.i)}${c.fresh ? '' : ' <i>(repetido)</i>'}</span>`).join('') + '</span>' : '';
+// The cards completed during the level, for its card, with a button to go and open them
+const cardsHtml = () => newCards ? `<span class="won">¡Completaste ${newCards} cápsula${newCards === 1 ? '' : 's'}!<button class="alt" data-go="caps">Abrilas en Cápsulas</button></span>` : '';
+$('ovStats').addEventListener('click', e => { if (e.target.closest('[data-go=caps]')) openGallery(); });
 // Stars as ★★☆ (the ones not won dimmed)
 const starsHtml = (n, cls = 'stars') => `<span class="${cls}">${'★'.repeat(n)}<i>${'★'.repeat(3 - n)}</i></span>`;
 
@@ -2111,16 +2160,22 @@ function carousel(shelf, prev, next, dots) {
   c.fill = (html, at) => { shelf.innerHTML = html; dots.innerHTML = pages().map(() => '<i></i>').join(''); c.show(at, false); };
   let settle = 0;
   shelf.addEventListener('scroll', () => { clearTimeout(settle); settle = setTimeout(() => mark(c.idx = near()), 150); });
+  // (the drag only starts once the mouse has moved a few pixels, so a click on a card still reaches it)
   const drag = { id: null };
   shelf.addEventListener('pointerdown', e => {
     if (e.pointerType !== 'mouse' || e.button !== 0) return;
-    Object.assign(drag, { id: e.pointerId, x: e.clientX, left: shelf.scrollLeft, from: c.idx });
-    shelf.setPointerCapture(e.pointerId); shelf.classList.add('drag');
+    Object.assign(drag, { id: e.pointerId, x: e.clientX, left: shelf.scrollLeft, from: c.idx, on: false });
   });
-  shelf.addEventListener('pointermove', e => { if (e.pointerId === drag.id) shelf.scrollLeft = drag.left - (e.clientX - drag.x); });
+  shelf.addEventListener('pointermove', e => {
+    if (e.pointerId !== drag.id) return;
+    if (!drag.on && Math.abs(e.clientX - drag.x) > 6) { drag.on = true; shelf.setPointerCapture(e.pointerId); shelf.classList.add('drag'); }
+    if (drag.on) shelf.scrollLeft = drag.left - (e.clientX - drag.x);
+  });
   for (const ev of ['pointerup', 'pointercancel']) shelf.addEventListener(ev, e => {
     if (e.pointerId !== drag.id) return;
-    drag.id = null; shelf.classList.remove('drag');
+    drag.id = null;
+    if (!drag.on) return;
+    shelf.classList.remove('drag');
     const moved = e.clientX - drag.x;
     c.show(clamp(drag.from + (moved < -40 ? 1 : moved > 40 ? -1 : 0), 0, pages().length - 1));
   });
@@ -2135,24 +2190,28 @@ const worldNow = () => lv.world;
 const lockedNote = w => `<p class="sub">Se abre en el nivel ${w * 5 + 1}</p>`;
 
 // The gallery (the capsule button, top left): a page per world with its nine capsules, each with its
-// rarity, how many were won and how far it is to the next character (a bar to CHAR_EVERY). Kinds not
+// rarity, how many were won and how far its card is to complete (a bar to CHAR_EVERY). A complete card
+// glows and says so (with how many times it can be opened); tapping it opens it (openCard). Kinds not
 // won yet show as dark silhouettes; a world not open yet is locked. The game holds still and isn't
-// drawn while it is open.
-function openGallery() {
+// drawn while it is open. It opens on page `at`, by default the world being played.
+function openGallery(at = worldNow()) {
   galCar.fill(WORLDS.map((wd, w) => {
     const locked = !worldOpen(w), kinds = Object.fromEntries(worldKinds(w).map(k => [k.key, k]));
     const slots = worldKinds(w).map(k => {
       const id = `${wd.id}:${k.key.slice(1)}`, n = meta.balls[id] || 0, prog = meta.prog[id] || 0, c = capOf(k.key, kinds);
-      return `<div class="slot${n ? '' : ' none'}"><div class="cap ${c.cls}" style="${c.style}"></div>` +
+      const ready = Math.floor(prog / CHAR_EVERY), part = prog % CHAR_EVERY;
+      return `<div class="slot${n ? '' : ' none'}${ready ? ' ready' : ''}" data-w="${w}" data-b="${k.key.slice(1)}"><div class="cap ${c.cls}" style="${c.style}"></div>` +
         `<span class="name">${k.name}</span><span class="tier" style="color:${TIERS[k.tier].css}">${TIERS[k.tier].name}</span>` +
-        `<span class="bar"><i style="width:${prog / CHAR_EVERY * 100}%"></i></span><span class="num">${locked ? '?' : `${prog}/${CHAR_EVERY}`}</span>` +
+        (ready ? `<span class="open">¡Abrir!${ready > 1 ? ` ×${ready}` : ''}</span>`
+          : `<span class="bar"><i style="width:${part / CHAR_EVERY * 100}%"></i></span><span class="num">${locked ? '?' : `${part}/${CHAR_EVERY}`}</span>`) +
         `<span class="tot">${n ? `${n} en total` : '&nbsp;'}</span></div>`;
     }).join('');
     return `<section class="season${locked ? ' locked' : ''}"><h3>Mundo ${w + 1} · ${wd.name}${locked ? '<span>🔒</span>' : ''}</h3>` +
-      (locked ? lockedNote(w) : `<p class="sub">${CHAR_EVERY > 1 ? `Cada ${CHAR_EVERY} de un color` : 'Cada cápsula'}: un personaje de su rareza</p>`) + `<div class="shelf">${slots}</div></section>`;
-  }).join(''), worldNow());
+      (locked ? lockedNote(w) : `<p class="sub">${CHAR_EVERY > 1 ? `Cada ${CHAR_EVERY} de un color completan su tarjeta` : 'Cada cápsula completa su tarjeta'}: tocala para abrirla</p>`) + `<div class="shelf">${slots}</div></section>`;
+  }).join(''), at);
   showScreen('gallery');
 }
+$('shelf').addEventListener('click', e => { const el = e.target.closest('.slot.ready'); if (el) openCard(+el.dataset.w, +el.dataset.b); });
 // The exhibitor (the character button, top left): a page per world, a shelf per rarity (row 1 common to
 // row 4 legendary, as on the concept sheets), and on it the five characters: the ones won with how
 // many (they can repeat), the rest as dark silhouettes with "?".
@@ -2184,9 +2243,9 @@ function closeScreens() {
   if (state === 'over') $('over').hidden = false;
 }
 // From one screen to another: each has buttons for the others
-for (const [btn, open] of [['galToLvl', openLevels], ['lvlToGal', openGallery], ['galToChar', openChars], ['charToGal', openGallery], ['charToLvl', openLevels], ['lvlToChar', openChars]]) $(btn).addEventListener('click', open);
+for (const [btn, open] of [['galToLvl', openLevels], ['lvlToGal', openGallery], ['galToChar', openChars], ['charToGal', openGallery], ['charToLvl', openLevels], ['lvlToChar', openChars]]) $(btn).addEventListener('click', () => open());
 $('galBtn').style.setProperty('--c', KINDS[0].css);
-$('galBtn').addEventListener('click', openGallery);
+$('galBtn').addEventListener('click', () => openGallery());
 $('charBtn').addEventListener('click', openChars);
 for (const b of ['galBack', 'charBack']) $(b).addEventListener('click', closeScreens);
 addEventListener('blur', () => { keys.l = keys.r = keys.u = keys.d = false; });
