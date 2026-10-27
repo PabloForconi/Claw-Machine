@@ -299,7 +299,7 @@ bodyBox.castShadow = true; scene.add(bodyBox);
 // Each finger is one flat piece: its centre line follows FINGER_SHAPE, FINGER_W wide, with clean
 // mitred corners at the knees and a square-cut end, FINGER_T thick. It is built once in the finger's
 // own plane (x out, y up, from the hinge) and only moved and turned each frame (syncClaw).
-const FINGER_W = .13, FINGER_T = .05;
+const FINGER_W = .08, FINGER_T = .05;
 function fingerOutline() {
   const P = FINGER_SHAPE.map(([u, d]) => [u, -d]), hw = FINGER_W / 2, n = P.length;
   const dir = i => { const a = P[i], b = P[i + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]); return [(b[0] - a[0]) / l, (b[1] - a[1]) / l]; };
@@ -544,7 +544,7 @@ function reset() {
 
 // ---------- Physics: spheres with gravity, walls, the hole walls and the claw fingers as kinematic segments ----------
 
-const FINGER_R = .06;   // collision radius of a finger (about half its width)
+const FINGER_R = .045;   // collision radius of a finger (about half its width)
 
 // The two segments of each finger, pivot → knee and knee → tip
 function segments() {

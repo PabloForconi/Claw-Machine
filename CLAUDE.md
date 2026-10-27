@@ -75,7 +75,7 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
 - The claw's shape is deliberately simple, in the game's chrome. The user went through several reference designs (photos of real claws, then flat cartoon and icon designs) and finally asked for something simpler, with the mechanism above the fingers back to a little box like at the start (October 2026). Don't add detail back unless asked.
   - The body is a small plain box (`bodyBox`, no rounding: the user asked for sharp edges, and the carriage is a plain box too) standing along the cable, `HUB_R` out to its sides, from `HUB_DOWN` below the head point to `HUB_UP` above it. It collides as a cylinder that size. The cable hooks onto its top (`HOOK_UP`); `HEAD0` keeps it just under the carriage at the top.
   - The fingers hinge at the box's bottom edge (`PIVOT_R` out, `PIVOT_DOWN` down). `FINGER_SHAPE` is the closed profile, (out, down) from the hinge, in three straight parts, as the user asked: out and down to a first knee, a longer middle part nearly straight down, then the shortest part, the tip, hooked in under the claw.
-  - Each finger is one flat piece (`FINGER_GEO`): `fingerOutline()` offsets the centre line by half of `FINGER_W` with mitred corners at the knees and a square-cut end, and it is extruded `FINGER_T` thick. It is built once in the finger's own plane and only moved to the hinge and turned each frame in `syncClaw()`. Earlier, per-part plates overlapping at the knees and cone points at the tips looked messy; the user asked for clean geometric shapes. `FINGER_R` (the collision radius) is about half the width.
+  - Each finger is one flat piece (`FINGER_GEO`): `fingerOutline()` offsets the centre line by half of `FINGER_W` with mitred corners at the knees and a square-cut end, and it is extruded `FINGER_T` thick. It is built once in the finger's own plane and only moved to the hinge and turned each frame in `syncClaw()`. Earlier, per-part plates overlapping at the knees and cone points at the tips looked messy; the user asked for clean geometric shapes. `FINGER_R` (the collision radius) is about half the width. The user asked for thinner fingers after seeing them at 0.13 wide; they are 0.08 now (October 2026).
   - Closed, the fingers leave room for a capsule, which settles onto the tips.
   - `OPEN_ANGLE` (0.5 rad) is how far the motor swings the fingers out. The wider the open claw, the more neighbours it lands on and the fewer catches; with the second knee far out, 0.65 gave 14 deliveries in 45 rounds and 0.5 gave 18.
   - `HEAD_MIN_Y` comes from `FINGER_REACH`, the deepest finger point open or closed.
@@ -108,7 +108,8 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
   - two-part angular fingers: 29 catches, 28 delivered;
   - three-part fingers with a short tip: 19 catches, 18 delivered;
   - the simple box body with flat fingers: 22 catches, 20 delivered;
-  - one-piece wider fingers with a longer middle part (current): 19 catches, 18 delivered.
+  - one-piece wider fingers with a longer middle part: 19 catches, 18 delivered;
+  - the same, thinner (current): 23 catches, 22 delivered.
   - Fingers dig into the carried prize at most about 0.01 and into neighbours about 0.04.
 
 ### Capsules
