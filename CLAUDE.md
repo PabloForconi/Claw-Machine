@@ -135,7 +135,10 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
     - With `LOSE_PATTERN = null` the chance is `LOSE_BASE + (1 - q) * LOSE_OFF`, with gold prizes 1.6× (about what the old per-second slips added up to over a carry), half each way.
   - The claw never opens while it rises. A slip used to be able to start at any moment, mid-rise included, which the user found odd.
   - In both, the claw goes back to the hole as usual, without stopping, and the prize just falls with the claw's speed wherever that leaves it. The user wanted physics to do its job (October 2026); it often lands in the hole anyway. `slip()` runs both: `c.letGo` is the opening rate while a lost catch opens the claw, and `c.reshut` the closing that follows.
-  - `'early'`: on the way back, while the claw is still moving and once it is within `LOSE_EARLY_AT` (1.1) of the hole, it opens at `LOSE_EARLY_RATE` (about 0.16 s, quicker than letting go over the hole). It stays open; it arrives open, so `settle` goes straight to the open hold and it shuts over the hole.
+  - `'early'`: a moment after the claw sets off back, it opens at `LOSE_EARLY_RATE` (about 0.16 s, quicker than letting go over the hole).
+    - The moment is after `LOSE_EARLY_AFTER` (0.35 s) of moving, or halfway (`c.tripFrom`) if that comes first.
+    - It stays open; it arrives open, so `settle` goes straight to the open hold and it shuts over the hole.
+    - It used to open about 1.1 from the hole, just before arriving; the user wanted it soon after setting off, halfway at most (October 2026).
   - `'top'`: the stop at the top (the end of `lift`) snaps the fingers open (`LOSE_TOP_RATE`, fully open in about 0.08 s, since it opens because it hit) as the claw sets off back. The prize drops out there, and after `TOP_SHUT_IN` the motor shuts the claw again on the way (`restClose()`).
   - Earlier tries, which the user turned down:
     - The claw stopped at the top to open and shut before heading back.
