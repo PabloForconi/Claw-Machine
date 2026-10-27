@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Browser 3D game prototype: a claw machine full of capsule toys. The user asked for it in 3D (an earlier 2D canvas version was replaced). All the code lives in `index.html` (inline CSS and an inline ES module, no build step). External resources: Three.js 0.170.0 from jsDelivr through an import map (`three` only, no addons), and the Google Fonts font Kalam (bold, 700) with a cursive fallback, the same UI font as the sibling prototype `../Laberinto` (Maze Mouse). UI text is in Spanish (rioplatense: "Tocá", "querés").
+Browser 3D game prototype: a claw machine full of capsule toys. The user asked for it in 3D (an earlier 2D canvas version was replaced). All the code lives in `index.html` (inline CSS and an inline ES module, no build step). The only files it loads are the characters' pictures in `assets/chars/`, cut from the user's concept sheets in `concept/` (not committed) by `tools/cut-characters.mjs`. External resources: Three.js 0.170.0 from jsDelivr through an import map (`three` only, no addons), and the Google Fonts font Kalam (bold, 700) with a cursive fallback, the same UI font as the sibling prototype `../Laberinto` (Maze Mouse). UI text is in Spanish (rioplatense: "Tocá", "querés").
 
 To run it, open `index.html` in a browser; it needs internet for Three.js and the font. It is published with GitHub Pages from `main` (the repo is public, like `../Laberinto`): https://pabloforconi.github.io/Claw-Machine/. Every push to `main` redeploys it in about a minute.
 
@@ -18,7 +18,7 @@ To run it, open `index.html` in a browser; it needs internet for Three.js and th
 
 The pane only repaints while its tab is fronted (`tabs_select`); otherwise screenshots show a stale frame.
 
-`game.claw` is replaced on `reset()` (and so by `game.startLevel(i)`), so read it again after a reset. `game.level` and `game.got` show the level being played and what was won towards it, `game.collection` is the gallery's (editable, to test seasons), and `game.startDaily()` starts the daily challenge. In the in-app browser's `data:` preview `localStorage` is disabled, so cleared levels and the gallery are only kept until the page reloads (and editing `index.html` reloads it). With 66 capsules a round is about 900 steps (1.5 s of work), so keep test batches to about 8 rounds per browser tool call, or the call times out ("Internal error").
+`game.claw` is replaced on `reset()` (and so by `game.startLevel(i)`), so read it again after a reset. `game.level` and `game.got` show the level being played and what was won towards it, `game.meta` is the metagame (editable, e.g. `game.meta.prog["animales:0"] = 9` to get a character on the next capsule), and `game.startDaily()` starts the daily challenge. In the in-app browser's `data:` preview `localStorage` is disabled, so cleared levels and the gallery are only kept until the page reloads (and editing `index.html` reloads it). With 66 capsules a round is about 900 steps (1.5 s of work), so keep test batches to about 8 rounds per browser tool call, or the call times out ("Internal error").
 
 ## How the game works
 
@@ -130,7 +130,7 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
   - With the fingers shut, a capsule about as wide as the closed claw rests where it first touches them, about 0.1 under the box.
   - Deliveries: 11 of 40 rounds, against 14 of 40 for the version just before. That is within noise; batches of 10 ranged from 1 to 7.
 - `claw.q` is the grip quality (1 = dead centre). When a catch is made, `grabTarget()` settles whether it will be lost (`claw.lose`).
-  - The chance is `LOSE_BASE + (1 - q) * LOSE_OFF`: about 4.5% dead centre, up to about 28% at the edge, with gold prizes 1.6×. It is about what the old per-second slips added up to over a carry, half each way.
+  - The chance is `LOSE_BASE + (1 - q) * LOSE_OFF`: about 4.5% dead centre, up to about 28% at the edge, with legendary prizes 1.6×. It is about what the old per-second slips added up to over a carry, half each way.
     - With the levels the user asked to keep both kinds of loss at a more realistic rate (October 2026), so `LOSE_PATTERN` is `null`.
     - For testing it can be a pattern again, e.g. `['early', 'top', null]`: one lost on the way, one shaken loose at the top, one carried home. The user had it that way for a while. Only catches move it on (`caught`, reset by `reset()`); a round where the claw comes up empty is a normal round.
   - The claw never opens while it rises. A slip used to be able to start at any moment, mid-rise included, which the user found odd.
@@ -179,7 +179,7 @@ Capsule count and sizes are tuned to the claw. The user noticed small capsules e
 - Big ones squeezed out sideways: 10 of 12 grabs.
 - Between two closed fingers of three there was a gap of about 0.44–0.6, enough for a 0.58-wide capsule.
 
-Each capsule (`mkPrize()`) is two solid halves of one colour, gold for the rare ones, with a dark band where they meet. The user asked to drop the clear top half and the little toy inside it (October 2026). Now the radius is `R_MIN`–`R_MAX` (0.29–0.32). `PRIZE_COUNT` is 15 for now, as the user asked (October 2026), and `RESTOCK_BELOW` is 8. Before that it was 66, after the user asked for three times the 22 there were, and the notes below on the heap are from then.
+Each capsule (`mkPrize()`) is two solid halves of one colour, with its rarity's finish (see Worlds and the metagame), with a dark band where they meet. The user asked to drop the clear top half and the little toy inside it (October 2026). Now the radius is `R_MIN`–`R_MAX` (0.29–0.32). `PRIZE_COUNT` is 15 for now, as the user asked (October 2026), and `RESTOCK_BELOW` is 8. Before that it was 66, after the user asked for three times the 22 there were, and the notes below on the heap are from then.
 - They no longer fit in one layer and heap up like in a real machine: about 1.1 high on average, up to about 1.8, over the hole walls' 1.1. `spawn()` drops them in layers of a dozen. A reset settles them for `SETTLE_STEPS` (about 0.7 s of work), and now and then one tips into the hole while settling.
 - `findContacts()` uses a grid (`prizeGrid()`, cells of `CELL`) so each prize is only checked against its neighbours. A physics step takes about 1.7 ms with 66.
 - With the heap, about 30% of rounds aiming at capsules deliver one (8 catches in 24 rounds).
@@ -187,7 +187,7 @@ Each capsule (`mkPrize()`) is two solid halves of one colour, gold for the rare 
 
 ### Scoring and the rest
 
-- A prize that falls below y = -0.75 counts in `win()`, towards the level's goal and the gallery, with a jingle. It still adds points (1, 5 for a gold one, `score`), but they are no longer shown anywhere. The board's PUNTOS gave way to the goal, and the best score (`clawMachine.best`) was dropped with the game-over card. The floating "+1" / "+5 ¡Dorada!" text over the hole was removed at the user's request (October 2026).
+- A prize that falls below y = -0.75 counts in `win()`, towards the level's goal and the gallery, with a jingle. It still adds points (1, 5 for a legendary one, `score`), but they are no longer shown anywhere. The board's PUNTOS gave way to the goal, and the best score (`clawMachine.best`) was dropped with the game-over card. The floating "+1" / "+5 ¡Dorada!" text over the hole was removed at the user's request (October 2026).
   - Before that, the user reported a brief odd flash, "like text or numbers", on the inner hole wall just before the "+1". It wasn't reproduced and they said to look at it later.
 - `fit()` frames the machine by projecting the cabinet's corners (`FIT_CORNERS`). It searches for the camera distance at which they just fit between the top of the screen and the controls, then centres them there with `setViewOffset`. This works for any camera angle and screen shape. On wide screens (`body.wide`) the controls go to the bottom corners and take no height. A fixed half-height guess stopped fitting when the camera was lowered, since the near base looks bigger.
 - Levels: the user asked for goals of rising difficulty, each unlocking the next (October 2026), with limited coins per level and a levels screen. Then they asked for harder levels that stay fun, and approved a list of ideas to build in order of priority. The list stays a single run of 20 levels for now; the user said to split it into worlds later if it works.
@@ -206,7 +206,7 @@ Each capsule (`mkPrize()`) is two solid halves of one colour, gold for the rare 
     - `tip`: a card at the start explaining what is new (`card()`).
   - The curve, as discussed with the user:
     - Each new thing first comes in an easy level with its tip.
-    - A boss every five levels: the giant (5, and 20 with a pedestal), the gold on the pedestal (10), the buried gold (15). Pedestals come back as two (12), stairs (16) and three (18).
+    - A boss every five levels: the giant (5, and 20 with a pedestal), the legendary on the pedestal (10), the buried legendary (15). Pedestals come back as two (12), stairs (16) and three (18).
     - An easier level after each hard one.
   - The colours kept in one place (`lv.kept`: those `onTop` and `bury`) never appear elsewhere (`mkPrize()` rerolls them), and they aren't restocked.
   - Nothing falls in on its own when a level starts.
@@ -238,29 +238,42 @@ Each capsule (`mkPrize()`) is two solid halves of one colour, gold for the rare 
     - Picking one starts it; the one being played just goes back to it unless it is over.
     - "Volver a la máquina" or Escape goes back, and back to the level's card if it had ended. The game is paused and not drawn meanwhile (`screenOpen()`).
   - The daily challenge (`genDaily(day)`, `startDaily()`): a level made from the date with a seeded random (`mulberry32`), so it is the same all day.
-    - It has two or three colours (sometimes a gold one) and one or two twists. The first pile is seeded too (`rnd` stands in for `Math.random` in the pile code).
+    - It has two or three of the world's capsules (sometimes a legendary one) and one or two twists. The first pile is seeded too (`rnd` stands in for `Math.random` in the pile code).
     - The user wanted it to play alone, without comparing with anyone. `clawMachine.daily` keeps today's best stars and the run of days cleared in a row (`dailyDone()`).
   - Tested with a bot that aims at the highest prize of the right kind, dead centre or up to 0.15 off. It clears nearly everything with stars to spare, since real players are far less exact, so the coins need tuning by playing.
     - The pedestal and buried golds took 1–2 tries.
     - The 0.36 giant was held at the first try with aim up to 0.15 off. So level 5 has 7 coins, and the giant slips 3×.
     - The heap over the buried one is 2–4 capsules deep.
-- The gallery is a second screen the user asked for (October 2026), with a shelf per season (`SEASONS`: Clásicas, Rayadas, Lunares).
-  - The user asked for collections where finishing one unlocks a new season. One of each of the six kinds finishes a season (`seasonDone()`) and opens the next (`seasonsOpen()`).
-    - Its capsules then turn up in the machine (`pickDesign()`): about half of the random ones, mostly the newest.
-    - The card says so and the gallery button gets a dot (`.new`).
-  - The kinds (`KINDS`) are the five `COLORS` plus gold, with Spanish names. Each prize carries its `kind` (its hex colour, or `'gold'`) and its `design`. Goals count the colour whatever the design.
-  - `win()` adds a colour to `collection` (`clawMachine.collection`): plain ones under their kind, the others as `design:kind` (`colKey()`). It survives levels and new games.
-  - `#galBtn` (top left, after the levels star) opens `#gallery`.
-    - Each season is a 3-column shelf of slots with a CSS-drawn capsule (`.cap`, `.cap.stripes`, `.cap.dots`), the count and the name.
-    - Kinds not won yet are dark silhouettes. A locked season shows ? and what opens it.
-  - The seasons are a carousel (`#shelf`, horizontal scroll snap), as the user asked (October 2026). Each one fills the whole width.
-    - The next one used to peek in at the side (86% wide), but on a computer the user saw it as the gallery being cut off.
-    - Swipe, or the arrows and dots under it (`#galNav`, `showSeason()`).
-    - With a mouse it is dragged like a swipe (`shelfDrag`, scroll snap off meanwhile). On release it goes to the next or previous season if it moved over 40 px, otherwise back.
-    - It opens on the newest open season. `seasonIdx` is the one shown, read back from the scroll position once a swipe stops.
-    - `#shelf` must stay `position: relative`, since the slides' `offsetLeft` is measured from it.
-  - The gallery and the levels screen each have a button to the other (`#galToLvl`, `#lvlToGal`), as the user asked.
-  - "Volver a la máquina" (`#galBack`) or Escape goes back, and back to the level's card if it had ended. While it is open the game is paused, not drawn, and the keys don't play.
+### Worlds and the metagame
+
+The user asked for collectable characters as a metagame (October 2026), different from the gallery of capsules, and chose its rules.
+- The 20 levels are four worlds of five (`WORLDS`): Animales, Monstruos, Halloween, Navidad.
+  - Each world has its nine kinds of capsule (`worldKinds(w)`, keys `b0`–`b8`) and its 20 characters. `startLevel` sets `KINDS`/`KIND` to the level's world.
+  - A world opens with its first level (`worldOpen()`).
+  - The level goals name capsules by rarity slot (`SLOT`: C1 C2 common, U1 U2 uncommon, R1 R2 rare, L1 L2 legendary), so a level means the same in every world.
+- Rarities (`TIERS`): two colours each in the world's theme, plus a rainbow kind (b8). The user proposed the 2 + 2 + 2 + 2 + 1 split.
+  - The rarity shows in the finish: common plain, uncommon white stripes, rare white dots, legendary metallic, rainbow bands. This is drawn in 3D by `shellMat()`, in CSS by `.cap.stripes` / `.dots` / `.metal` / `.rainbow` (`capOf()`), and on the board.
+  - It also sets how often a kind turns up in the random part of the pile (`w`: 45%, 28%, 17%, 7%, 3%; `randomKind()`).
+  - Legendary capsules slip 1.6× more (`p.rare`).
+- Characters: `tools/cut-characters.mjs` cuts the user's concept sheets (`concept/<world>.png`, 5 × 4, transparent) into `assets/chars/<world>/<row><col>.png`.
+  - Each cut is 220 px square, with its soft shadow. `tools/png.mjs` reads and writes PNGs with Node's zlib only.
+  - The sheet's row is the rarity, as the user chose: row 1 common … row 4 legendary. The names are in `WORLDS[w].chars`.
+- `winBall()`: every world capsule won counts (`meta.balls`, ever) and adds to its colour's counter (`meta.prog`).
+  - The `CHAR_EVERY`-th (10) gives a random character of that rarity. The rainbow gives one of any rarity by the tiers' shares.
+  - Characters repeat, and are counted (`meta.chars`). All of it is in `localStorage` under `clawMachine.meta`.
+  - A new character pops up at the top (`#toast`, `charToast()`, `sfx('prize')`), is listed on the level's card (`newChars`, `charsWonHtml()`), and puts a dot on the exhibitor button.
+- The gallery (`#gallery`, capsule button) now has a page per world. Each of its nine capsules shows its finish, name, rarity, a bar to the next character (`prog/10`) and the total won.
+  - It replaced the earlier seasons (Clásicas/Rayadas/Lunares), since the finishes now mean rarity.
+- The exhibitor (`#chars`, `#charBtn` with the bear, top left after the gallery button) has a page per world. Each page has four shelves (`.rack`, one per rarity, wooden board; gold for legendary) of five characters.
+  - Owned characters show their picture, name and ×n when repeated. The rest are black silhouettes with "?".
+- Both screens are carousels (`carousel()`: `.pages`, one full-width page each, scroll snap), as the user asked.
+  - Swipe, drag with the mouse (it settles on the next or previous page past 40 px), or use the arrows and dots.
+  - The next page used to peek in at the side, which on a computer looked cut off.
+  - They open on the world being played.
+  - `.pages` must stay `position: relative`, since the pages' `offsetLeft` is measured from it.
+- The levels, gallery and exhibitor screens each have buttons to the other two. `showScreen()` / `closeScreens()` switch them: the game is paused and not drawn meanwhile, Escape goes back, and back to the level's card if it had ended.
+- The daily challenge picks one of the open worlds by the date.
+- To try it locally with the pictures, run `node tools/serve.mjs` (`.claude/launch.json` "claw-machine", port 8131). `file://` and the in-app browser's `data:` snapshot don't load `assets/`. Port 8123 is often taken by `../Laberinto`'s server.
 - Sounds are synthesised with WebAudio in `sfx()`; there are no audio files yet.
 
 Controls: arrows or WASD to move (up/W moves the claw back, away from the camera), Space or Enter to drop. On screen there is the pad and the ¡BAJAR! button.
