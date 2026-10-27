@@ -131,6 +131,11 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
   - It used to come loose as soon as the fingers started opening, lie on them, and get flung as they swung out and up. The user saw prizes "thrown" into the hole (October 2026).
   - There is no on-screen text for a slip: the user asked to remove the old "¡Uy!" pop and the claw's sudden half-open snap (October 2026).
 - Releasing over the hole lets go the same way, once the tips clear the prize; the `settle` state first waits (up to 1 s) for the swing to die down, since a released prize keeps the claw's velocity.
+- The claw is closed at the top and opens on the way down (`OPEN_RATE`, in `drop`); it is fully open well before it lands. After letting go it shuts again (`restClose()`, in `wait`, `idle` and `aim`).
+- Letting go is mechanical: the motor speeds up (`RELEASE_ACC`) to `RELEASE_SPEED` and opens in about 0.35 s. The fingers hit their stop with a clunk, and `JOLT` kicks the head up on its cable, about 3 cm.
+  - The claw then stays open `OPEN_HOLD` (0.5 s) and shuts like the grab: it speeds up to `CLOSE_SPEED` in about 0.3 s and stops with a clack and a smaller jolt. A short motor whine (`sfx('motor')`) starts each move. The next round can start during the hold; a drop opens the claw again.
+  - Before, it hung open at the top and let go and closed at a steady, soft rate.
+- History: both behaviours first came together with solid cabinet sides for the claw, a shorter carriage travel and a bigger glass box (commits c87a7e8–a82fa8e). The user found that version odd overall and asked to go back to 7553b71 (commit 16f124b). Then they asked for just these two behaviours again, on the original travel (`LIMIT` 1.7 x 1.2) with the claw free to poke into the back wall as before (October 2026). With them, 6 of 26 rounds delivered, the same as before.
 - Measured with 45 rounds aiming at capsules away from the walls:
   - four straight-segment fingers: about 15–17 catches and 17 deliveries;
   - three: 23 and 23;
