@@ -95,14 +95,14 @@
   .rack .rtitle { display: block; margin: 0 6px 2px; font-size: 16px; }
   .rack.t0 .rtitle { color: #c9cfdb; } .rack.t1 .rtitle { color: #80ed99; } .rack.t2 .rtitle { color: #4cc9f0; } .rack.t3 .rtitle { color: #ffd23f; }
   .row5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: end; gap: 4px; padding: 6px 6px 0; border-radius: 14px 14px 0 0;
-    border-bottom: 12px solid #7a4a2a;
+    border-bottom: 22px solid #7a4a2a;
     box-shadow: 0 6px 0 #4a2a16, 0 12px 14px rgba(0, 0, 0, .35); }
   .rack.t3 .row5 { border-bottom-color: #c99a1c; box-shadow: 0 6px 0 #7a5a0a, 0 12px 14px rgba(0, 0, 0, .35); }
   /* Each character stands on the board (its picture has a little room and its shadow under it), with
      its name over it */
   .toy { position: relative; display: flex; flex-direction: column; align-items: center; font-size: clamp(14px, 2.4vw, 20px); line-height: 1.1; text-align: center; }
   .toy > span { min-height: 2.2em; display: flex; align-items: flex-end; justify-content: center; }
-  .toy img { width: 100%; aspect-ratio: 1; object-fit: contain; pointer-events: none; margin-bottom: -15%; }
+  .toy img { width: 100%; aspect-ratio: 1; object-fit: contain; pointer-events: none; margin-bottom: calc(-15% - 12px); }
   .toy.none img { filter: brightness(0) invert(.2); }   /* (a dark grey silhouette) */
   .toy.none span { opacity: .5; }
   .toy b { position: absolute; top: 2.4em; right: 0; padding: 0 5px; border-radius: 8px; font-size: 13px; background: var(--pink); color: var(--ink); }
