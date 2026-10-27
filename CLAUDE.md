@@ -233,10 +233,7 @@ Each capsule (`mkPrize()`) is two solid halves of one colour, with its rarity's 
   - The board shows FICHAS, NIVEL n (or DESAFÍO DEL DÍA) with the goal and TIEMPO.
     - The goal is a capsule per kind and "won/needed", shrunk to fit; a kind asked for once is just its capsule, ticked once won.
     - An ordered goal has › between parts and the parts still to come dimmed.
-  - The levels screen (`#levels`, the star `#lvlBtn`, top left) starts with the daily challenge. Then each level shows its goal, coins, twists as tags (`levelTags()`, JEFE for the bosses) and its status: its stars, ▶ open, or 🔒 locked.
-    - The header totals the stars.
-    - Picking one starts it; the one being played just goes back to it unless it is over.
-    - "Volver a la máquina" or Escape goes back, and back to the level's card if it had ended. The game is paused and not drawn meanwhile (`screenOpen()`).
+  - The star (`#lvlBtn`) opens the worlds screen, and each world has its levels screen (see "World covers and screens" below). Each level shows its goal, coins, twists as tags (`levelTags()`) and its status: its stars, ▶ open, or 🔒 locked. Picking one starts it; the one being played just goes back to it unless it is over.
   - The daily challenge (`genDaily(day)`, `startDaily()`): a level made from the date with a seeded random (`mulberry32`), so it is the same all day.
     - It has two or three of the world's capsules (sometimes a legendary one) and one or two twists. The first pile is seeded too (`rnd` stands in for `Math.random` in the pile code).
     - The user wanted it to play alone, without comparing with anyone. `clawMachine.daily` keeps today's best stars and the run of days cleared in a row (`dailyDone()`).
@@ -283,7 +280,17 @@ The user asked for collectable characters as a metagame (October 2026), differen
   - The next page used to peek in at the side, which on a computer looked cut off.
   - They open on the world being played.
   - `.pages` must stay `position: relative`, since the pages' `offsetLeft` is measured from it.
-- The levels, gallery and exhibitor screens each have buttons to the other two. `showScreen()` / `closeScreens()` switch them: the game is paused and not drawn meanwhile, Escape goes back, and back to the level's card if it had ended.
+- World covers and screens: the user supplied a cover per world (`concept/cover_<world>.png`, 4:5), scaled down to `assets/covers/<world>.png` (600 × 750, about 660 KB) by `tools/cut-covers.mjs`. The user approved this layout and flow (October 2026):
+  - The worlds screen (`#worlds`, `openWorlds()`, the star): a carousel (`worldCar`) of the four covers (`.cover`, 4:5, filling the page's height).
+    - On the cover's lower part: "Mundo n · name", levels cleared/5, ★/15, characters/20 (`worldStats()`), and Jugar.
+    - A locked world is greyed out with "Superá el nivel n".
+    - Above it, the daily challenge is a strip (`#dailyBar`) that starts it. The daily challenge used to be the first row of the levels list.
+  - A world's levels screen (`#levels`, `openLevels(w)`): its cover as a banner (`#lvlBanner`), then its five levels. The fifth, the boss, stands out (`.lvl.boss`, crown). Buttons: ‹ Mundos, Cápsulas, Colección, back to the machine. The level card's "Niveles" opens the current world's levels.
+  - Clearing a world's boss: the card's main button is "¡Nuevo mundo!", which shows the next world's cover full screen (`#intro`, `showIntro()`, it pops in), with its name and Entrar, which starts its first level.
+  - The machine's back wall shows the world's cover (`setBackWall()`, a texture per world, cropped top and bottom to the wall). The material's colour (0x8a8a8a) darkens it so the capsules stand out; the dotted wall shows until it loads.
+  - The gallery's and collection's pages start with a banner of their world's cover (`banner()`). Every banner is greyed out while its world is locked.
+  - On a phone the bottom buttons are smaller, so they take fewer rows.
+- The worlds, levels, gallery and exhibitor screens each have buttons to the others. `showScreen()` / `closeScreens()` switch them: the game is paused and not drawn meanwhile, Escape goes back, and back to the level's card if it had ended.
 - The daily challenge picks one of the open worlds by the date.
 - To try it locally with the pictures, run `node tools/serve.mjs` (`.claude/launch.json` "claw-machine", port 8131). `file://` and the in-app browser's `data:` snapshot don't load `assets/`. Port 8123 is often taken by `../Laberinto`'s server.
 - Sounds are synthesised with WebAudio in `sfx()`; there are no audio files yet.
