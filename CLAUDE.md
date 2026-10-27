@@ -136,9 +136,10 @@ The user reported the grab feeling odd several times (October 2026): a "magnet" 
   - The claw never opens while it rises. A slip used to be able to start at any moment, mid-rise included, which the user found odd.
   - In both, the claw goes back to the hole as usual, without stopping, and the prize just falls with the claw's speed wherever that leaves it. The user wanted physics to do its job (October 2026); it often lands in the hole anyway. `slip()` runs both: `c.letGo` is the opening rate while a lost catch opens the claw, and `c.reshut` the closing that follows.
   - `'early'`: a moment after the claw sets off back, it opens at `LOSE_EARLY_RATE` (about 0.16 s, quicker than letting go over the hole).
-    - The moment is after `LOSE_EARLY_AFTER` (0.35 s) of moving, or halfway (`c.tripFrom`) if that comes first.
+    - The moment is once it has covered `LOSE_EARLY_AT` (40%) of the trip (`c.tripFrom`, the distance when the trip began): on a 2.5 trip, after about 1 m and 1 s.
     - It stays open; it arrives open, so `settle` goes straight to the open hold and it shuts over the hole.
-    - It used to open about 1.1 from the hole, just before arriving; the user wanted it soon after setting off, halfway at most (October 2026).
+    - The user turned down two earlier moments (October 2026). First it opened about 1.1 from the hole, just before arriving. Then it opened 0.35 s after setting off, and they said it let go before the claw had really moved.
+    - With the claw's full speed the prize often flies on into the hole: in 3 tries out of 3 it did.
   - `'top'`: the stop at the top snaps the fingers open (`LOSE_TOP_RATE`, fully open in about 0.08 s, since it opens because it hit) as the claw sets off back, with a clunk.
     - The jolt is when the claw tops out, not when the winch stops (`c.topHit` waits for `head.vy` to turn). On its stretched cable the claw rides on up for about 0.12–0.15 s after the winch stops at 1.7, and opening at the winch stop looked like opening before hitting the top (the user noticed, October 2026). The prize drops out there, and after `TOP_SHUT_IN` the motor shuts the claw again on the way (`restClose()`).
   - Earlier tries, which the user turned down:

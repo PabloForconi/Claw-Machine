@@ -131,10 +131,10 @@ const RELEASE_SPEED = 4, RELEASE_ACC = 16, OPEN_HOLD = .5, JOLT = .9;
 // Losing a catch on purpose (see slip): the chance (LOSE_BASE, plus LOSE_OFF the further off centre it
 // was caught; gold ones 1.6 times as often); how fast the fingers fly open when the stop at the top
 // shakes it loose (a snap: it opens because it hit) and how long before the motor shuts them again;
-// and for the other kind, how long after the claw sets off back it lets go (at the latest halfway)
-// and how fast it opens
+// and for the other kind, how much of the way back the claw has covered when it lets go, and how fast
+// it opens
 const LOSE_BASE = .045, LOSE_OFF = .24, LOSE_TOP_RATE = 12, TOP_SHUT_IN = .3;
-const LOSE_EARLY_AFTER = .35, LOSE_EARLY_RATE = 6;
+const LOSE_EARLY_AT = .4, LOSE_EARLY_RATE = 6;
 // For testing (the user asked for it, October 2026): catches go round this pattern, one lost on the
 // way to the hole, one shaken loose at the top, one carried home, whatever the grip. Only catches
 // count, never a round where the claw came up empty. Set to null for the normal chance above.
@@ -1075,9 +1075,9 @@ function swingHead(dt) {
 // - 'top': the jolt of the stop at the top (when the claw tops out, just after the end of lift)
 //   snaps the fingers open (LOSE_TOP_RATE) as the claw sets off back; after TOP_SHUT_IN the motor
 //   shuts them again on the way (restClose).
-// - 'early': a moment after the claw sets off back (LOSE_EARLY_AFTER seconds of moving, or halfway if
-//   that comes first) it opens, a bit faster than letting go over the hole (LOSE_EARLY_RATE), and
-//   stays open; it shuts over the hole. (Opening just before the hole, the user found, felt wrong.)
+// - 'early': on the way back, once the claw has covered LOSE_EARLY_AT of the trip, it opens, a bit
+//   faster than letting go over the hole (LOSE_EARLY_RATE), and stays open; it shuts over the hole.
+//   (The user found opening just before the hole wrong, and then 0.35 s after setting off too soon.)
 // c.letGo is the opening rate while a lost catch opens the claw; claw.slipping is the prize slipping
 // out (the fingers open until it drops out between the tips, see loosen); c.reshut is the closing.
 function slip(dt) {
@@ -1099,9 +1099,8 @@ function slip(dt) {
   }
   if (!p || c.lose !== 'early' || state !== 'return') return;
   const d = Math.hypot(HOME.x - c.x, HOME.z - c.z);
-  if (c.tripFrom === undefined) { c.tripFrom = d; c.moved = 0; }
-  if (Math.hypot(c.vx, c.vz) > .05) c.moved += dt;
-  if (c.moved >= LOSE_EARLY_AFTER || d <= c.tripFrom / 2) { c.slipping = p; c.letGo = LOSE_EARLY_RATE; }
+  if (c.tripFrom === undefined) c.tripFrom = d;
+  if (d <= c.tripFrom * (1 - LOSE_EARLY_AT)) { c.slipping = p; c.letGo = LOSE_EARLY_RATE; }
 }
 
 // Open the fingers at this rate. The prize stays in the claw while they open and only comes loose
