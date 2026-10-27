@@ -175,7 +175,7 @@ Capsule count and sizes are tuned to the claw. The user noticed small capsules e
 - Big ones squeezed out sideways: 10 of 12 grabs.
 - Between two closed fingers of three there was a gap of about 0.44–0.6, enough for a 0.58-wide capsule.
 
-Each capsule (`mkPrize()`) is two solid halves of one colour, gold for the rare ones, with a dark band where they meet. The user asked to drop the clear top half and the little toy inside it (October 2026). Now the radius is `R_MIN`–`R_MAX` (0.29–0.32). `PRIZE_COUNT` is 66: the user asked for three times the 22 there were (October 2026).
+Each capsule (`mkPrize()`) is two solid halves of one colour, gold for the rare ones, with a dark band where they meet. The user asked to drop the clear top half and the little toy inside it (October 2026). Now the radius is `R_MIN`–`R_MAX` (0.29–0.32). `PRIZE_COUNT` is 15 for now, as the user asked (October 2026), and `RESTOCK_BELOW` is 8. Before that it was 66, after the user asked for three times the 22 there were, and the notes below on the heap are from then.
 - They no longer fit in one layer and heap up like in a real machine: about 1.1 high on average, up to about 1.8, over the hole walls' 1.1. `spawn()` drops them in layers of a dozen. A reset settles them for `SETTLE_STEPS` (about 0.7 s of work), and now and then one tips into the hole while settling.
 - `findContacts()` uses a grid (`prizeGrid()`, cells of `CELL`) so each prize is only checked against its neighbours. A physics step takes about 1.7 ms with 66.
 - With the heap, about 30% of rounds aiming at capsules deliver one (8 catches in 24 rounds).
@@ -189,4 +189,11 @@ Each capsule (`mkPrize()`) is two solid halves of one colour, gold for the rare 
 - The best score is kept in `localStorage` under `clawMachine.best` (wrapped in try/catch).
 - Sounds are synthesised with WebAudio in `sfx()`; there are no audio files yet.
 
-Controls: arrows or WASD to move (up/W moves the claw back, away from the camera), Space or Enter to drop; on screen, the d-pad and the ¡BAJAR! button.
+Controls: arrows or WASD to move (up/W moves the claw back, away from the camera), Space or Enter to drop. On screen there is the pad and the ¡BAJAR! button.
+- The pad (`#pad`, `stick`) is a joystick like the one in `../Laberinto`; it replaced a four-button d-pad, as the user asked (October 2026).
+  - Its base rests in the pad area, jumps to where the finger lands, and the knob follows the finger up to `STICK_R`.
+  - The direction steers the claw, and how far it is pushed sets the speed (dead zone `STICK_DEAD`).
+  - Touching it while idle starts the round.
+- The gear (`#gear`, top right) opens a settings panel (`#opts`) that pauses the game while open.
+  - Its one option, "Pad a la derecha", swaps the pad and the button for right-handed players (`body.swap`, `row-reverse`).
+  - The choice is kept in `localStorage` under `clawMachine.padRight`. In the in-app browser's `data:` preview storage is disabled, so it isn't remembered there.
