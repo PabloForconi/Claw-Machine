@@ -1627,9 +1627,16 @@ function clawWallPush() {
 
 const SOLVER_ITERS = 12, POS_ITERS = 4, MARGIN = .01, SLOP = .003;
 const MU = { prize: .45, claw: .7, floor: .6, glass: .15, wall: .3 };     // friction
-const BOUNCE = { prize: .3, claw: 0, floor: .3, glass: .3, wall: .35 };   // restitution (the claw lands dead)
-const BOUNCE_MIN = .6;   // slower impacts don't bounce, so resting contacts stay calm
-const ROLL_DAMP = 1.2;   // rolling resistance, per second, while touching something
+// Restitution (the claw lands dead). The capsules are hollow plastic balls, like a ball pit's: the user
+// asked for them to bounce and hop naturally off each other and the floor (October 2026); it was .3 all
+// round and they landed nearly dead.
+const BOUNCE = { prize: .5, claw: 0, floor: .55, glass: .45, wall: .45 };
+const BOUNCE_MIN = .35;   // slower impacts don't bounce, so resting contacts stay calm (it was .6)
+// Rolling resistance, per second, while touching something (it was 1.2, which stopped them rolling
+// almost at once), and the faster decay of a spin about the upright axis, which grinds on the contact
+const ROLL_DAMP = .4, TWIST_DAMP = 2.5;
+// Under REST_V a ball rolls out against REST_DAMP instead, so a pile comes to rest instead of creeping
+const REST_V = .15, REST_DAMP = 3;
 // The fastest (relative to the claw) a prize squeezed between a finger and the caught prize can be
 // pushed out. Both are immovable to it, so a narrow wedge closing shot it out at up to 8 once the
 // fingers stopped giving way after closing; real fingers and capsules would yield a little instead.
@@ -1637,8 +1644,9 @@ const SQUEEZE_MAX = 1;
 const MAX_SPEED = 9, CLAW_PUSH_MAX = 3;
 const ZERO = [0, 0, 0];
 
-// Mass and inverse inertia (solid sphere); bodies that don't spin get iI = 0
-function setMass(b, m, spins = true) { b.im = 1 / m; b.iI = spins ? 1 / (.4 * m * b.r * b.r) : 0; }
+// Mass and inverse inertia; bodies that don't spin get iI = 0
+// (a hollow shell, 2/3 m r², since the capsules are hollow balls; it was a solid sphere's 0.4 m r²)
+function setMass(b, m, spins = true) { b.im = 1 / m; b.iI = spins ? 1 / (2 / 3 * m * b.r * b.r) : 0; }
 
 // The head stays put while the claw closes: it rests where it landed, and a finger that runs into a
 // neighbour gives way (flexFingers) instead of lifting the whole claw off the prize it is closing on.
@@ -1831,7 +1839,7 @@ function physics(dt, settling) {
     const s = Math.hypot(p.vx, p.vy, p.vz);
     if (s > MAX_SPEED) { const k = MAX_SPEED / s; p.vx *= k; p.vy *= k; p.vz *= k; }
     p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
-    if (touching.has(p)) { const k = 1 - ROLL_DAMP * dt; p.wx *= k; p.wy *= k; p.wz *= k; }
+    if (touching.has(p)) { const k = 1 - (s < REST_V ? REST_DAMP : ROLL_DAMP) * dt; p.wx *= k; p.wy *= 1 - TWIST_DAMP * dt; p.wz *= k; }
     const w = Math.hypot(p.wx, p.wy, p.wz);
     if (w > 1e-4) p.mesh.quaternion.premultiply(rollQ.setFromAxisAngle(rollAxis.set(p.wx / w, p.wy / w, p.wz / w), w * dt));
   }
