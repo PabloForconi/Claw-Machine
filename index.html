@@ -58,10 +58,11 @@
   /* The gallery and the levels: screens of their own over the machine */
   /* (the title on top and the buttons at the bottom stay put; only what is between them scrolls, as in
      the maze game: the user asked for it, October 2026) */
-  .screen { position: fixed; inset: 0; overflow: hidden; touch-action: pan-y; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  .screen { position: fixed; inset: 0; overflow: hidden; touch-action: pan-y; padding: max(8px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
     background: #000; display: flex; flex-direction: column; align-items: center; }   /* (black, as the user asked) */
   .screen > * { flex: none; }
-  .screen h2 { margin: 6px 0 0; font-size: 38px; color: var(--gold); text-shadow: 0 3px 0 var(--pink-dark); }
+  /* (the title sits close to the top, to leave the page more room, as the user asked, October 2026) */
+  .screen h2 { margin: 0 0 8px; font-size: 38px; line-height: 1.1; color: var(--gold); text-shadow: 0 3px 0 var(--pink-dark); }
   .screen .sub { margin: 0 0 18px; font-size: 20px; opacity: .85; text-align: center; }
   /* The gallery's and the exhibitor's worlds side by side, one whole world at a time: swipe (dragged
      with the mouse on a computer) or the arrows to the next. The user asked for it (October 2026); the
