@@ -459,7 +459,7 @@ const TIERS = [
   { name: 'Arcoíris', design: 'rainbow', w: .03, css: '#ff9fbd' },
 ];
 const WORLDS = [
-  { id: 'animales', name: 'Animales', balls: [['Marrón', '#9b5d34'], ['Crema', '#f1dcb0'], ['Naranja', '#ff9640'], ['Gris', '#a3aab5'], ['Rosa', '#ff9fbd'], ['Celeste', '#6fc2f0'], ['Verde', '#7fd66b'], ['Dorada', '#ffd23f']],
+  { id: 'animales', name: 'Animales', skin: 'animales', balls: [['Marrón', '#9b5d34'], ['Crema', '#f1dcb0'], ['Naranja', '#ff9640'], ['Gris', '#a3aab5'], ['Rosa', '#ff9fbd'], ['Celeste', '#6fc2f0'], ['Verde', '#7fd66b'], ['Dorada', '#ffd23f']],
     chars: ['Teddy', 'Bunni', 'Pandu', 'Mishi', 'Waffles', 'Pingu', 'Chicky', 'Mochi', 'Reddy', 'MooMoo', 'Lenny', 'Tiggy', 'Dumbo', 'Koko', 'Momo', 'Foxy', 'Bandit', 'Hooty', 'Wooly', 'Dino'] },
   { id: 'monstruos', name: 'Monstruos', balls: [['Violeta', '#a974ff'], ['Lima', '#a6e35a'], ['Rosa', '#ff6fb5'], ['Turquesa', '#2fd3c6'], ['Naranja', '#ff8a3d'], ['Azul', '#4a86ff'], ['Roja', '#ff4057'], ['Amarilla', '#ffd23f']],
     chars: ['Reddy', 'Blobby', 'Spike', 'Violett', 'Sunny', 'Pinky', 'Chompy', 'Bloop', 'Fuzzy', 'Cyclo', 'Grumpy', 'Zappy', 'Bubbles', 'Triple', 'Flappy', 'Zippy', 'Spiky', 'Wobble', 'Horny', 'Boingo'] },
@@ -829,7 +829,7 @@ for (let i = 0; i < 22; i++) for (const y of [MARQUEE_Y - MARQUEE_H / 2 + .02, M
 // - a purple marquee with a chequered border that chases, pumpkins and webs (in place of the bulbs);
 // - lanterns glowing up the inside of the pillars;
 // - a graveyard with bats on the scoreboard.
-// The other worlds keep the pink machine for now.
+// Animales has one too, from another reference. The other worlds keep the pink machine for now.
 const PINK_HEX = 0xe8457a;
 // A little bat, spread wings, centred at x, y, s wide
 function drawBat(g, x, y, s, color) {
@@ -873,7 +873,63 @@ function drawPumpkin(g, x, y, r) {
   for (const sx of [-1, 1]) { g.beginPath(); g.moveTo(x + sx * r * .18, y - r * .1); g.lineTo(x + sx * r * .5, y - r * .1); g.lineTo(x + sx * r * .34, y - r * .42); g.fill(); }
   g.beginPath(); g.moveTo(x - r * .55, y + r * .18); g.quadraticCurveTo(x, y + r * .8, x + r * .55, y + r * .18); g.quadraticCurveTo(x, y + r * .45, x - r * .55, y + r * .18); g.fill();
 }
+// A paw print: the pad and four toes, about r across
+function drawPaw(g, x, y, r, color, tilt = 0) {
+  g.save(); g.translate(x, y); g.rotate(tilt); g.fillStyle = color;
+  g.beginPath(); g.ellipse(0, r * .18, r * .42, r * .34, 0, 0, 7); g.fill();
+  for (const [dx, dy, k] of [[-.48, -.2, .17], [-.17, -.48, .18], [.17, -.48, .18], [.48, -.2, .17]]) { g.beginPath(); g.ellipse(dx * r, dy * r, r * k, r * k * 1.2, dx * .5, 0, 7); g.fill(); }
+  g.restore();
+}
+// A paw with a darker outline and lighter pads, for the marquee
+function drawBigPaw(g, x, y, r, color, tilt) {
+  drawPaw(g, x, y, r * 1.12, 'rgba(30, 20, 60, .55)', tilt);
+  drawPaw(g, x, y, r, color, tilt);
+  drawPaw(g, x, y + r * .06, r * .55, 'rgba(255, 255, 255, .35)', tilt);
+}
 const SKINS = {
+  // The Animales machine, from the user's reference picture (October 2026): a yellow cabinet, blue
+  // pillars with yellow diagonal stripes, paw prints and stars, a blue marquee with big paws and
+  // stars (its bulbs stay, round it), lights up the pillars, and paws and stars on the scoreboard
+  animales: {
+    body: 0xffbf1f, bulbs: true, lanterns: true, lantern: 0xfff1b0,
+    pillar(g, w, h) {
+      g.fillStyle = '#2f6fe0'; g.fillRect(0, 0, w, h);
+      g.fillStyle = '#ffc928';
+      for (let y = 120; y < h; y += 340) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y - 60); g.lineTo(w, y - 20); g.lineTo(0, y + 40); g.fill(); }
+      for (let y = 230, i = 0; y < h - 60; y += 170, i++) {
+        if (i % 2) drawStar(g, w / 2, y, w * .32, '#ffd23f');
+        else drawPaw(g, w / 2, y, w * .62, '#e6d6ff', (i % 4 ? .3 : -.3));
+      }
+      g.fillStyle = 'rgba(255, 255, 255, .22)'; g.fillRect(w * .78, 0, w * .1, h);   // a shine down the edge
+    },
+    marquee(g, w, h) {
+      g.fillStyle = '#ffbf1f'; g.fillRect(0, 0, w, h);
+      const m = h * .14;
+      g.fillStyle = '#1f4fc4'; g.beginPath(); g.roundRect(m, m, w - 2 * m, h - 2 * m, h * .12); g.fill();
+      g.strokeStyle = '#7fb2ff'; g.lineWidth = 4; g.stroke();
+      for (const [x, y, r, t] of [[.08, .3, .07, -.3], [.92, .3, .07, .3], [.28, .78, .05, .2], [.72, .78, .05, -.2], [.05, .72, .05, .4], [.95, .7, .05, -.4]]) drawPaw(g, w * x, h * y, h * r * 2, 'rgba(160, 200, 255, .55)', t);
+      for (const [x, y, r] of [[.12, .72, .07], [.88, .72, .07], [.3, .3, .04], [.7, .3, .04]]) drawStar(g, w * x, h * y, h * r, '#ffd23f');
+      drawBigPaw(g, w * .175, h * .5, h * .26, '#ff8fb8', -.25);
+      drawBigPaw(g, w * .825, h * .5, h * .26, '#b48cff', .25);
+      // "CLAW" in yellow and orange, "MACHINE" in pink and white, with a dark outline
+      g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .44)}px Kalam, cursive`;
+      const a = 'CLAW ', b = 'MACHINE', wa = g.measureText(a).width, wb = g.measureText(b).width, x0 = w / 2 - (wa + wb) / 2, y = h / 2 + 5;
+      g.textAlign = 'left'; g.lineWidth = 12; g.strokeStyle = '#2a1460';
+      g.strokeText(a, x0, y); g.strokeText(b, x0 + wa, y);
+      const ga = g.createLinearGradient(0, y - h * .2, 0, y + h * .2); ga.addColorStop(0, '#ffe45c'); ga.addColorStop(1, '#ff9a1f');
+      const gb = g.createLinearGradient(0, y - h * .2, 0, y + h * .2); gb.addColorStop(0, '#ffffff'); gb.addColorStop(1, '#ff9fd0');
+      g.fillStyle = ga; g.fillText(a, x0, y); g.fillStyle = gb; g.fillText(b, x0 + wa, y);
+    },
+    board(g, w, h) {
+      g.save(); g.beginPath(); g.roundRect(11, 11, w - 22, h - 22, 28); g.clip();
+      g.fillStyle = '#1d2f8f'; g.fillRect(0, 0, w, h);
+      // (in the corners, clear of the coins and the time)
+      drawPaw(g, w * .03, h * .3, 34, 'rgba(230, 214, 255, .8)', -.3);
+      drawPaw(g, w * .97, h * .3, 34, 'rgba(230, 214, 255, .8)', .3);
+      drawStar(g, w * .03, h * .78, 16, '#ffd23f'); drawStar(g, w * .97, h * .78, 16, '#ffd23f');
+      g.restore();
+    },
+  },
   halloween: {
     body: 0xff7a1a,
     // The front pillars: orange with lighter polka dots, bats and stars going up, a web near the
@@ -921,7 +977,7 @@ const SKINS = {
       for (const [x, y, s] of [[.25, .55, 70], [.33, .3, 50], [.67, .55, 70], [.75, .3, 50]]) drawBat(g, w * x, h * y, s, '#4a2a80');
       g.restore();
     },
-    lanterns: true,
+    lanterns: true, lantern: 0xffb347, chase: true,
   },
 };
 const pillarTex = canvasTex(64, 1680, (g, w, h) => skin?.pillar && skin.pillar(g, w, h));
@@ -940,8 +996,9 @@ function setSkin(w) {
   if (skin?.pillar) { pillarTex.repaint(); PILLAR_FACE.map = pillarTex; PILLAR_FACE.color.set(0xffffff); }
   else { PILLAR_FACE.map = null; PILLAR_FACE.color.set(skin ? skin.body : PINK_HEX); }
   PILLAR_FACE.needsUpdate = true;
-  for (const [b] of bulbs) b.visible = !skin;
+  for (const [b] of bulbs) b.visible = !skin || !!skin.bulbs;
   for (const m of lanterns) m.visible = !!skin?.lanterns;
+  if (skin?.lantern) LANTERN.color.set(skin.lantern);
   marqueeTex.repaint(); boardTex.repaint();
 }
 
@@ -2614,7 +2671,7 @@ function draw(now) {
   syncClaw();
   const tick = Math.floor(now / 160);
   for (const [b, i] of bulbs) b.material = (i + tick) % 3 === 0 ? BULB_ON : BULB_OFF;
-  if (skin && Math.floor(tick / 2) !== skinTick) { skinTick = Math.floor(tick / 2); marqueeTex.repaint(); }
+  if (skin?.chase && Math.floor(tick / 2) !== skinTick) { skinTick = Math.floor(tick / 2); marqueeTex.repaint(); }
   hudTime();
   renderer.render(scene, camera);
 }
