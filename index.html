@@ -659,19 +659,24 @@ const dots = (bg) => {
   return t;
 };
 
-// Floor slab with the hole cut out: two boxes forming an L, plus thick rims all round
+// The cabinet's uprights and rims are POST thick, round the play space (the glass box, unchanged), so
+// the cabinet is CAB_X × CAB_Z. They were 0.35 (a 4.7 × 3.7 cabinet) until the user asked for them half
+// as wide (October 2026); the git tag maquina-original keeps that machine, in case it is wanted back.
+const POST = .175, CAB_X = 2 * (BOX.x + POST), CAB_Z = 2 * (BOX.z + POST);
+
+// Floor slab with the hole cut out: two boxes forming an L, plus rims all round
 const floorTex = dots('#5a43a0'); floorTex.repeat.set(6, 4.5);
 const FLOOR = mat(0xffffff, { map: floorTex });
 const slabA = box(BOX.x - HOLE.x, .6, BOX.z * 2, FLOOR, (HOLE.x + BOX.x) / 2, -.3, 0);
 const slabB = box(HOLE.x + BOX.x, .6, HOLE.z + BOX.z, FLOOR, (HOLE.x - BOX.x) / 2, -.3, (HOLE.z - BOX.z) / 2);
 slabA.receiveShadow = slabB.receiveShadow = true;
-box(4.7, .62, .35, PINK, 0, -.29, BOX.z + .175);
-box(4.7, .62, .35, PINK, 0, -.29, -BOX.z - .175);
-box(.35, .62, 3.7, PINK, BOX.x + .175, -.29, 0);
-box(.35, .62, 3.7, PINK, -BOX.x - .175, -.29, 0);
+box(CAB_X, .62, POST, PINK, 0, -.29, BOX.z + POST / 2);
+box(CAB_X, .62, POST, PINK, 0, -.29, -BOX.z - POST / 2);
+box(POST, .62, CAB_Z, PINK, BOX.x + POST / 2, -.29, 0);
+box(POST, .62, CAB_Z, PINK, -BOX.x - POST / 2, -.29, 0);
 const holeIn = box(.88, .6, .88, new THREE.MeshStandardMaterial({ color: 0x120a20, side: THREE.BackSide }), HOME.x, -.3, HOME.z);
 holeIn.receiveShadow = true;
-box(4.7, 1.1, 3.7, PINK, 0, -1.15, 0);
+box(CAB_X, 1.1, CAB_Z, PINK, 0, -1.15, 0);
 
 // Scoreboard on the front of the base: coins, the level's goal and how far along it is, time, and the
 // hint while idle. It is part of the machine (a canvas texture, repainted by hud() when something
@@ -737,16 +742,16 @@ const boardTex = canvasTex(1024, Math.round(1024 * BOARD_H / BOARD_W), (g, w, h)
   if (board.hint) { g.fillStyle = '#ffd23f'; g.font = '700 44px Kalam, cursive'; g.fillText(board.hint, w / 2, h - 42); }
 });
 const boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(BOARD_W, BOARD_H), new THREE.MeshBasicMaterial({ map: boardTex, transparent: true }));
-boardMesh.position.set(0, -1.15, 1.86); scene.add(boardMesh);
+boardMesh.position.set(0, -1.15, BOX.z + POST + .01); scene.add(boardMesh);
 
 // Pillars, roof, back wall, glass
 // (the front pillars' front and inner faces use PILLAR_FACE, which a skin can paint)
 const PILLAR_FACE = mat(0xe8457a, { roughness: .4 });
 for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
   const faces = sz > 0 ? [0, 1, 2, 3, 4, 5].map(i => i === 4 || i === (sx < 0 ? 0 : 1) ? PILLAR_FACE : PINK) : PINK;
-  box(.35, 4.6, .35, faces, sx * (BOX.x + .175), 2.3, sz * (BOX.z + .175));
+  box(POST, 4.6, POST, faces, sx * (BOX.x + POST / 2), 2.3, sz * (BOX.z + POST / 2));
 }
-box(4.7, .3, 3.7, PINK, 0, 4.75, 0);
+box(CAB_X, .3, CAB_Z, PINK, 0, 4.75, 0);
 const backTex = dots('#2e2058'); backTex.repeat.set(6, 7);
 const back = new THREE.Mesh(new THREE.PlaneGeometry(BOX.x * 2, 4.6), mat(0xffffff, { map: backTex }));
 back.position.set(0, 2.3, -BOX.z); back.receiveShadow = true; scene.add(back);
@@ -796,7 +801,7 @@ function setSolids() {
 
 // Marquee with chasing bulbs: a thin strip on the roof (MARQUEE_H tall), so there is more room for the game
 const MARQUEE_H = .5, MARQUEE_Y = 4.9 + MARQUEE_H / 2;
-const marqueeTex = canvasTex(1024, Math.round(1024 * MARQUEE_H / 4.7), (g, w, h) => {
+const marqueeTex = canvasTex(1024, Math.round(1024 * MARQUEE_H / CAB_X), (g, w, h) => {
   if (skin) return skin.marquee(g, w, h);
   g.fillStyle = '#3a1f6b'; g.fillRect(0, 0, w, h);
   g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .72)}px Kalam, cursive`;
@@ -804,13 +809,13 @@ const marqueeTex = canvasTex(1024, Math.round(1024 * MARQUEE_H / 4.7), (g, w, h)
   g.fillStyle = '#ffd23f'; g.fillText('CLAW MACHINE', w / 2, h / 2 + 5);
 });
 document.fonts.load('700 120px Kalam').then(() => { marqueeTex.repaint(); boardTex.repaint(); }).catch(() => {});
-box(4.7, MARQUEE_H, .3, [PINK, PINK, PINK, PINK, new THREE.MeshBasicMaterial({ map: marqueeTex }), PINK], 0, MARQUEE_Y, BOX.z + .2);
+box(CAB_X, MARQUEE_H, .3, [PINK, PINK, PINK, PINK, new THREE.MeshBasicMaterial({ map: marqueeTex }), PINK], 0, MARQUEE_Y, BOX.z + POST - .15);   // (its front flush with the uprights')
 const bulbs = [];
 const BULB_ON = new THREE.MeshBasicMaterial({ color: 0xfff3b0 }), BULB_OFF = new THREE.MeshBasicMaterial({ color: 0x8a6a2a });
 const BULB_GEO = new THREE.BoxGeometry(.075, .075, .04);   // little square lights, like the rest of the machine
 for (let i = 0; i < 22; i++) for (const y of [MARQUEE_Y - MARQUEE_H / 2 + .02, MARQUEE_Y + MARQUEE_H / 2 - .02]) {
   const b = new THREE.Mesh(BULB_GEO, BULB_OFF);
-  b.position.set(-2.2 + i * 4.4 / 21, y, BOX.z + .37); scene.add(b); bulbs.push([b, i]);
+  b.position.set((CAB_X / 2 - .15) * (i / 10.5 - 1), y, BOX.z + POST + .02); scene.add(b); bulbs.push([b, i]);
 }
 
 // ---------- Machine skins ----------
@@ -874,15 +879,16 @@ const SKINS = {
     pillar(g, w, h) {
       g.fillStyle = '#ff7a1a'; g.fillRect(0, 0, w, h);
       g.fillStyle = 'rgba(255, 190, 90, .45)';
-      for (let y = 30; y < h; y += 70) for (let x = (y / 70 % 2) * 32 + 16; x < w; x += 64) { g.beginPath(); g.arc(x, y, 13, 0, 7); g.fill(); }
+      for (let y = 30, k = 0; y < h; y += 70, k++) for (let x = (k % 2 ? .75 : .25) * w; x < w; x += w) { g.beginPath(); g.arc(x, y, w * .13, 0, 7); g.fill(); }
       for (let y = 260, i = 0; y < h - 220; y += 190, i++) {
-        if (i % 2) drawStar(g, w / 2, y, 26, i % 4 === 1 ? '#ffd23f' : '#1a0f12');
-        else drawBat(g, w / 2, y, 100, '#1a0f12');
+        if (i % 2) drawStar(g, w / 2, y, w * .36, i % 4 === 1 ? '#ffd23f' : '#1a0f12');
+        else drawBat(g, w / 2, y, w * .92, '#1a0f12');
       }
-      drawWeb(g, 0, h, 120, -Math.PI / 2, 'rgba(60, 20, 0, .7)', 3);
+      drawWeb(g, 0, h, w * .95, -Math.PI / 2, 'rgba(60, 20, 0, .7)', 3);
       g.fillStyle = '#7b2fb5'; g.fillRect(0, 0, w, 90);
-      for (const [x, len] of [[18, 150], [56, 90], [96, 190], [124, 70]]) {
-        g.beginPath(); g.moveTo(x - 16, 80); g.lineTo(x - 10, 70 + len); g.arc(x, 70 + len, 10, Math.PI, 0, true); g.lineTo(x + 16, 80); g.fill();
+      for (const [x, len] of [[.15, 150], [.5, 210], [.85, 100]]) {
+        const cx = x * w, r = w * .1;
+        g.beginPath(); g.moveTo(cx - r * 1.6, 80); g.lineTo(cx - r, 70 + len); g.arc(cx, 70 + len, r, Math.PI, 0, true); g.lineTo(cx + r * 1.6, 80); g.fill();
       }
       g.fillStyle = 'rgba(255, 255, 255, .25)'; g.fillRect(0, 10, w, 8);
     },
@@ -916,7 +922,7 @@ const SKINS = {
     lanterns: true,
   },
 };
-const pillarTex = canvasTex(128, 1680, (g, w, h) => skin?.pillar && skin.pillar(g, w, h));
+const pillarTex = canvasTex(64, 1680, (g, w, h) => skin?.pillar && skin.pillar(g, w, h));
 // Lanterns up the inside edge of the front pillars (only a skin with lanterns shows them)
 const LANTERN = new THREE.MeshBasicMaterial({ color: 0xffb347 });
 const lanterns = [];
@@ -2560,7 +2566,7 @@ addEventListener('blur', () => { keys.l = keys.r = keys.u = keys.d = false; });
 // in that gap. The scoreboard is on the machine itself, so nothing takes room at the top. On wide
 // screens the controls sit in the bottom corners, beside the machine, so they take no height.
 const FIT_CORNERS = [];
-for (const x of [-2.4, 2.4]) for (const y of [-1.72, 5.45]) for (const z of [-1.9, 1.9]) FIT_CORNERS.push(new THREE.Vector3(x, y, z));
+for (const x of [-1, 1]) for (const y of [-1.72, 5.45]) for (const z of [-1, 1]) FIT_CORNERS.push(new THREE.Vector3(x * (CAB_X / 2 + .05), y, z * (CAB_Z / 2 + .05)));
 function fit() {
   const w = innerWidth, h = innerHeight, wide = w / h > 1.2;
   document.body.classList.toggle('wide', wide);
