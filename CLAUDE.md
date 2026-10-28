@@ -306,7 +306,7 @@ The user asked for collectable characters as a metagame (October 2026), differen
   - Clearing a world's boss: the card's main button is "¡Nuevo mundo!", which shows the next world's cover full screen (`#intro`, `showIntro()`, it pops in), with its name and Entrar, which starts its first level.
   - The machine's back wall shows the world's cover (`setBackWall()`; it is a WebGL texture, so it doesn't load when `index.html` is opened straight from the disk, `file://`, while the screens' covers, plain CSS, do;, a texture per world, cropped top and bottom to the wall). The material's colour (0x8a8a8a) darkens it so the capsules stand out; the dotted wall shows until it loads.
   - The gallery's and collection's pages start with a banner of their world's cover (`banner()`), a thin strip 60 px high with the text centred over a fade from the left; the user asked for it thinner than its first 104 px (October 2026). The levels screen's banner (`#lvlBanner`) stays 150 px. Every banner is greyed out while its world is locked.
-  - On a phone the bottom buttons are smaller, so they take fewer rows.
+  - The bottom buttons (`.backs`) are one size on every screen, as the user asked (October 2026; each used to be as wide as its text): 50 px high, the links to the other screens side by side in equal widths, and "Volver a la máquina" under them, full width, at most 420 px across. On a phone their text is a little smaller (19 px).
 - Machine skins (`SKINS`, `setSkin()` in `startLevel`, `WORLDS[w].skin`): a world can dress the machine up. It is looks only, no shape the game uses changes; the user asked for that.
   - Halloween has one, from the user's reference picture (October 2026):
     - the cabinet is orange (`PINK`'s colour changes);

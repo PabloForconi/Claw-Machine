@@ -87,7 +87,12 @@
   .dots { display: flex; gap: 8px; }
   .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--ink); opacity: .3; }
   .dots i.on { opacity: 1; background: var(--gold); }
-  .backs { margin-top: auto; padding-top: 4px; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+  /* The bottom buttons, one size on every screen (the user asked, October 2026: each was as wide as its
+     text, so they changed from screen to screen): 50 px high, the screens' links side by side in equal
+     widths, and the way back to the machine under them, full width */
+  .backs { margin-top: auto; padding-top: 4px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: 100%; max-width: 420px; }
+  .backs .back { flex: 1 1 0; min-width: 0; min-height: 50px; padding: 0 8px; white-space: nowrap; }
+  .backs .back:not(.alt) { flex-basis: 100%; }
   .back.alt { background: var(--panel); color: var(--ink); border-color: var(--gold); }
   .season h3 { display: flex; justify-content: space-between; margin: 0 4px 10px; font-size: 22px; color: var(--gold); }
   .season .sub { font-size: 16px; margin-bottom: 10px; }
@@ -290,7 +295,7 @@
     padding: 8px 24px; cursor: pointer; box-shadow: 0 5px 0 #a8740a; }
   .back:active { transform: translateY(4px); box-shadow: 0 1px 0 #a8740a; }
   /* (on a phone the buttons are smaller, so they take fewer rows) */
-  @media (max-width: 480px) { .backs { gap: 8px; } .backs .back { font-size: 19px; padding: 6px 14px; } }
+  @media (max-width: 480px) { .backs { gap: 8px; } .backs .back { font-size: 19px; } }
   /* Levels: one row each, with its number, its goal (capsules and how many), its coins and whether it
      is done (a star), open to play, or still locked */
   #lvlList { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 640px; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: none; padding: 2px 2px 12px; margin-bottom: 12px; }
