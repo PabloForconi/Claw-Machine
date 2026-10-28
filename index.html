@@ -949,7 +949,8 @@ const marqueeTex = canvasTex(1024, Math.round(1024 * MARQUEE_H / CAB_X), (g, w, 
   g.fillStyle = '#ffd23f'; g.fillText('CLAW MACHINE', w / 2, h / 2 + 5);
 });
 document.fonts.load('700 120px Kalam').then(() => { marqueeTex.repaint(); boardTex.repaint(); }).catch(() => {});
-box(CAB_X, MARQUEE_H, .3, [PINK, PINK, PINK, PINK, new THREE.MeshBasicMaterial({ map: marqueeTex }), PINK], 0, MARQUEE_Y, BOX.z + POST - .145);   // (its front a hair in front of the roof's and the uprights')
+const MARQUEE_MAT = new THREE.MeshBasicMaterial({ map: marqueeTex });
+box(CAB_X, MARQUEE_H, .3, [PINK, PINK, PINK, PINK, MARQUEE_MAT, PINK], 0, MARQUEE_Y, BOX.z + POST - .145);   // (its front a hair in front of the roof's and the uprights')
 const bulbs = [];
 const BULB_ON = new THREE.MeshBasicMaterial({ color: 0xfff3b0 }), BULB_OFF = new THREE.MeshBasicMaterial({ color: 0x8a6a2a });
 const BULB_GEO = new THREE.BoxGeometry(.075, .075, .04);   // little square lights, like the rest of the machine
@@ -1283,6 +1284,21 @@ for (const sx of [-1, 1]) for (let i = 0; i < 6; i++) {
 }
 let skinTick = 0;
 // Dress the machine for world w (or undress it)
+// A world's marquee can be a picture (assets/marquees/<world>.jpg, 1632 × 300, the marquee's shape), as the
+// user tried (October 2026): it shows over the drawn one once it has loaded (a WebGL texture, so not from
+// file://), and the bulbs light up in front of it on every world. The drawn marquees (skin.marquee) stay,
+// for when it can't load or MARQUEE_IMG is off.
+const MARQUEE_IMG = true, marqueeImgs = {};
+function setMarquee(w) {
+  const id = WORLDS[w].id;
+  if (MARQUEE_IMG && !marqueeImgs[id]) {
+    marqueeImgs[id] = texLoader.load(`assets/marquees/${id}.jpg`, () => { if (lv.world === w) setMarquee(w); });
+    marqueeImgs[id].colorSpace = THREE.SRGBColorSpace;
+  }
+  const img = MARQUEE_IMG && marqueeImgs[id].image ? marqueeImgs[id] : null;
+  MARQUEE_MAT.map = img || marqueeTex; MARQUEE_MAT.needsUpdate = true;
+  for (const [b] of bulbs) b.visible = !!img || !skin || !!skin.bulbs;
+}
 function setSkin(w) {
   skin = SKINS[WORLDS[w].skin] || null;
   PINK.color.set(skin ? skin.body : PINK_HEX);
@@ -1293,6 +1309,7 @@ function setSkin(w) {
   for (const m of lanterns) m.visible = !!skin?.lanterns;
   if (skin?.lantern) LANTERN.color.set(skin.lantern);
   marqueeTex.repaint(); boardTex.repaint(); floorTex.repaint();
+  setMarquee(w);
 }
 
 // Room floor
