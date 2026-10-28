@@ -81,6 +81,7 @@ The user asked for physically based motion when the claw brakes, drops, etc.
   - The claw always closes fully. A finger that runs into a wall gives way against it like against a prize: `fingerPen()` includes `fingerWallPen()`, sampled along the finger. Earlier, the whole claw stopped closing as soon as a finger would touch a wall, and rose open; the user asked for it to close anyway (October 2026).
   - The open claw is wider than the hole, so it can't drop into it.
   - The glass box walls still only clamp the head.
+  - So at the back (carriage `LIMIT.z` 1.2) the open fingers stick out past the back wall by up to about 0.35, and the user saw the claw sink into the cover picture (October 2026). A trick of perspective hides it, looks only: the back wall (`back`) is drawn after the rest of the scenery (`renderOrder` 1) and writes no depth, and the claw's body, fingers and cable come after it (`renderOrder` 2). So the claw always shows in front of the picture, as if it were further back. The camera never turns, so nothing gives it away. The capsules, the claw's travel and its collisions are unchanged. In a back corner the side finger also pokes a little past the side glass, over the dark gap by the back pillar; it shows whole, so it was left.
 
 ### Fingers and grabbing
 

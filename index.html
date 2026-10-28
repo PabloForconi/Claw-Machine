@@ -774,6 +774,12 @@ box(CAB_X, .3, CAB_Z, PINK, 0, 4.75, 0);
 const backTex = dots('#2e2058'); backTex.repeat.set(6, 7);
 const back = new THREE.Mesh(new THREE.PlaneGeometry(BOX.x * 2, 4.6), mat(0xffffff, { map: backTex }));
 back.position.set(0, 2.3, -BOX.z); back.receiveShadow = true; scene.add(back);
+// A trick of perspective: the claw can reach past the back glass (its open fingers stick out up to about
+// 0.35), and the user saw it sink into the picture (October 2026). So the wall is drawn after the
+// scenery but before the claw, and leaves no depth behind: the claw always shows in front of it, as if
+// the picture were further back. It is looks only; the capsules and the claw move as before. (The
+// camera never turns, so nothing gives the trick away.)
+back.renderOrder = 1; back.material.depthWrite = false;
 // The back wall shows the world's cover, darkened a little (the material's colour multiplies it) so
 // the capsules still stand out against it; the dotted wall stays until the cover has loaded. The cover
 // (4:5) is cropped top and bottom to the wall's shape. The user approved it (October 2026), so that
@@ -1190,12 +1196,12 @@ const carriage = box(.34, .18, .34, mat(0xefeaf7), 0, CARRIAGE_Y - .04, 0);
 const CABLE_NODES = 24;
 const CABLE_GEO = new THREE.CylinderGeometry(.012, .012, 1, 6), CABLE_MAT = mat(0xdddddd);
 const cableSegs = Array.from({ length: CABLE_NODES }, () => {
-  const m = new THREE.Mesh(CABLE_GEO, CABLE_MAT); m.castShadow = true; scene.add(m); return m;
+  const m = new THREE.Mesh(CABLE_GEO, CABLE_MAT); m.castShadow = true; m.renderOrder = 2; scene.add(m); return m;
 });
 // Body: a plain box standing along the cable
 const CHROME = mat(0xdfe4ee, { metalness: .45, roughness: .28 });   // no environment map, so not too metallic or it goes black
 const bodyBox = new THREE.Mesh(new THREE.BoxGeometry(HUB_R * 2, HUB_DOWN + HUB_UP, HUB_R * 2), CHROME);
-bodyBox.castShadow = true; scene.add(bodyBox);
+bodyBox.castShadow = true; bodyBox.renderOrder = 2; scene.add(bodyBox);   // (drawn after the back wall)
 // Each finger is one flat piece: its centre line follows FINGER_SHAPE, FINGER_W wide, with clean
 // mitred corners at the knees and a square-cut end, FINGER_T thick. It is built once in the finger's
 // own plane (x out, y up, from the hinge) and only moved and turned each frame (syncClaw).
@@ -1221,7 +1227,7 @@ function fingerOutline() {
 const FINGER_GEO = new THREE.ExtrudeGeometry(fingerOutline(), { depth: FINGER_T, bevelEnabled: false });
 FINGER_GEO.translate(0, 0, -FINGER_T / 2);
 const fingerMeshes = FINGER_ANGLES.map(() => {
-  const m = new THREE.Mesh(FINGER_GEO, CHROME); m.castShadow = true; scene.add(m); return m;
+  const m = new THREE.Mesh(FINGER_GEO, CHROME); m.castShadow = true; m.renderOrder = 2; scene.add(m); return m;
 });
 for (const m of [carriage, bridge]) m.castShadow = true;
 
