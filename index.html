@@ -94,9 +94,10 @@
   .season.locked .shelf, .season.locked .rack { opacity: .5; }
   /* The gallery's capsules: rarity, and a bar to the next character with how far along it is, small,
      inside it (the user asked for it in place of a big number and the total won, October 2026) */
-  .slot .bar { position: relative; width: 84%; height: 20px; border-radius: 10px; background: rgba(0, 0, 0, .2); overflow: hidden; }
+  .slot .bar, .slot .open { box-sizing: border-box; width: 86%; height: 24px; border-radius: 12px; }
+  .slot .bar { position: relative; background: rgba(0, 0, 0, .18); overflow: hidden; }
   .slot .bar i { display: block; height: 100%; background: var(--gold); }
-  .slot .bar b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: inherit; line-height: 1; color: #fff6e0; text-shadow: 0 1px 2px rgba(0, 0, 0, .9); }
+  .slot .bar b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: inherit; line-height: 1; color: #2b2038; text-shadow: 0 1px 0 rgba(255, 255, 255, .6); }
   /* The exhibitor: a framed panel (rack) per rarity, its name on a tab over the top left corner, and in
      it five tiles, a character each with its name on a plate above it. From the user's reference
      (October 2026); before, it was a dark grey shelf with the characters standing on its board. Each
@@ -198,11 +199,14 @@
   #intro.go #introCover > * { animation: fadeIn .5s .5s both; }
   @keyframes introIn { from { transform: scale(.6); opacity: 0; } }
   /* A complete card in the gallery: it glows and asks to be opened */
-  .slot.ready { cursor: pointer; outline: 3px solid var(--gold); animation: ready 1.2s ease-in-out infinite alternate; }
+  /* (a card ready to open has the ×n badge's pink on its border too, glowing, until it is opened) */
+  .slot.ready { cursor: pointer; border-color: #ff4f7b; animation: readyPink 1.2s ease-in-out infinite alternate; }
+  @keyframes readyPink { from { box-shadow: 0 4px 0 rgba(0, 0, 0, .35), 0 0 0 rgba(255, 79, 123, 0); } to { box-shadow: 0 4px 0 rgba(0, 0, 0, .35), 0 0 18px rgba(255, 79, 123, .8); } }
   @keyframes ready { from { box-shadow: 0 0 0 rgba(255, 210, 63, 0); } to { box-shadow: 0 0 18px rgba(255, 210, 63, .75); } }
   .slot.ready .cap { animation: wiggle 1.2s ease-in-out infinite; }
   @keyframes wiggle { 0%, 70%, 100% { transform: rotate(-18deg); } 78% { transform: rotate(-30deg); } 86% { transform: rotate(-6deg); } 94% { transform: rotate(-22deg); } }
-  .slot .open { margin: 2px 0; padding: 3px 10px; border-radius: 12px; background: var(--gold); color: #3a1f00; font-size: 16px; white-space: nowrap; }
+  /* (¡Abrir! in the pink of the collection's ×n badge, as the user asked) */
+  .slot .open { display: flex; align-items: center; justify-content: center; background: #ff4f7b; color: #fff; font-size: 15px; line-height: 1; white-space: nowrap; box-shadow: 0 2px 0 #b8264f; }
   /* Opening a card: its capsule shakes, splits in two halves flying apart, and the character pops out
      of a glow in its rarity's colour */
   #reveal { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .85); padding: 16px; }
@@ -238,15 +242,15 @@
       linear-gradient(160deg, color-mix(in srgb, var(--c) 60%, #fff), var(--c) 40%, color-mix(in srgb, var(--c) 45%, #000) 75%, color-mix(in srgb, var(--c) 80%, #fff)); }
   .cap.rainbow { background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .8) 0 6%, transparent 20%),
       linear-gradient(#ff5d8f 0 17%, #ff9f43 0 33%, #ffd23f 0 50%, #80ed99 0 67%, #4cc9f0 0 83%, #b388ff 0); }
-  /* The gallery's page: a panel per rarity (the collection's .rack), two to a row, the rainbow one
-     alone and centred, as the user asked (October 2026): it was a grid of dark cards */
-  .shelf { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 10px; max-width: 680px; margin: 0 auto; }
-  .shelf .rack { margin: 18px 0 4px; padding: 20px 6px 8px; }
-  .shelf .slot .cap { width: 50px; height: 50px; }
-  .shelf .rack.t4 { grid-column: 1 / -1; justify-self: center; width: calc(50% - 5px); }
-  .shelf .rtitle { font-size: 16px; }
-  .row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
-  .rack.t4 .row2 .slot { grid-column: 1 / -1; justify-self: center; width: calc(50% - 3px); }
+  /* The gallery's page: a card per capsule, three to a row, the rows sharing the page's height so it
+     doesn't scroll (it grows and scrolls only on a screen too short for them). The user asked for that
+     and for the rarity's colour on the card's border, over one neutral background for all (October
+     2026); before, it was panels per rarity, then rings of progress on coloured tiles. */
+  #gallery .season { display: flex; flex-direction: column; }
+  .shelf { flex: 1 0 auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 20px 8px;
+    width: 100%; max-width: 560px; margin: 14px auto 0; }
+  /* (the rarities' colours are the collection's frames, .rack's --rim; the rainbow one is pink) */
+  .slot.t0 { --tc: #8a5a36; } .slot.t1 { --tc: #3f8f57; } .slot.t2 { --tc: #3a76a6; } .slot.t3 { --tc: #c08a1a; } .slot.t4 { --tc: #b04fa8; }
   /* The other rarity finishes: white stripes (uncommon), white dots (rare) */
   .cap.stripes { background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .8) 0 6%, transparent 20%),
       repeating-linear-gradient(-50deg, rgba(255, 255, 255, .55) 0 12%, transparent 12% 30%),
@@ -269,14 +273,19 @@
   .lvl.daily { border-color: #4cc9f0; }
   .lvl.daily .n { background: #4cc9f0; color: #13223a; }
   .lvl .goal b { width: 100%; font-size: 20px; color: #4cc9f0; }
-  /* A capsule's tile: its name on a plate on the top edge (as in the collection), the capsule, and the bar */
-  .slot { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0 3px 6px; border-radius: 12px;
-    background: var(--tile); box-shadow: inset 0 2px 0 rgba(255, 255, 255, .5), inset 0 -2px 0 rgba(0, 0, 0, .08); }
-  .slot .cap { width: 58px; height: 58px; box-shadow: 0 4px 0 rgba(0, 0, 0, .28); }   /* (smaller than 76, so the cards are less tall, as the user asked) */
-  .slot.none .cap { filter: grayscale(1) brightness(.35); box-shadow: none; }
+  /* A capsule's card: its name on a label in its rarity's colour on the top border, the capsule, and
+     the bar, or ¡Abrir! in the same place and size, so a card never changes height */
+  .slot { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; gap: 4px; padding: 14px 6px 8px;
+    border: 4px solid var(--tc); border-radius: 16px; background: #f4f7fb; box-shadow: 0 4px 0 rgba(0, 0, 0, .35); }
+  .slot .cap { width: 58px; height: 58px; box-shadow: none; }
+  /* (a soft shadow on the floor under the capsule, like the characters') */
+  .slot .pod { position: relative; z-index: 0; }
+  .slot .pod::after { content: ''; position: absolute; z-index: -1; left: 50%; bottom: -8px; width: 56px; height: 14px; transform: translateX(-50%); border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(30, 40, 70, .5), rgba(30, 40, 70, 0)); }
+  .slot.none .cap { filter: grayscale(1) brightness(.45); }
   .slot.none .bar { opacity: .45; }
-  .slot .name { position: relative; z-index: 1; max-width: calc(100% + 8px); margin: calc(-.6em - 2px) 0 2px; padding: 2px 5px; border-radius: 8px; background: rgba(255, 255, 255, .94);
-    color: var(--ink2); font-size: clamp(11px, 3vw, 16px); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 0 rgba(0, 0, 0, .12); }
+  .slot .name { position: absolute; z-index: 1; top: -2px; left: 50%; transform: translate(-50%, -50%); max-width: calc(100% + 8px); padding: 2px 8px; border-radius: 8px; background: var(--tc);
+    color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, .3); font-size: clamp(11px, 3.2vw, 16px); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 0 rgba(0, 0, 0, .25); }
   .back { font: inherit; font-size: 24px; color: #3a1f00; background: var(--gold); border: 4px solid #a8740a; border-radius: 16px;
     padding: 8px 24px; cursor: pointer; box-shadow: 0 5px 0 #a8740a; }
   .back:active { transform: translateY(4px); box-shadow: 0 1px 0 #a8740a; }
@@ -2799,13 +2808,12 @@ function openGallery(at = worldNow()) {
     const slot = k => {
       const id = `${wd.id}:${k.key.slice(1)}`, n = meta.balls[id] || 0, prog = meta.prog[id] || 0, c = capOf(k.key, kinds);
       const ready = Math.floor(prog / CHAR_EVERY), part = prog % CHAR_EVERY;
-      return `<div class="slot${n ? '' : ' none'}${ready ? ' ready' : ''}" data-w="${w}" data-b="${k.key.slice(1)}"><span class="name">${k.name}</span><div class="cap ${c.cls}" style="${c.style}"></div>` +
+      return `<div class="slot t${k.tier}${n ? '' : ' none'}${ready ? ' ready' : ''}" data-w="${w}" data-b="${k.key.slice(1)}">` +
+        `<span class="name">${k.name}</span><div class="pod"><div class="cap ${c.cls}" style="${c.style}"></div></div>` +
         (ready ? `<span class="open">¡Abrir!${ready > 1 ? ` ×${ready}` : ''}</span>`
           : `<span class="bar"><i style="width:${part / CHAR_EVERY * 100}%"></i><b>${locked ? '?' : `${part}/${CHAR_EVERY}`}</b></span>`) + `</div>`;
     };
-    // (a panel per rarity, like the collection's: its name on a tab, its two kinds side by side)
-    const slots = TIERS.map((t, i) => `<div class="rack t${i}"><span class="rtitle">${t.name}</span><div class="row2">` +
-      worldKinds(w).filter(k => k.tier === i).map(slot).join('') + '</div></div>').join('');
+    const slots = worldKinds(w).map(slot).join('');
     return `<section class="season${locked ? ' locked' : ''}">${banner(w, wd.name, locked ? '<span>🔒</span>' : '')}` +
       (locked ? lockedNote(w) : '') + `<div class="shelf">${slots}</div></section>`;   // (the user dropped the hint line, October 2026)
   }).join(''), at);
