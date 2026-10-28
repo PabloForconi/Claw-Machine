@@ -133,6 +133,8 @@
   #worldShelf { --fade: 22px; -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--fade), #000 calc(100% - var(--fade)), transparent);
     mask-image: linear-gradient(to right, transparent, #000 var(--fade), #000 calc(100% - var(--fade)), transparent); }
   .wpage { display: flex; justify-content: center; padding: 0 22px 8px; }
+  /* (on a computer the covers leave room at the sides, so the fade there is much wider) */
+  @media (min-width: 760px) { #worldShelf { --fade: 160px; } }
   .cover { position: relative; height: 100%; max-width: 100%; aspect-ratio: 4 / 5; border-radius: 22px; border: 4px solid var(--gold); overflow: hidden;
     background: #000 center / cover no-repeat; box-shadow: 0 8px 24px rgba(0, 0, 0, .6); }
   .cover.locked { filter: grayscale(1) brightness(.55); border-color: #666; }
@@ -2315,7 +2317,7 @@ function carousel(shelf, prev, next, dots) {
   shelf.addEventListener('pointerdown', e => {
     if (e.pointerType !== 'mouse' || e.button !== 0) return;
     const page = pages()[c.idx];
-    Object.assign(drag, { id: e.pointerId, x: e.clientX, y: e.clientY, left: shelf.scrollLeft, page, top: page ? page.scrollTop : 0, from: c.idx, on: null });
+    Object.assign(drag, { id: e.pointerId, x: e.clientX, y: e.clientY, left: shelf.scrollLeft, page, top: page ? page.scrollTop : 0, from: c.idx, on: null, v: 0, t: 0, lx: e.clientX });
   });
   shelf.addEventListener('pointermove', e => {
     if (e.pointerId !== drag.id) return;
@@ -2326,14 +2328,26 @@ function carousel(shelf, prev, next, dots) {
     }
     if (drag.on === 'x') shelf.scrollLeft = drag.left - dx;
     if (drag.on === 'y' && drag.page) drag.page.scrollTop = drag.top - dy;
+    // (how fast it is moving sideways, in px/ms, smoothed over the last moves, for a flick)
+    const now = performance.now(), dt = now - (drag.t || now);
+    if (dt > 0) drag.v = .7 * (drag.v || 0) + .3 * (e.clientX - drag.lx) / dt;
+    drag.t = now; drag.lx = e.clientX;
   });
+  // Let go, it settles on the page most of which is in view: dragged past half way it goes on to the
+  // next one, short of that it goes back. A quick flick goes on to the next one however far it went.
+  // Snapping stays off until it has slid there, or the browser's snap would cut the slide short with a
+  // jump: the user found the release abrupt, going back to the middle (October 2026).
+  let unsnap = 0;
   for (const ev of ['pointerup', 'pointercancel']) shelf.addEventListener(ev, e => {
     if (e.pointerId !== drag.id) return;
     drag.id = null;
-    shelf.classList.remove('drag');
-    if (drag.on !== 'x') return;
-    const moved = e.clientX - drag.x;
-    c.show(clamp(drag.from + (moved < -40 ? 1 : moved > 40 ? -1 : 0), 0, pages().length - 1));
+    if (drag.on !== 'x') { shelf.classList.remove('drag'); return; }
+    const ps = pages(), step = ps.length > 1 ? ps[1].offsetLeft - ps[0].offsetLeft : 1, moved = e.clientX - drag.x;
+    let to = Math.round(drag.from + (drag.left - shelf.scrollLeft) / -step);
+    if (Math.abs(drag.v || 0) > .5 && Math.abs(moved) > 20) to = drag.from + (drag.v < 0 ? 1 : -1);
+    c.show(clamp(to, 0, ps.length - 1));
+    clearTimeout(unsnap);
+    unsnap = setTimeout(() => shelf.classList.remove('drag'), 450);
   });
   prev.addEventListener('click', () => c.show(Math.max(0, c.idx - 1)));
   next.addEventListener('click', () => c.show(Math.min(pages().length - 1, c.idx + 1)));
