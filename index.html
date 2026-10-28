@@ -463,7 +463,7 @@ const WORLDS = [
     chars: ['Teddy', 'Bunni', 'Pandu', 'Mishi', 'Waffles', 'Pingu', 'Chicky', 'Mochi', 'Reddy', 'MooMoo', 'Lenny', 'Tiggy', 'Dumbo', 'Koko', 'Momo', 'Foxy', 'Bandit', 'Hooty', 'Wooly', 'Dino'] },
   { id: 'monstruos', name: 'Monstruos', balls: [['Violeta', '#a974ff'], ['Lima', '#a6e35a'], ['Rosa', '#ff6fb5'], ['Turquesa', '#2fd3c6'], ['Naranja', '#ff8a3d'], ['Azul', '#4a86ff'], ['Roja', '#ff4057'], ['Amarilla', '#ffd23f']],
     chars: ['Reddy', 'Blobby', 'Spike', 'Violett', 'Sunny', 'Pinky', 'Chompy', 'Bloop', 'Fuzzy', 'Cyclo', 'Grumpy', 'Zappy', 'Bubbles', 'Triple', 'Flappy', 'Zippy', 'Spiky', 'Wobble', 'Horny', 'Boingo'] },
-  { id: 'halloween', name: 'Halloween', balls: [['Calabaza', '#ff8a1f'], ['Hueso', '#eee3c8'], ['Violeta', '#8f52e0'], ['Moco', '#93dc3c'], ['Fantasma', '#cfe3ff'], ['Sangre', '#d9283a'], ['Dorada', '#ffd23f'], ['Plateada', '#c8d0de']],
+  { id: 'halloween', name: 'Halloween', skin: 'halloween', balls: [['Calabaza', '#ff8a1f'], ['Hueso', '#eee3c8'], ['Violeta', '#8f52e0'], ['Moco', '#93dc3c'], ['Fantasma', '#cfe3ff'], ['Sangre', '#d9283a'], ['Dorada', '#ffd23f'], ['Plateada', '#c8d0de']],
     chars: ['Vampi', 'Fanty', 'Pumpi', 'Mumi', 'Franki', 'Witchi', 'Gati', 'Skully', 'Devily', 'Oculi', 'Lobin', 'Batty', 'Zombi', 'Reap', 'Candy', 'Caldi', 'Shadow', 'Boozy', 'Spidey', 'Jacky'] },
   { id: 'navidad', name: 'Navidad', balls: [['Roja', '#e0323c'], ['Verde', '#2fa64b'], ['Nieve', '#f7f7fb'], ['Jengibre', '#b46a38'], ['Hielo', '#9fd8ff'], ['Caramelo', '#ff7aa0'], ['Dorada', '#ffd23f'], ['Plateada', '#c8d0de']],
     chars: ['Santy', 'Ruddy', 'Snowy', 'Gingy', 'Elfi', 'Polar', 'Pengu', 'Treely', 'Giftie', 'Candy', 'Globie', 'Holly', 'Orbi', 'Twinkle', 'Jingly', 'Puddi', 'Flaky', 'Jingle', 'Santaball', 'Wreathy'] },
@@ -631,6 +631,7 @@ scene.add(glow);
 
 const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .55, ...extra });
 const PINK = mat(0xe8457a, { roughness: .4 }), PINK_DARK = mat(0x8a1f48), METAL = mat(0xd5dbe8, { metalness: .8, roughness: .3 });
+let skin = null;   // the world's dressing of the machine, if it has one (see Machine skins)
 const GOLD = mat(0xf4c430, { metalness: .7, roughness: .3 });
 
 // The machine is all plain boxes with sharp edges, the same flat, simple look as the claw. The user
@@ -681,6 +682,7 @@ const boardTex = canvasTex(1024, Math.round(1024 * BOARD_H / BOARD_W), (g, w, h)
   g.clearRect(0, 0, w, h);
   g.fillStyle = '#2b1850'; g.beginPath(); g.roundRect(6, 6, w - 12, h - 12, 32); g.fill();
   g.strokeStyle = '#ffd23f'; g.lineWidth = 10; g.stroke();
+  if (skin) skin.board(g, w, h);
   g.textAlign = 'center'; g.textBaseline = 'middle';
   [['FICHAS', board.coins, .11], ['TIEMPO', board.time, .89]].forEach(([label, value, at]) => {
     const x = w * at;
@@ -738,7 +740,12 @@ const boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(BOARD_W, BOARD_H), new 
 boardMesh.position.set(0, -1.15, 1.86); scene.add(boardMesh);
 
 // Pillars, roof, back wall, glass
-for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(.35, 4.6, .35, PINK, sx * (BOX.x + .175), 2.3, sz * (BOX.z + .175));
+// (the front pillars' front and inner faces use PILLAR_FACE, which a skin can paint)
+const PILLAR_FACE = mat(0xe8457a, { roughness: .4 });
+for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+  const faces = sz > 0 ? [0, 1, 2, 3, 4, 5].map(i => i === 4 || i === (sx < 0 ? 0 : 1) ? PILLAR_FACE : PINK) : PINK;
+  box(.35, 4.6, .35, faces, sx * (BOX.x + .175), 2.3, sz * (BOX.z + .175));
+}
 box(4.7, .3, 3.7, PINK, 0, 4.75, 0);
 const backTex = dots('#2e2058'); backTex.repeat.set(6, 7);
 const back = new THREE.Mesh(new THREE.PlaneGeometry(BOX.x * 2, 4.6), mat(0xffffff, { map: backTex }));
@@ -790,6 +797,7 @@ function setSolids() {
 // Marquee with chasing bulbs: a thin strip on the roof (MARQUEE_H tall), so there is more room for the game
 const MARQUEE_H = .5, MARQUEE_Y = 4.9 + MARQUEE_H / 2;
 const marqueeTex = canvasTex(1024, Math.round(1024 * MARQUEE_H / 4.7), (g, w, h) => {
+  if (skin) return skin.marquee(g, w, h);
   g.fillStyle = '#3a1f6b'; g.fillRect(0, 0, w, h);
   g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .72)}px Kalam, cursive`;
   g.lineWidth = 10; g.strokeStyle = '#8a1f48'; g.strokeText('CLAW MACHINE', w / 2, h / 2 + 5);
@@ -803,6 +811,130 @@ const BULB_GEO = new THREE.BoxGeometry(.075, .075, .04);   // little square ligh
 for (let i = 0; i < 22; i++) for (const y of [MARQUEE_Y - MARQUEE_H / 2 + .02, MARQUEE_Y + MARQUEE_H / 2 - .02]) {
   const b = new THREE.Mesh(BULB_GEO, BULB_OFF);
   b.position.set(-2.2 + i * 4.4 / 21, y, BOX.z + .37); scene.add(b); bulbs.push([b, i]);
+}
+
+// ---------- Machine skins ----------
+// A world can dress the machine up. It is looks only: colours, painted faces and a few lights, and no
+// shape the game uses changes. The user asked for a Halloween one from a reference picture (October
+// 2026):
+// - an orange cabinet;
+// - the front pillars painted orange with polka dots, bats, stars and a spider web, under purple slime;
+// - a purple marquee with a chequered border that chases, pumpkins and webs (in place of the bulbs);
+// - lanterns glowing up the inside of the pillars;
+// - a graveyard with bats on the scoreboard.
+// The other worlds keep the pink machine for now.
+const PINK_HEX = 0xe8457a;
+// A little bat, spread wings, centred at x, y, s wide
+function drawBat(g, x, y, s, color) {
+  g.save(); g.translate(x, y); g.scale(s / 100, s / 100); g.fillStyle = color; g.beginPath();
+  g.moveTo(0, -8); g.quadraticCurveTo(10, -22, 24, -18); g.quadraticCurveTo(40, -24, 50, -10); g.quadraticCurveTo(40, -6, 36, 4);
+  g.quadraticCurveTo(28, -4, 20, 4); g.quadraticCurveTo(12, -2, 6, 8); g.lineTo(0, 14); g.lineTo(-6, 8);
+  g.quadraticCurveTo(-12, -2, -20, 4); g.quadraticCurveTo(-28, -4, -36, 4); g.quadraticCurveTo(-40, -6, -50, -10);
+  g.quadraticCurveTo(-40, -24, -24, -18); g.quadraticCurveTo(-10, -22, 0, -8); g.fill();
+  g.beginPath(); g.arc(0, -4, 7, 0, 7); g.fill();
+  g.beginPath(); g.moveTo(-5, -9); g.lineTo(-3, -16); g.lineTo(-1, -9); g.moveTo(1, -9); g.lineTo(3, -16); g.lineTo(5, -9); g.fill();
+  g.restore();
+}
+// A five-pointed star
+function drawStar(g, x, y, r, color) {
+  g.fillStyle = color; g.beginPath();
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * .45 : r; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+  g.fill();
+}
+// A spider web in a corner: spokes from (x, y) over the quarter turn starting at a0, and threads
+function drawWeb(g, x, y, r, a0, color, width = 2) {
+  g.strokeStyle = color; g.lineWidth = width; g.lineCap = 'round';
+  const spokes = 6, ang = i => a0 + i * (Math.PI / 2) / (spokes - 1);
+  for (let i = 0; i < spokes; i++) { g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(ang(i)) * r, y + Math.sin(ang(i)) * r); g.stroke(); }
+  for (let k = 1; k <= 4; k++) {
+    const rr = r * k / 4.3; g.beginPath();
+    for (let i = 0; i < spokes; i++) {
+      const p = [x + Math.cos(ang(i)) * rr, y + Math.sin(ang(i)) * rr];
+      if (i === 0) g.moveTo(...p);
+      else { const m = (ang(i - 1) + ang(i)) / 2, sag = rr * .86; g.quadraticCurveTo(x + Math.cos(m) * sag, y + Math.sin(m) * sag, ...p); }
+    }
+    g.stroke();
+  }
+}
+// A jack-o'-lantern
+function drawPumpkin(g, x, y, r) {
+  g.fillStyle = '#2f7d1e'; g.fillRect(x - r * .1, y - r * 1.15, r * .2, r * .35);
+  for (const [dx, k] of [[-.45, .62], [.45, .62], [0, .72]]) {
+    g.fillStyle = k > .7 ? '#ff8a1f' : '#f07410'; g.beginPath(); g.ellipse(x + dx * r, y, r * k, r * .85, 0, 0, 7); g.fill();
+  }
+  g.fillStyle = '#3a1a00';
+  for (const sx of [-1, 1]) { g.beginPath(); g.moveTo(x + sx * r * .18, y - r * .1); g.lineTo(x + sx * r * .5, y - r * .1); g.lineTo(x + sx * r * .34, y - r * .42); g.fill(); }
+  g.beginPath(); g.moveTo(x - r * .55, y + r * .18); g.quadraticCurveTo(x, y + r * .8, x + r * .55, y + r * .18); g.quadraticCurveTo(x, y + r * .45, x - r * .55, y + r * .18); g.fill();
+}
+const SKINS = {
+  halloween: {
+    body: 0xff7a1a,
+    // The front pillars: orange with lighter polka dots, bats and stars going up, a web near the
+    // bottom, and purple slime dripping from the top
+    pillar(g, w, h) {
+      g.fillStyle = '#ff7a1a'; g.fillRect(0, 0, w, h);
+      g.fillStyle = 'rgba(255, 190, 90, .45)';
+      for (let y = 30; y < h; y += 70) for (let x = (y / 70 % 2) * 32 + 16; x < w; x += 64) { g.beginPath(); g.arc(x, y, 13, 0, 7); g.fill(); }
+      for (let y = 260, i = 0; y < h - 220; y += 190, i++) {
+        if (i % 2) drawStar(g, w / 2, y, 26, i % 4 === 1 ? '#ffd23f' : '#1a0f12');
+        else drawBat(g, w / 2, y, 100, '#1a0f12');
+      }
+      drawWeb(g, 0, h, 120, -Math.PI / 2, 'rgba(60, 20, 0, .7)', 3);
+      g.fillStyle = '#7b2fb5'; g.fillRect(0, 0, w, 90);
+      for (const [x, len] of [[18, 150], [56, 90], [96, 190], [124, 70]]) {
+        g.beginPath(); g.moveTo(x - 16, 80); g.lineTo(x - 10, 70 + len); g.arc(x, 70 + len, 10, Math.PI, 0, true); g.lineTo(x + 16, 80); g.fill();
+      }
+      g.fillStyle = 'rgba(255, 255, 255, .25)'; g.fillRect(0, 10, w, 8);
+    },
+    // The marquee: purple, a chequered strip top and bottom that steps along (tick), a web in each
+    // corner, a pumpkin each side of the name, little stars
+    marquee(g, w, h) {
+      g.fillStyle = '#4a1d7a'; g.fillRect(0, 0, w, h);
+      const sq = h * .13, cols = ['#ff8a1f', '#1a0f12', '#ff5d8f', '#ffd23f'];
+      for (const y of [0, h - sq]) for (let i = 0, x = 0; x < w; x += sq, i++) { g.fillStyle = cols[(i + skinTick) % 4]; g.fillRect(x, y, sq, sq); }
+      drawWeb(g, 0, sq, h * .7, 0, 'rgba(210, 180, 255, .55)', 2);
+      drawWeb(g, w, sq, h * .7, Math.PI / 2, 'rgba(210, 180, 255, .55)', 2);
+      for (const [x, y, r] of [[.07, .72, 9], [.93, .7, 9], [.14, .32, 7], [.86, .34, 7]]) drawStar(g, w * x, h * y, r, '#ffd23f');
+      for (const x of [.2, .8]) drawPumpkin(g, w * x, h * .55, h * .26);
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .62)}px Kalam, cursive`;
+      g.lineWidth = 12; g.strokeStyle = '#3a0f2a'; g.strokeText('CLAW MACHINE', w / 2, h / 2 + 5);
+      g.fillStyle = '#ffd23f'; g.fillText('CLAW MACHINE', w / 2, h / 2 + 5);
+    },
+    // Behind the scoreboard's text: a graveyard along the bottom and bats, in darker purples
+    board(g, w, h) {
+      g.save(); g.beginPath(); g.roundRect(11, 11, w - 22, h - 22, 28); g.clip();
+      g.fillStyle = '#3a2066';
+      for (const [x, tw, th] of [[.04, 46, 60], [.1, 34, 44], [.9, 40, 56], [.96, 30, 40], [.2, 26, 32], [.79, 26, 30]]) {
+        const cx = w * x; g.beginPath(); g.moveTo(cx - tw / 2, h); g.lineTo(cx - tw / 2, h - th + tw / 2); g.arc(cx, h - th + tw / 2, tw / 2, Math.PI, 0); g.lineTo(cx + tw / 2, h); g.fill();
+      }
+      g.fillRect(w * .145 - 4, h - 70, 8, 60); g.fillRect(w * .145 - 18, h - 56, 36, 8);   // a cross
+      g.lineWidth = 7; g.strokeStyle = '#3a2066'; g.lineCap = 'round';   // a bare tree
+      g.beginPath(); g.moveTo(w * .99, h); g.lineTo(w * .985, h - 120); g.lineTo(w * .95, h - 160); g.moveTo(w * .985, h - 90); g.lineTo(w * .96, h - 105); g.stroke();
+      for (const [x, y, s] of [[.25, .55, 70], [.33, .3, 50], [.67, .55, 70], [.75, .3, 50]]) drawBat(g, w * x, h * y, s, '#4a2a80');
+      g.restore();
+    },
+    lanterns: true,
+  },
+};
+const pillarTex = canvasTex(128, 1680, (g, w, h) => skin?.pillar && skin.pillar(g, w, h));
+// Lanterns up the inside edge of the front pillars (only a skin with lanterns shows them)
+const LANTERN = new THREE.MeshBasicMaterial({ color: 0xffb347 });
+const lanterns = [];
+for (const sx of [-1, 1]) for (let i = 0; i < 6; i++) {
+  const m = box(.06, .1, .06, LANTERN, sx * (BOX.x - .02), .7 + i * .7, BOX.z + .02);
+  m.visible = false; lanterns.push(m);
+}
+let skinTick = 0;
+// Dress the machine for world w (or undress it)
+function setSkin(w) {
+  skin = SKINS[WORLDS[w].skin] || null;
+  PINK.color.set(skin ? skin.body : PINK_HEX);
+  if (skin?.pillar) { pillarTex.repaint(); PILLAR_FACE.map = pillarTex; PILLAR_FACE.color.set(0xffffff); }
+  else { PILLAR_FACE.map = null; PILLAR_FACE.color.set(skin ? skin.body : PINK_HEX); }
+  PILLAR_FACE.needsUpdate = true;
+  for (const [b] of bulbs) b.visible = !skin;
+  for (const m of lanterns) m.visible = !!skin?.lanterns;
+  marqueeTex.repaint(); boardTex.repaint();
 }
 
 // Room floor
@@ -1161,7 +1293,7 @@ const GIANT_AT = { x: .4, z: .45 }, BURY_AT = { x: 1.6, z: -1.1 };
 function startLevel(i, data) {
   level = i; lv = data || LEVELS[i]; got = {}; endT = null; lostTo = null; streak = 0; roundOpen = false; coinFlash = 0; newCards = 0;
   KINDS = worldKinds(lv.world); KIND = Object.fromEntries(KINDS.map(k => [k.key, k]));
-  setBackWall(lv.world);
+  setBackWall(lv.world); setSkin(lv.world);
   reset();
 }
 
@@ -2474,6 +2606,7 @@ function draw(now) {
   syncClaw();
   const tick = Math.floor(now / 160);
   for (const [b, i] of bulbs) b.material = (i + tick) % 3 === 0 ? BULB_ON : BULB_OFF;
+  if (skin && Math.floor(tick / 2) !== skinTick) { skinTick = Math.floor(tick / 2); marqueeTex.repaint(); }
   hudTime();
   renderer.render(scene, camera);
 }

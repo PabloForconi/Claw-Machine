@@ -294,6 +294,14 @@ The user asked for collectable characters as a metagame (October 2026), differen
   - The machine's back wall shows the world's cover (`setBackWall()`; it is a WebGL texture, so it doesn't load when `index.html` is opened straight from the disk, `file://`, while the screens' covers, plain CSS, do;, a texture per world, cropped top and bottom to the wall). The material's colour (0x8a8a8a) darkens it so the capsules stand out; the dotted wall shows until it loads.
   - The gallery's and collection's pages start with a banner of their world's cover (`banner()`). Every banner is greyed out while its world is locked.
   - On a phone the bottom buttons are smaller, so they take fewer rows.
+- Machine skins (`SKINS`, `setSkin()` in `startLevel`, `WORLDS[w].skin`): a world can dress the machine up. It is looks only, no shape the game uses changes; the user asked for that.
+  - Halloween has one, from the user's reference picture (October 2026):
+    - the cabinet is orange (`PINK`'s colour changes);
+    - the front pillars' front and inner faces (`PILLAR_FACE`) get a painted texture (`pillarTex`): orange polka dots, bats, stars and a web under purple slime;
+    - the marquee is purple, with a chequered strip top and bottom that steps along (`skinTick`, repainted about 3 times a second), webs in the corners, pumpkins and stars, in place of the bulbs, which are hidden;
+    - small lanterns glow up the inside of the front pillars;
+    - the scoreboard has a graveyard and bats behind its text (`skin.board`).
+  - The drawing helpers are `drawBat()`, `drawStar()`, `drawWeb()` and `drawPumpkin()`. The other worlds keep the pink machine with its bulbs.
 - The worlds, levels, gallery and exhibitor screens each have buttons to the others. `showScreen()` / `closeScreens()` switch them: the game is paused and not drawn meanwhile, Escape goes back, and back to the level's card if it had ended.
 - The daily challenge picks one of the open worlds by the date.
 - To try it locally with the pictures, run `node tools/serve.mjs` (`.claude/launch.json` "claw-machine", port 8131). `file://` and the in-app browser's `data:` snapshot don't load `assets/`. Port 8123 is often taken by `../Laberinto`'s server.
