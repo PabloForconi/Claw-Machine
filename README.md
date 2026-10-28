@@ -11,7 +11,7 @@ Prototipo de juego 3D para el navegador: una máquina de garra llena de cápsula
 - Si sacás premios dos rondas seguidas, ganás una ficha.
 - Mové la garra con el pad (o las flechas / WASD): izquierda-derecha y adelante-atrás; cuanto más lo empujás, más rápido va. Bajala con **¡BAJAR!** (o Espacio). Tenés 15 segundos por intento.
 - Arriba a la izquierda: la ★ abre los **Mundos** (cada uno con su portada y sus 5 niveles), la cápsula abre **Cápsulas** (las que juntaste, por mundo) y el osito abre la **Colección** de personajes.
-- Los niveles están en cuatro mundos (Animales, Monstruos, Halloween y Navidad), cada uno con sus cápsulas: dos colores por rareza (común lisa, infrecuente rayada, rara con lunares, legendaria metálica) y una arcoíris. Cada 10 cápsulas de un color completan su tarjeta en **Cápsulas**: tocala para abrirla y te da un personaje de esa rareza (la arcoíris, de cualquiera); se pueden repetir.
+- Los niveles están en cuatro mundos (Animalitos, Monstruitos, Dulce Halloween y Feliz Navidad), cada uno con sus cápsulas: dos colores por rareza (común lisa, infrecuente rayada, rara con lunares, legendaria metálica) y una arcoíris. Cada 10 cápsulas de un color completan su tarjeta en **Cápsulas**: tocala para abrirla y te da un personaje de esa rareza (la arcoíris, de cualquiera); se pueden repetir.
 - En ⚙ (arriba a la derecha) podés poner el pad a la derecha y el botón a la izquierda.
 - Guiate por la sombra de la garra para saber dónde va a caer.
 - Si la garra agarra la cápsula bien centrada es más difícil que se le resbale. Las legendarias se resbalan más.

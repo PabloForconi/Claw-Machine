@@ -80,6 +80,9 @@
   .nav button:disabled { opacity: .3; cursor: default; }
   /* On a phone (a touch screen) the pages are swiped, so the arrows go and the dots are enough, as the user asked (October 2026) */
   @media (hover: none) and (pointer: coarse) { .nav button { display: none; } .nav { margin: 14px 0 16px; } }
+  /* The worlds screen has no arrows anywhere (the user asked); with the mouse it is dragged, or a dot clicked */
+  #worldPrev, #worldNext { display: none; }
+  .dots i { cursor: pointer; }
   .dots { display: flex; gap: 8px; }
   .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--ink); opacity: .3; }
   .dots i.on { opacity: 1; background: var(--gold); }
@@ -147,7 +150,8 @@
   .banner.locked { filter: grayscale(1) brightness(.6); }
   #lvlBanner { width: 100%; max-width: 640px; height: 150px; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; padding: 10px 14px; border-radius: 16px; text-align: center; }
   #lvlBanner::before { background: linear-gradient(transparent 30%, rgba(0, 0, 0, .78)); }
-  #lvlBanner h2 { font-size: 30px; }
+  #lvlBanner h2 { font-size: clamp(24px, 7.5vw, 30px); line-height: 1.1; white-space: nowrap; }
+  #lvlBanner h2 small { display: block; font-size: 18px; color: var(--ink); }
   #lvlBanner span { font-size: 18px; color: var(--ink); }
   /* The worlds screen: a page per world with its cover, and the daily challenge as a strip above */
   /* (the worlds' carousel fades out at its sides, so covers slide in and out softly when swiped; each
@@ -165,7 +169,9 @@
   /* (the world's name and progress at the top of the cover, Jugar alone at the bottom, nothing darkening
      the art: the user asked for it, October 2026) */
   .winfo { position: absolute; left: 0; right: 0; top: 0; padding: 14px 14px 0; text-align: center; }
-  .winfo h3 { margin: 0; font-size: 30px; color: var(--gold); text-shadow: 0 2px 0 #000, 0 0 6px #000, 0 0 12px #000; }
+  /* ("Mundo n" on a small line over the name, so a long name like Dulce Halloween fits on one) */
+  .winfo h3 { display: block; margin: 0; font-size: clamp(24px, 7.5vw, 32px); line-height: 1.1; white-space: nowrap; color: var(--gold); text-shadow: 0 2px 0 #000, 0 0 6px #000, 0 0 12px #000; }
+  .winfo h3 small { display: block; font-size: 18px; color: var(--ink); }
   .winfo p { margin: 2px 0 0; font-size: clamp(13px, 3.9vw, 17px); text-shadow: 0 1px 0 #000, 0 0 5px #000, 0 0 10px #000; }
   .winfo .lock { font-size: 20px; }
   .wplay { position: absolute; left: 0; right: 0; bottom: 16px; text-align: center; }
@@ -186,7 +192,7 @@
   #introCover::before { content: ''; position: absolute; inset: 0; background: linear-gradient(transparent 50%, rgba(0, 0, 0, .85)); }
   #introCover > * { position: relative; }
   #introCover small { font-size: 22px; color: var(--ink); }
-  #introCover h2 { margin: 0 0 14px; font-size: 48px; color: var(--gold); text-shadow: 0 3px 0 var(--pink-dark); }
+  #introCover h2 { margin: 0 0 14px; font-size: clamp(30px, 9.5vw, 48px); line-height: 1.05; text-align: center; color: var(--gold); text-shadow: 0 3px 0 var(--pink-dark); }
   #intro.go #introCover { animation: introIn .7s cubic-bezier(.2, 1.3, .5, 1) both; }
   #intro.go #introCover > * { animation: fadeIn .5s .5s both; }
   @keyframes introIn { from { transform: scale(.6); opacity: 0; } }
@@ -463,8 +469,8 @@ const WAIT_TIME = .3;
 const PRIZE_COUNT = 15, R_MIN = .29, R_MAX = .32, RESTOCK_BELOW = 8;
 const PILE_SPARE = 2;   // a level's pile has this many more of each kind it asks for than it still needs
 const SETTLE_STEPS = 600;   // physics steps (5 s) run at a reset so the pile is settled when shown
-// Worlds (the user asked for them, October 2026): the levels go in worlds of five (Animales, Monstruos,
-// Halloween, Navidad), each with its own nine kinds of capsule and its own twenty characters to collect.
+// Worlds (the user asked for them, October 2026): the levels go in worlds of five (Animalitos, Monstruitos,
+// Dulce Halloween, Feliz Navidad: the user's names; ids, skins and asset folders keep the first ones), each with its own nine kinds of capsule and its own twenty characters to collect.
 // The capsules come in four rarities, two colours each, and one rainbow kind. The rarity shows in the
 // capsule's finish (TIERS: plain, striped, dotted, metallic) and in how often it turns up (w, the share
 // of the capsules made at random). Every 10 capsules of a colour won give a character of its rarity
@@ -479,13 +485,13 @@ const TIERS = [
   { name: 'Arcoíris', design: 'rainbow', w: .03, css: '#ff9fbd' },
 ];
 const WORLDS = [
-  { id: 'animales', name: 'Animales', skin: 'animales', balls: [['Marrón', '#9b5d34'], ['Crema', '#f1dcb0'], ['Naranja', '#ff9640'], ['Gris', '#a3aab5'], ['Rosa', '#ff9fbd'], ['Celeste', '#6fc2f0'], ['Verde', '#7fd66b'], ['Dorada', '#ffd23f']],
+  { id: 'animales', name: 'Animalitos', skin: 'animales', balls: [['Marrón', '#9b5d34'], ['Crema', '#f1dcb0'], ['Naranja', '#ff9640'], ['Gris', '#a3aab5'], ['Rosa', '#ff9fbd'], ['Celeste', '#6fc2f0'], ['Verde', '#7fd66b'], ['Dorada', '#ffd23f']],
     chars: ['Teddy', 'Bunni', 'Pandu', 'Mishi', 'Waffles', 'Pingu', 'Chicky', 'Mochi', 'Reddy', 'MooMoo', 'Lenny', 'Tiggy', 'Dumbo', 'Koko', 'Momo', 'Foxy', 'Bandit', 'Hooty', 'Wooly', 'Dino'] },
-  { id: 'monstruos', name: 'Monstruos', skin: 'monstruos', balls: [['Violeta', '#a974ff'], ['Lima', '#a6e35a'], ['Rosa', '#ff6fb5'], ['Turquesa', '#2fd3c6'], ['Naranja', '#ff8a3d'], ['Azul', '#4a86ff'], ['Roja', '#ff4057'], ['Amarilla', '#ffd23f']],
+  { id: 'monstruos', name: 'Monstruitos', skin: 'monstruos', balls: [['Violeta', '#a974ff'], ['Lima', '#a6e35a'], ['Rosa', '#ff6fb5'], ['Turquesa', '#2fd3c6'], ['Naranja', '#ff8a3d'], ['Azul', '#4a86ff'], ['Roja', '#ff4057'], ['Amarilla', '#ffd23f']],
     chars: ['Reddy', 'Blobby', 'Spike', 'Violett', 'Sunny', 'Pinky', 'Chompy', 'Bloop', 'Fuzzy', 'Cyclo', 'Grumpy', 'Zappy', 'Bubbles', 'Triple', 'Flappy', 'Zippy', 'Spiky', 'Wobble', 'Horny', 'Boingo'] },
-  { id: 'halloween', name: 'Halloween', skin: 'halloween', balls: [['Calabaza', '#ff8a1f'], ['Hueso', '#eee3c8'], ['Violeta', '#8f52e0'], ['Moco', '#93dc3c'], ['Fantasma', '#cfe3ff'], ['Sangre', '#d9283a'], ['Dorada', '#ffd23f'], ['Plateada', '#c8d0de']],
+  { id: 'halloween', name: 'Dulce Halloween', skin: 'halloween', balls: [['Calabaza', '#ff8a1f'], ['Hueso', '#eee3c8'], ['Violeta', '#8f52e0'], ['Moco', '#93dc3c'], ['Fantasma', '#cfe3ff'], ['Sangre', '#d9283a'], ['Dorada', '#ffd23f'], ['Plateada', '#c8d0de']],
     chars: ['Vampi', 'Fanty', 'Pumpi', 'Mumi', 'Franki', 'Witchi', 'Gati', 'Skully', 'Devily', 'Oculi', 'Lobin', 'Batty', 'Zombi', 'Reap', 'Candy', 'Caldi', 'Shadow', 'Boozy', 'Spidey', 'Jacky'] },
-  { id: 'navidad', name: 'Navidad', skin: 'navidad', balls: [['Roja', '#e0323c'], ['Verde', '#2fa64b'], ['Nieve', '#f7f7fb'], ['Jengibre', '#b46a38'], ['Hielo', '#9fd8ff'], ['Caramelo', '#ff7aa0'], ['Dorada', '#ffd23f'], ['Plateada', '#c8d0de']],
+  { id: 'navidad', name: 'Feliz Navidad', skin: 'navidad', balls: [['Roja', '#e0323c'], ['Verde', '#2fa64b'], ['Nieve', '#f7f7fb'], ['Jengibre', '#b46a38'], ['Hielo', '#9fd8ff'], ['Caramelo', '#ff7aa0'], ['Dorada', '#ffd23f'], ['Plateada', '#c8d0de']],
     chars: ['Santy', 'Ruddy', 'Snowy', 'Gingy', 'Elfi', 'Polar', 'Pengu', 'Treely', 'Giftie', 'Candy', 'Globie', 'Holly', 'Orbi', 'Twinkle', 'Jingly', 'Puddi', 'Flaky', 'Jingle', 'Santaball', 'Wreathy'] },
 ];
 // A world's nine kinds of capsule: b0–b7, two per rarity, then b8, the rainbow one
@@ -2638,7 +2644,7 @@ function openWorlds(at = worldNow()) {
   worldCar.fill(WORLDS.map((wd, w) => {
     const st = worldStats(w), open = worldOpen(w);
     return `<section class="season wpage"><div class="cover${open ? '' : ' locked'}" style="background-image:url(${coverSrc(w)})"><div class="winfo">` +
-      `<h3>Mundo ${w + 1} · ${wd.name}</h3><p>Niveles ${st.done}/5 · ★ ${st.stars}/15 · Personajes ${st.chars}/20</p>` +
+      `<h3><small>Mundo ${w + 1}</small>${wd.name}</h3><p>Niveles ${st.done}/5 · ★ ${st.stars}/15 · Personajes ${st.chars}/20</p>` +
       (open ? '' : `<p class="lock">🔒 Superá al jefe de ${WORLDS[w - 1].name}</p>`) + '</div>' +
       (open ? `<div class="wplay"><button class="play" data-w="${w}">Jugar</button></div>` : '') + '</div></section>';
   }).join(''), at);
@@ -2654,7 +2660,7 @@ function openLevels(w = worldNow()) {
   showScreen('levels');
   const st = worldStats(w);
   $('lvlBanner').style.backgroundImage = `url(${coverSrc(w)})`;
-  $('lvlTitle').textContent = `Mundo ${w + 1} · ${WORLDS[w].name}`;
+  $('lvlTitle').innerHTML = `<small>Mundo ${w + 1}</small>${WORLDS[w].name}`;
   $('lvlSub').innerHTML = `Niveles ${st.done}/5 · ★ ${st.stars}/15`;
   $('lvlList').innerHTML = [0, 1, 2, 3, 4].map(k => {
     const i = w * 5 + k, l = LEVELS[i], locked = !levelOpen(i), boss = k === 4;
@@ -2716,6 +2722,8 @@ function carousel(shelf, prev, next, dots) {
   // (call it once the screen shows: while hidden the pages have no size, so the scroll stayed on the
   // first page while the dots marked another, which the user saw)
   c.fill = (html, at) => { shelf.innerHTML = html; dots.innerHTML = pages().map(() => '<i></i>').join(''); c.show(at, false); };
+  // (a dot goes to its page)
+  dots.addEventListener('click', e => { const i = [...dots.children].indexOf(e.target); if (i >= 0) c.show(i); });
   let settle = 0;
   shelf.addEventListener('scroll', () => { clearTimeout(settle); settle = setTimeout(() => mark(c.idx = near()), 150); });
   // The mouse works like a finger: dragged sideways it swipes the pages, up or down it scrolls the page

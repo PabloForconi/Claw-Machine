@@ -255,7 +255,7 @@ Each capsule (`mkPrize()`) is two solid halves of one colour, with its rarity's 
 ### Worlds and the metagame
 
 The user asked for collectable characters as a metagame (October 2026), different from the gallery of capsules, and chose its rules.
-- The 20 levels are four worlds of five (`WORLDS`): Animales, Monstruos, Halloween, Navidad.
+- The 20 levels are four worlds of five (`WORLDS`): Animalitos, Monstruitos, Dulce Halloween and Feliz Navidad, the user's names (October 2026; they were Animales, Monstruos, Halloween and Navidad, which their ids, skins and asset folders keep).
   - Each world has its nine kinds of capsule (`worldKinds(w)`, keys `b0`–`b8`) and its 20 characters. `startLevel` sets `KINDS`/`KIND` to the level's world.
   - A world opens with its first level (`worldOpen()`).
   - The level goals name capsules by rarity slot (`SLOT`: C1 C2 common, U1 U2 uncommon, R1 R2 rare, L1 L2 legendary), so a level means the same in every world.
@@ -287,7 +287,7 @@ The user asked for collectable characters as a metagame (October 2026), differen
   - Each tile (`.toy`) has the character's name on a plate sitting on its top edge, half over it (the user wanted names above, unlike the reference, then raised half out of the tile), then the picture over a soft spot of floor, drawn 130% wide and cropped to the tile, since the cuts leave room round the character. A repeat has a pink ×n badge at its bottom right corner (at the top it covered the name). A character not won yet is a dark silhouette (`brightness(0)`, at .72 opacity) with a "?" over it and no name.
   - Before this it was a dark grey shelf per rarity, with the characters standing on its board and their names over them.
 - Both screens are carousels (`carousel()`: `.pages`, one full-width page each, scroll snap), as the user asked.
-  - Swipe, drag with the mouse, or use the arrows and dots. On a touch screen (`(hover: none) and (pointer: coarse)`) the arrows are hidden and the dots are enough, as the user asked (October 2026).
+  - Swipe, drag with the mouse, or use the arrows and dots. On a touch screen (`(hover: none) and (pointer: coarse)`) the arrows are hidden and the dots are enough, as the user asked (October 2026). The worlds screen has no arrows at all, on a computer either (the user asked). A dot can be clicked or tapped to go to its page.
   - Let go of a mouse drag, it settles on the page most of which is in view: past half way it goes on to the next, short of that it goes back. A quick flick (over 0.5 px/ms) goes on however far it went. The user found the earlier rule (over 40 px, next) abrupt.
   - Scroll snap stays off until the slide has finished (450 ms), or the browser's snap cut it short with a jump.
   - No scroll bars: the user asked for the mouse to work like a finger. Dragged up or down it scrolls the page (the levels list too), and the wheel scrolls it as usual. The drag picks its direction from the first 6 px of movement.
@@ -297,7 +297,7 @@ The user asked for collectable characters as a metagame (October 2026), differen
   - `.pages` must stay `position: relative`, since the pages' `offsetLeft` is measured from it.
 - World covers and screens: the user supplied a cover per world (`concept/cover_<world>.png`, 4:5), scaled down to `assets/covers/<world>.png` (600 × 750, about 660 KB) by `tools/cut-covers.mjs`. The user approved this layout and flow (October 2026):
   - The worlds screen (`#worlds`, `openWorlds()`, the star): a carousel (`worldCar`) of the four covers (`.cover`, 4:5, filling the page's height).
-    - At the top of the cover: "Mundo n · name" and levels cleared/5, ★/15, characters/20 (`worldStats()`), over a dark fade at the top of the cover (`.cover::before`) and a dark text shadow. At the bottom, Jugar alone (`.wplay`), with nothing darkening the art there.
+    - At the top of the cover: "Mundo n" on a small line over the name (so a long name like Dulce Halloween fits on one line; the levels banner does the same, and the new-world intro shrinks its name to fit) and levels cleared/5, ★/15, characters/20 (`worldStats()`), over a dark fade at the top of the cover (`.cover::before`) and a dark text shadow. At the bottom, Jugar alone (`.wplay`), with nothing darkening the art there.
     - The carousel (`#worldShelf`) fades out at its sides (a CSS mask, `--fade` 22 px on a phone, 160 px from 760 px wide, where the covers leave room at the sides) so covers slide in and out softly. Each page has a side margin as wide as the fade, so a cover at rest is never under it. The user asked for both (October 2026). The user asked for it this way (October 2026); at first everything was at the bottom over a dark fade.
     - A locked world is greyed out with "Superá al jefe de <previous world>".
     - The daily challenge's strip above them (`#dailyBar`) is hidden for now: the user set the daily challenge aside to decide later how to use it. Its code (`genDaily()`, `startDaily()`) is still there.
