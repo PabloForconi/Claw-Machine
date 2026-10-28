@@ -327,6 +327,12 @@ The user asked for collectable characters as a metagame (October 2026), differen
 - To try it locally with the pictures, run `node tools/serve.mjs` (`.claude/launch.json` "claw-machine", port 8131). `file://` and the in-app browser's `data:` snapshot don't load `assets/`. Port 8123 is often taken by `../Laberinto`'s server.
 - Sounds are synthesised with WebAudio in `sfx()`; there are no audio files yet.
 
+No zooming on a phone: on an iPhone two quick taps zoomed the whole page in, as on a photo, and the user noticed (October 2026). The fixes:
+- the viewport has `maximum-scale=1, user-scalable=no`;
+- buttons have `touch-action: manipulation`;
+- a touch guard cancels the default of a touch that ends within 350 ms of the one before. The game reads taps from pointer events, which still arrive. A click-only button tapped twice that fast only gets the first click.
+- pinch gestures (`gesturestart`/`gesturechange`) and `dblclick` are refused.
+
 Controls: arrows or WASD to move (up/W moves the claw back, away from the camera), Space or Enter to drop. On screen there is the pad and the ¡BAJAR! button.
 - The pad (`#pad`, `stick`) is a joystick like the one in `../Laberinto`; it replaced a four-button d-pad, as the user asked (October 2026).
   - Its base rests in the pad area, jumps to where the finger lands, and the knob follows the finger up to `STICK_R`.

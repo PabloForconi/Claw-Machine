@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Claw Machine</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,6 +16,8 @@
     color: var(--ink); font-family: Kalam, "Comic Sans MS", cursive; font-weight: 700;
     touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
   }
+  /* (buttons take taps but never a double-tap zoom: see the iPhone note by the touch guard) */
+  button { touch-action: manipulation; }
   canvas { display: block; position: fixed; inset: 0; }
   #controls {
     position: fixed; left: 0; right: 0; bottom: max(12px, env(safe-area-inset-bottom));
@@ -2773,6 +2775,16 @@ $('galBtn').addEventListener('click', () => openGallery());
 $('charBtn').addEventListener('click', openChars);
 for (const b of ['galBack', 'charBack']) $(b).addEventListener('click', closeScreens);
 addEventListener('blur', () => { keys.l = keys.r = keys.u = keys.d = false; });
+// On an iPhone, two quick taps zoomed the whole page in, as on a photo, and a pinch could too; the user
+// noticed it (October 2026). Safari ignores the viewport's "no zoom" for that, so: a second touch that
+// ends within 350 ms of the one before doesn't get its default (the zoom; the game reads its taps from
+// pointer events, which still arrive), and pinch gestures are refused.
+{
+  let lastEnd = 0;
+  document.addEventListener('touchend', e => { const now = performance.now(); if (now - lastEnd < 350) e.preventDefault(); lastEnd = now; }, { passive: false });
+  for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
+  document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
+}
 
 // ---------- Layout and loop ----------
 
