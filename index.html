@@ -461,7 +461,7 @@ const TIERS = [
 const WORLDS = [
   { id: 'animales', name: 'Animales', skin: 'animales', balls: [['Marrón', '#9b5d34'], ['Crema', '#f1dcb0'], ['Naranja', '#ff9640'], ['Gris', '#a3aab5'], ['Rosa', '#ff9fbd'], ['Celeste', '#6fc2f0'], ['Verde', '#7fd66b'], ['Dorada', '#ffd23f']],
     chars: ['Teddy', 'Bunni', 'Pandu', 'Mishi', 'Waffles', 'Pingu', 'Chicky', 'Mochi', 'Reddy', 'MooMoo', 'Lenny', 'Tiggy', 'Dumbo', 'Koko', 'Momo', 'Foxy', 'Bandit', 'Hooty', 'Wooly', 'Dino'] },
-  { id: 'monstruos', name: 'Monstruos', balls: [['Violeta', '#a974ff'], ['Lima', '#a6e35a'], ['Rosa', '#ff6fb5'], ['Turquesa', '#2fd3c6'], ['Naranja', '#ff8a3d'], ['Azul', '#4a86ff'], ['Roja', '#ff4057'], ['Amarilla', '#ffd23f']],
+  { id: 'monstruos', name: 'Monstruos', skin: 'monstruos', balls: [['Violeta', '#a974ff'], ['Lima', '#a6e35a'], ['Rosa', '#ff6fb5'], ['Turquesa', '#2fd3c6'], ['Naranja', '#ff8a3d'], ['Azul', '#4a86ff'], ['Roja', '#ff4057'], ['Amarilla', '#ffd23f']],
     chars: ['Reddy', 'Blobby', 'Spike', 'Violett', 'Sunny', 'Pinky', 'Chompy', 'Bloop', 'Fuzzy', 'Cyclo', 'Grumpy', 'Zappy', 'Bubbles', 'Triple', 'Flappy', 'Zippy', 'Spiky', 'Wobble', 'Horny', 'Boingo'] },
   { id: 'halloween', name: 'Halloween', skin: 'halloween', balls: [['Calabaza', '#ff8a1f'], ['Hueso', '#eee3c8'], ['Violeta', '#8f52e0'], ['Moco', '#93dc3c'], ['Fantasma', '#cfe3ff'], ['Sangre', '#d9283a'], ['Dorada', '#ffd23f'], ['Plateada', '#c8d0de']],
     chars: ['Vampi', 'Fanty', 'Pumpi', 'Mumi', 'Franki', 'Witchi', 'Gati', 'Skully', 'Devily', 'Oculi', 'Lobin', 'Batty', 'Zombi', 'Reap', 'Candy', 'Caldi', 'Shadow', 'Boozy', 'Spidey', 'Jacky'] },
@@ -829,7 +829,7 @@ for (let i = 0; i < 22; i++) for (const y of [MARQUEE_Y - MARQUEE_H / 2 + .02, M
 // - a purple marquee with a chequered border that chases, pumpkins and webs (in place of the bulbs);
 // - lanterns glowing up the inside of the pillars;
 // - a graveyard with bats on the scoreboard.
-// Animales has one too, from another reference. The other worlds keep the pink machine for now.
+// Animales and Monstruos have one too, from other references. Navidad keeps the pink machine for now.
 const PINK_HEX = 0xe8457a;
 // A little bat, spread wings, centred at x, y, s wide
 function drawBat(g, x, y, s, color) {
@@ -886,7 +886,78 @@ function drawBigPaw(g, x, y, r, color, tilt) {
   drawPaw(g, x, y, r, color, tilt);
   drawPaw(g, x, y + r * .06, r * .55, 'rgba(255, 255, 255, .35)', tilt);
 }
+// A band of slime along y (from x0 to x1) dripping down (dir 1) or up (dir -1), with a shine
+function drawSlime(g, x0, x1, y, band, dir, color, seed = 1) {
+  let r = seed;
+  const rnd = () => (r = (r * 9301 + 49297) % 233280) / 233280;
+  g.fillStyle = color;
+  g.fillRect(x0, dir > 0 ? y - band : y, x1 - x0, band);
+  for (let x = x0 + 10; x < x1; x += 26 + rnd() * 30) {
+    const len = band * (.4 + rnd() * 1.3), wd = 9 + rnd() * 9;
+    g.beginPath(); g.moveTo(x - wd, y); g.lineTo(x - wd * .6, y + dir * len); g.arc(x, y + dir * len, wd * .6, dir > 0 ? Math.PI : 0, dir > 0 ? 0 : Math.PI, dir < 0); g.lineTo(x + wd, y); g.fill();
+  }
+  g.fillStyle = 'rgba(255, 255, 255, .35)'; g.fillRect(x0, dir > 0 ? y - band * .7 : y + band * .55, x1 - x0, band * .12);
+}
+// A little round monster: its body, one big eye (or three on stalks), a grin with fangs, maybe horns
+function drawMonster(g, x, y, r, color, { eyes = 1, horns = false } = {}) {
+  if (horns) for (const sx of [-1, 1]) { g.fillStyle = '#ffb347'; g.beginPath(); g.moveTo(x + sx * r * .35, y - r * .75); g.quadraticCurveTo(x + sx * r * .9, y - r * 1.3, x + sx * r * .85, y - r * 1.05); g.lineTo(x + sx * r * .6, y - r * .6); g.fill(); }
+  if (eyes === 3) for (const dx of [-.55, 0, .55]) { g.strokeStyle = color; g.lineWidth = r * .14; g.beginPath(); g.moveTo(x + dx * r * .5, y - r * .6); g.lineTo(x + dx * r, y - r * 1.15); g.stroke(); }
+  g.fillStyle = color; g.beginPath(); g.ellipse(x, y, r, r * .9, 0, 0, 7); g.fill();
+  g.fillStyle = 'rgba(255, 255, 255, .18)'; g.beginPath(); g.ellipse(x - r * .35, y - r * .4, r * .3, r * .2, -.5, 0, 7); g.fill();
+  const eye = (ex, ey, er) => { g.fillStyle = '#fff'; g.beginPath(); g.arc(ex, ey, er, 0, 7); g.fill(); g.fillStyle = '#1a0f22'; g.beginPath(); g.arc(ex + er * .1, ey + er * .1, er * .55, 0, 7); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(ex + er * .3, ey - er * .2, er * .18, 0, 7); g.fill(); };
+  if (eyes === 3) for (const dx of [-.55, 0, .55]) eye(x + dx * r, y - r * 1.2, r * .26);
+  else eye(x, y - r * .15, r * .42);
+  g.fillStyle = '#3a0f2a'; g.beginPath(); g.ellipse(x, y + r * .45, r * .38, r * .2, 0, 0, Math.PI); g.fill();
+  g.fillStyle = '#fff'; for (const sx of [-1, 1]) { g.beginPath(); g.moveTo(x + sx * r * .22, y + r * .45); g.lineTo(x + sx * r * .12, y + r * .45); g.lineTo(x + sx * r * .17, y + r * .58); g.fill(); }
+}
 const SKINS = {
+  // The Monstruos machine, from the user's reference picture (October 2026): a hot pink cabinet,
+  // purple pillars dripping lime slime with stars and little monsters peeking out, a dark purple
+  // marquee slimed top and bottom with a monster each side, and slime and monsters on the scoreboard
+  monstruos: {
+    body: 0xff3fa4,
+    pillar(g, w, h) {
+      g.fillStyle = '#5a1fa0'; g.fillRect(0, 0, w, h);
+      g.fillStyle = 'rgba(160, 90, 255, .5)';
+      for (let y = 40, k = 0; y < h; y += 90, k++) { g.beginPath(); g.arc((k % 2 ? .78 : .22) * w, y, w * .1, 0, 7); g.fill(); }
+      const cols = ['#ff4fb0', '#b46cff', '#ff8a3d', '#7fe03c'];
+      for (let y = 330, i = 0; y < h - 80; y += 200, i++) {
+        if (i % 2) drawStar(g, w / 2, y, w * .3, '#ffd23f');
+        else drawMonster(g, w / 2, y, w * .36, cols[(i / 2) % cols.length], { horns: i % 4 === 0 });
+      }
+      // lime slime down from the top and up the side in drips
+      g.fillStyle = '#a8f53c'; g.fillRect(0, 0, w, 70);
+      for (const [x, len] of [[.2, 200], [.55, 120], [.85, 260]]) { const cx = x * w, r = w * .11; g.beginPath(); g.moveTo(cx - r * 1.5, 60); g.lineTo(cx - r, 60 + len); g.arc(cx, 60 + len, r, Math.PI, 0, true); g.lineTo(cx + r * 1.5, 60); g.fill(); }
+      for (const y of [700, 1250]) { g.beginPath(); g.ellipse(w * .05, y, w * .22, 90, 0, 0, 7); g.fill(); }
+      g.fillStyle = 'rgba(255, 255, 255, .3)'; g.fillRect(0, 12, w, 8);
+    },
+    marquee(g, w, h) {
+      g.fillStyle = '#3b1270'; g.fillRect(0, 0, w, h);
+      g.fillStyle = 'rgba(180, 100, 255, .35)';
+      for (let i = 0; i < 40; i++) { const x = (i * 197) % w, y = h * (.25 + ((i * 53) % 50) / 100); g.beginPath(); g.arc(x, y, 5 + (i % 3) * 3, 0, 7); g.fill(); }
+      drawSlime(g, 0, w, h * .16, h * .16, 1, '#a8f53c', 7);
+      drawSlime(g, 0, w, h * .86, h * .14, -1, '#a8f53c', 3);
+      for (const [x, y, r] of [[.27, .3, .05], [.73, .3, .05], [.04, .55, .04], [.96, .55, .04]]) drawStar(g, w * x, h * y, h * r, '#ffd23f');
+      drawMonster(g, w * .13, h * .58, h * .24, '#ff4fb0', { horns: true });
+      drawMonster(g, w * .87, h * .62, h * .22, '#3fa9ff', { eyes: 3 });
+      g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .42)}px Kalam, cursive`;
+      const a = 'CLAW ', b = 'MACHINE', wa = g.measureText(a).width, wb = g.measureText(b).width, x0 = w / 2 - (wa + wb) / 2, y = h / 2 + 4;
+      g.textAlign = 'left'; g.lineWidth = 12; g.strokeStyle = '#1e0640';
+      g.strokeText(a, x0, y); g.strokeText(b, x0 + wa, y);
+      const ga = g.createLinearGradient(0, y - h * .2, 0, y + h * .2); ga.addColorStop(0, '#fff36b'); ga.addColorStop(1, '#ffb01f');
+      const gb = g.createLinearGradient(0, y - h * .2, 0, y + h * .2); gb.addColorStop(0, '#ffffff'); gb.addColorStop(1, '#ffa6e6');
+      g.fillStyle = ga; g.fillText(a, x0, y); g.fillStyle = gb; g.fillText(b, x0 + wa, y);
+    },
+    board(g, w, h) {
+      g.save(); g.beginPath(); g.roundRect(11, 11, w - 22, h - 22, 28); g.clip();
+      g.fillStyle = '#2a0f55'; g.fillRect(0, 0, w, h);
+      drawSlime(g, 0, w, 18, 7, 1, '#a8f53c', 5);   // (thin, so its drips stay above the labels)
+      drawMonster(g, w * .04, h * .8, 30, '#8a4dff', { horns: true });
+      drawMonster(g, w * .96, h * .8, 30, '#3fa9ff', { eyes: 1 });
+      drawStar(g, w * .19, h * .55, 14, '#ffd23f'); drawStar(g, w * .81, h * .55, 14, '#ffd23f');
+      g.restore();
+    },
+  },
   // The Animales machine, from the user's reference picture (October 2026): a yellow cabinet, blue
   // pillars with yellow diagonal stripes, paw prints and stars, a blue marquee with big paws and
   // stars (its bulbs stay, round it), lights up the pillars, and paws and stars on the scoreboard

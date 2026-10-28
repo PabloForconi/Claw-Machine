@@ -308,8 +308,14 @@ The user asked for collectable characters as a metagame (October 2026), differen
     - a blue marquee framed in yellow, with big pink and purple paws, little paws and stars, and "CLAW" yellow-orange and "MACHINE" pink-white;
     - its bulbs stay (`bulbs: true`), and warm white lanterns glow up the pillars;
     - paws and stars sit in the scoreboard's corners on dark blue, clear of the numbers.
+  - Monstruos has one too, from another reference of the user's (October 2026):
+    - a hot pink cabinet;
+    - purple front pillars dripping lime slime, with stars and little monsters (`drawMonster()`);
+    - a dark purple marquee slimed top and bottom (`drawSlime()`), with a horned pink cyclops and a three-eyed blue monster at its sides, "CLAW" yellow and "MACHINE" white-pink;
+    - no bulbs;
+    - a thin slime along the scoreboard's top (kept above the labels), and monsters and stars in its corners.
   - A skin's options: `body`, `pillar`, `marquee`, `board`, `bulbs`, `lanterns` and `lantern` (their colour), and `chase` (the marquee repaints to animate, Halloween's chequer).
-  - The drawing helpers are `drawBat()`, `drawStar()`, `drawWeb()`, `drawPumpkin()`, `drawPaw()` and `drawBigPaw()`. Monstruos and Navidad keep the pink machine with its bulbs.
+  - The drawing helpers are `drawBat()`, `drawStar()`, `drawWeb()`, `drawPumpkin()`, `drawPaw()`, `drawBigPaw()`, `drawSlime()` and `drawMonster()`. Navidad keeps the pink machine with its bulbs.
 - The worlds, levels, gallery and exhibitor screens each have buttons to the others. `showScreen()` / `closeScreens()` switch them: the game is paused and not drawn meanwhile, Escape goes back, and back to the level's card if it had ended.
 - The daily challenge picks one of the open worlds by the date.
 - To try it locally with the pictures, run `node tools/serve.mjs` (`.claude/launch.json` "claw-machine", port 8131). `file://` and the in-app browser's `data:` snapshot don't load `assets/`. Port 8123 is often taken by `../Laberinto`'s server.
