@@ -6,14 +6,14 @@
 <title>Claw Machine</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root { --bg: #1b1430; --ink: #fff6e0; --pink: #e8457a; --pink-dark: #8a1f48; --gold: #ffd23f; --panel: #2b1850; }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   html, body {
     margin: 0; height: 100%; overflow: hidden; background: var(--bg);
-    color: var(--ink); font-family: Kalam, "Comic Sans MS", cursive; font-weight: 700;
+    color: var(--ink); font-family: "Baloo 2", system-ui, sans-serif; font-weight: 700;
     touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
   }
   /* (buttons take taps but never a double-tap zoom: see the iPhone note by the touch guard) */
@@ -150,14 +150,22 @@
   .toy b { position: absolute; bottom: -6px; right: -4px;   /* (at the bottom, clear of the name, as the user asked) */
     padding: 1px 6px; border-radius: 10px; font-size: 13px; line-height: 1.2;
     background: #ff4f7b; color: #fff; box-shadow: 0 2px 0 rgba(0, 0, 0, .3); }
-  /* A character just won, at the top of the screen for a moment */
-  #toast { position: fixed; top: max(64px, calc(env(safe-area-inset-top) + 54px)); left: 50%; display: flex; align-items: center; gap: 10px;
-    padding: 6px 16px 6px 6px; border-radius: 18px; background: var(--panel); border: 3px solid var(--gold); font-size: 20px;
+  /* A capsule just won, at the top of the screen for a moment: a thin strip with the capsule, "Cápsula
+     <rarity>" small in the rarity's colour over its name, and the gold border of the buttons at the top. The
+     user asked for it thinner, from a reference (October 2026); it used to say "¡Cápsula completa! ·
+     <rarity>" over "Abrila en Cápsulas". */
+  #toast { position: fixed; top: max(64px, calc(env(safe-area-inset-top) + 54px)); left: 50%; display: flex; align-items: center; gap: 12px;
+    min-width: min(320px, 84vw); padding: 5px 18px 5px 8px; border-radius: 16px; background: var(--panel); border: 3px solid var(--gold); font-size: 19px; line-height: 1.15;
     transform: translate(-50%, -160%); opacity: 0; pointer-events: none; white-space: nowrap; }
   #toast.show { animation: toast 3.2s ease both; }
   @keyframes toast { 0% { transform: translate(-50%, -160%); opacity: 0; } 10%, 85% { transform: translate(-50%, 0); opacity: 1; } 100% { transform: translate(-50%, -160%); opacity: 0; } }
-  #toast img { width: 56px; height: 56px; }
-  #toast small { display: block; font-size: 14px; }
+  #toast .cap { flex: none; width: 40px; height: 40px; }
+  #toast small { display: block; font-size: 13px; }
+  #toast .tt { flex: 1; }
+  #toast .tbar { position: relative; flex: none; width: 80px; height: 40px; margin-right: -10px; border-radius: 12px; overflow: hidden; background: rgba(255, 255, 255, .14); }
+  #toast .tbar i { display: block; height: 100%; background: var(--gold); }
+  #toast .tbar.done i { background: #ff4f7b; }
+  #toast .tbar b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; line-height: 1; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, .5); }
   /* A world's cover as a banner: a strip of it with a title over its darkened lower part */
   /* (the gallery's and collection's world banners are a thin strip, as the user asked, October 2026: they
      were 104 px high, with the text at the bottom over a dark fade, then 60) */
@@ -168,10 +176,13 @@
   .banner h3, .banner h2 { display: block; margin: 0; font-size: 20px; }
   .banner span { font-size: 18px; }
   .banner.locked { filter: grayscale(1) brightness(.6); }
-  #lvlBanner { width: 100%; max-width: 640px; height: 150px; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; padding: 10px 14px; border-radius: 16px; text-align: center; }
-  #lvlBanner::before { background: linear-gradient(transparent 30%, rgba(0, 0, 0, .78)); }
+  /* (twice as high as the other screens' banners, as the user asked, October 2026; it was 150) */
+  #lvlBanner { width: 100%; max-width: 640px; height: 92px; border-color: #6d3bf9; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 8px 14px; border-radius: 16px; text-align: center; }
+  /* (the fade comes down from the top, and the levels and stars sit on a dark see-through label with
+     round ends, like the characters' name plates: the user asked, October 2026) */
+  #lvlBanner::before { background: linear-gradient(rgba(0, 0, 0, .72), transparent 80%); }
   #lvlBanner h2 { font-size: clamp(24px, 7.5vw, 30px); line-height: 1.1; white-space: nowrap; }
-  #lvlBanner span { font-size: 18px; color: var(--ink); }
+  #lvlBanner span { font-size: 17px; line-height: 1.2; color: var(--ink); padding: 2px 14px; border-radius: 999px; background: rgba(0, 0, 0, .45); text-shadow: none; }
   /* The worlds screen: a page per world with its cover, and the daily challenge as a strip above */
   /* (the worlds' carousel fades out at its sides, so covers slide in and out softly when swiped; each
      page keeps a margin as wide as the fade, so a cover at rest is never under it) */
@@ -199,10 +210,10 @@
   #dailyBar { display: none; flex: none; align-items: center; justify-content: space-between; gap: 10px; width: 100%; max-width: 600px; margin: 6px 0 12px; padding: 8px 14px;
     font: inherit; font-size: 18px; color: var(--ink); background: var(--panel); border: 3px solid #4cc9f0; border-radius: 14px; cursor: pointer; text-align: left; }
   #dailyBar b { color: #4cc9f0; white-space: nowrap; }
-  /* A world's boss level stands out */
-  .lvl.boss { border-color: var(--pink); background: linear-gradient(90deg, #3a1530, var(--panel)); padding: 16px 14px; }
-  .lvl.boss .n { background: var(--gold); }
-  .lvl.boss .goal b { width: 100%; font-size: 20px; color: var(--pink); }
+  /* A world's boss level stands out: a pink card with a pink border, the crown on a pink disc */
+  .lvl.boss { border-color: #ff4f7b; background: #ffd0e4; padding: 12px 14px; }
+  .lvl.boss .goal b { width: 100%; font-size: 20px; color: #c2185b; }
+  .lvl.boss .tag { background: #f8b3d1; color: #5a1030; }
   /* A world just opened: its cover over the whole screen */
   #intro { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; background: #000; padding: 16px; }
   #introCover { position: relative; height: min(100%, 125vw); aspect-ratio: 4 / 5; max-width: 100%; border-radius: 22px; border: 4px solid var(--gold); overflow: hidden;
@@ -301,14 +312,20 @@
       radial-gradient(circle at 50% 38%, var(--c) 0 50%, color-mix(in srgb, var(--c) 55%, #000) 100%); }
   /* A special capsule's sign (bomb -1, skull, +2) */
   .cap.sign::before { content: attr(data-sign); top: 0; height: auto; display: grid; place-items: center; background: none; color: var(--fg);
-    font: 700 15px/1 Kalam, sans-serif; z-index: 1; transform: rotate(18deg); }
+    font: 700 15px/1 "Baloo 2", sans-serif; z-index: 1; transform: rotate(18deg); }
   #galBtn.new::after, #charBtn.new::after { content: ''; position: absolute; top: -5px; right: -5px; width: 12px; height: 12px; border-radius: 50%; background: var(--pink); border: 2px solid var(--ink); }
-  .stars { font-size: 44px; color: var(--gold); letter-spacing: 2px; }
-  .stars i { font-style: normal; opacity: .25; }
-  .stars.sm { font-size: 22px; letter-spacing: 0; }
+  .stars { display: inline-flex; gap: 4px; font-size: 44px; }
+  .stars img { display: block; width: 1em; height: 1em; }
+  .stars i { display: contents; }
+  .stars i img { filter: grayscale(1) brightness(1.5); opacity: .35; }
+  .istar { display: inline-block; width: 1.05em; height: 1.05em; vertical-align: -.18em; }
+  #lvlBtn img { width: 28px; height: 28px; }
+  .stars.sm { font-size: 22px; gap: 2px; }
+  /* (in the levels list on a dark see-through label with round ends, like the levels banner's) */
+  .lvl .stars.sm { font-size: 24px; padding: 5px 9px; border-radius: 999px; background: rgba(0, 0, 0, .45); }
   .card small { font-size: 17px; opacity: .8; }
   .lvl .tags { display: flex; flex-wrap: wrap; gap: 4px 6px; width: 100%; font-size: 15px; }
-  .lvl .tag { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 8px; background: rgba(255, 255, 255, .1); }
+  .lvl .tag { display: inline-flex; align-items: center; gap: 3px; padding: 1px 9px; border-radius: 10px; background: #cfcbf4; color: #2a2460; }
   .lvl .tag .cap.mini { width: 18px; height: 18px; }
   .lvl .tag.boss { background: var(--pink); }
   .lvl.daily { border-color: #4cc9f0; }
@@ -337,15 +354,19 @@
      is done (a star), open to play, or still locked */
   #lvlList { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 640px; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: none; padding: 2px 2px 12px; margin-bottom: 12px; }
   #lvlList > * { flex: none; }
-  .lvl { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--panel); border: 4px solid var(--pink-dark); border-radius: 18px;
-    font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
-  .lvl.cur { border-color: var(--gold); }
+  /* (light lavender cards with a pink number and a yellow play button, from the user's reference,
+     October 2026: colours and sizes only; they were dark with pink discs and dark red borders) */
+  .lvl { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #e1dffc; border: 3px solid #cccafe; border-radius: 18px;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, .35); font: inherit; color: #1f1a4a; text-align: left; cursor: pointer; }
+  .lvl.cur { border-color: #fff; }   /* (white, as the user tried; it was gold) */
   .lvl.locked { opacity: .45; cursor: default; }
-  .lvl .n { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 26px; background: var(--pink); color: var(--ink); }
+  .lvl .n { flex: none; width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; font-size: 32px; background: #f0407a; color: #fff;
+    box-shadow: inset 0 -4px 0 rgba(0, 0, 0, .15), 0 2px 0 rgba(0, 0, 0, .15); }
+  .lvl .play { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 50%; padding-left: 5px; font-size: 26px; font-style: normal; color: #2a1a5e;
+    background: linear-gradient(#ffe36e, #f6c837); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .12), 0 3px 0 #c9962a; }
   .lvl .goal { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 22px; }
   .lvl .goal span { display: flex; align-items: center; gap: 4px; }
-  .lvl .coins { display: block; width: 100%; font-size: 16px; opacity: .75; }
-  .lvl .st { flex: none; font-size: 28px; color: var(--gold); }
+  .lvl .st { flex: none; font-size: 28px; color: #f0a500; }
   .card .row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
   .card button.alt { background: linear-gradient(#6c3fdc, #4b26b0); color: #fff; border-color: #f4c63a; box-shadow: 0 5px 0 #b98a14; text-shadow: 0 2px 0 rgba(0, 0, 0, .25); }
   .card button.alt:active { box-shadow: 0 1px 0 #b98a14; }
@@ -432,7 +453,7 @@
   <button id="bd">BAJAR</button>
 </div>
 <button id="gear" aria-label="Ajustes">⚙</button>
-<button id="lvlBtn" aria-label="Mundos y niveles">★</button>
+<button id="lvlBtn" aria-label="Mundos y niveles"><img src="assets/ui/star.png" alt=""></button>
 <button id="galBtn" aria-label="Cápsulas"><div class="cap"></div></button>
 <button id="charBtn" aria-label="Colección de personajes"><img src="assets/chars/animales/00.png" alt=""></button>
 <div id="toast"></div>
@@ -448,13 +469,13 @@
   <h2>Colección</h2>
   <div id="charShelf" class="pages"></div>
   <div class="nav"><button id="charPrev" aria-label="Mundo anterior">‹</button><span id="charDots" class="dots"></span><button id="charNext" aria-label="Mundo siguiente">›</button></div>
-  <div class="backs"><button id="charToGal" class="back alt">Cápsulas</button><button id="charToLvl" class="back alt">★ Mundos</button><button id="charBack" class="back">Volver a la máquina</button></div>
+  <div class="backs"><button id="charToGal" class="back alt">Cápsulas</button><button id="charToLvl" class="back alt"><img class="istar" src="assets/ui/star-plain.png" alt="★"> Mundos</button><button id="charBack" class="back">Volver a la máquina</button></div>
 </div>
 <div id="gallery" class="screen" hidden>
   <h2>Cápsulas</h2>
   <div id="shelf" class="pages"></div>
   <div class="nav"><button id="galPrev" aria-label="Mundo anterior">‹</button><span id="galDots" class="dots"></span><button id="galNext" aria-label="Mundo siguiente">›</button></div>
-  <div class="backs"><button id="galToChar" class="back alt">Colección</button><button id="galToLvl" class="back alt">★ Mundos</button><button id="galBack" class="back">Volver a la máquina</button></div>
+  <div class="backs"><button id="galToChar" class="back alt">Colección</button><button id="galToLvl" class="back alt"><img class="istar" src="assets/ui/star-plain.png" alt="★"> Mundos</button><button id="galBack" class="back">Volver a la máquina</button></div>
 </div>
 <div id="worlds" class="screen" hidden>
   <h2>Mundos</h2>
@@ -861,19 +882,19 @@ const boardTex = canvasTex(1024, Math.round(1024 * BOARD_H / BOARD_W), (g, w, h)
   g.textAlign = 'center'; g.textBaseline = 'middle';
   [['FICHAS', board.coins, .11], ['TIEMPO', board.time, .89]].forEach(([label, value, at]) => {
     const x = w * at;
-    g.fillStyle = '#b9a8e0'; g.font = '700 36px Kalam, cursive'; g.fillText(label, x, h * .2);
+    g.fillStyle = '#b9a8e0'; g.font = '700 40px "Baloo 2", sans-serif'; g.fillText(label, x, h * .2);
     // (the coins light up green when a streak or a +2 capsule wins some, red when a bomb takes one)
     g.fillStyle = label === 'TIEMPO' && board.low ? '#ff5d8f' : label === 'FICHAS' && board.flash ? board.flash : '#fff6e0';
-    g.font = '700 84px Kalam, cursive'; g.fillText(value, x, h * .5);
+    g.font = '700 94px "Baloo 2", sans-serif'; g.fillText(value, x, h * .5);
   });
-  g.fillStyle = '#b9a8e0'; g.font = '700 36px Kalam, cursive'; g.fillText(level < 0 ? 'DESAFÍO DEL DÍA' : `${WORLDS[lv.world].name.toUpperCase()} · NIVEL ${level % 5 + 1}`, w / 2, h * .2, w * .5);
+  g.fillStyle = '#b9a8e0'; g.font = '700 40px "Baloo 2", sans-serif'; g.fillText(level < 0 ? 'DESAFÍO DEL DÍA' : `NIVEL ${level % 5 + 1}`, w / 2, h * .2, w * .5);
   // The goal: a capsule of each kind asked for and "won/needed", shrunk to fit between coins and time.
   // A kind asked for once is just its capsule, ticked once won (with six kinds "0/1" got too small to read).
   // An ordered goal has arrows between its parts, and the ones still to come are dimmed.
   const goal = lv.goal, now = lv.order && goalNow(), rows = goal.map(gl => ({ gl, text: gl.n === 1 ? '' : `${gl.n - goalLeft(gl)}/${gl.n}` }));
-  let size = 72, width;
+  let size = 80, width;
   const gap = () => size * (lv.order ? .8 : .45);
-  const measure = () => { g.font = `700 ${size}px Kalam, cursive`; return rows.reduce((s, r) => s + size * .9 + g.measureText(r.text).width, 0) + (rows.length - 1) * gap(); };
+  const measure = () => { g.font = `700 ${size}px "Baloo 2", sans-serif`; return rows.reduce((s, r) => s + size * .9 + g.measureText(r.text).width, 0) + (rows.length - 1) * gap(); };
   while ((width = measure()) > w * .58 && size > 30) size -= 4;
   let x = w / 2 - width / 2;
   g.textAlign = 'left';
@@ -909,9 +930,9 @@ const boardTex = canvasTex(1024, Math.round(1024 * BOARD_H / BOARD_W), (g, w, h)
     x += gap();
   }
   g.textAlign = 'center';
-  // (the hint, the longest and smallest text, is in Kalam's regular weight, the rest bold: the user found it
+  // (the hint, the longest and smallest text, is in the regular weight, the rest bold: the user found it
   // heavy, October 2026)
-  if (board.hint) { g.fillStyle = '#ffd23f'; g.font = '400 44px Kalam, cursive'; g.fillText(board.hint, w / 2, h * .8, w - 60); }
+  if (board.hint) { g.fillStyle = '#ffd23f'; g.font = '400 40px "Baloo 2", sans-serif'; g.fillText(board.hint, w / 2, h * .8, w - 60); }
 });
 const boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(BOARD_W, BOARD_H), new THREE.MeshBasicMaterial({ map: boardTex, transparent: true }));
 boardMesh.position.set(0, BOARD_TOP - BOARD_H / 2, BOX.z + POST + .01); scene.add(boardMesh);
@@ -999,11 +1020,11 @@ const MARQUEE_H = .8 * MARQUEE_W / CAB_X, MARQUEE_Y = 4.6 + MARQUEE_H / 2;
 const marqueeTex = canvasTex(1024, Math.round(1024 * MARQUEE_H / MARQUEE_W), (g, w, h) => {
   if (skin) return skin.marquee(g, w, h);
   g.fillStyle = '#3a1f6b'; g.fillRect(0, 0, w, h);
-  g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .56)}px Kalam, cursive`;
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .56)}px "Baloo 2", sans-serif`;
   g.lineWidth = 10; g.strokeStyle = '#8a1f48'; g.strokeText('CLAW MACHINE', w / 2, h / 2 + 5);
   g.fillStyle = '#ffd23f'; g.fillText('CLAW MACHINE', w / 2, h / 2 + 5);
 });
-Promise.all([document.fonts.load('700 120px Kalam'), document.fonts.load('400 44px Kalam')]).then(() => { marqueeTex.repaint(); boardTex.repaint(); }).catch(() => {});
+Promise.all([document.fonts.load('700 120px "Baloo 2"'), document.fonts.load('400 44px "Baloo 2"')]).then(() => { marqueeTex.repaint(); boardTex.repaint(); }).catch(() => {});
 const MARQUEE_MAT = new THREE.MeshBasicMaterial({ map: marqueeTex });
 box(MARQUEE_W, MARQUEE_H, .3, [PINK, PINK, PINK, PINK, MARQUEE_MAT, PINK], 0, MARQUEE_Y, BOX.z + POST - .145);   // (its front a hair in front of the roof's and the uprights')
 const bulbs = [];
@@ -1176,7 +1197,7 @@ const SKINS = {
       for (const [x, y, r] of [[.25, .42, .07], [.75, .42, .07], [.04, .6, .05], [.96, .6, .05]]) drawSnowflake(g, w * x, h * y, h * r, '#ffffff');
       for (const [x, f] of [[.2, 1], [.8, -1]]) drawHolly(g, w * x, h * .74, h * .16, f);
       for (const x of [.1, .9]) drawBow(g, w * x, h * .45, h * .34);
-      g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .42)}px Kalam, cursive`;
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .42)}px "Baloo 2", sans-serif`;
       g.lineWidth = 12; g.strokeStyle = '#8a0f17'; g.strokeText('CLAW MACHINE', w / 2, h / 2 + 6);
       const gt = g.createLinearGradient(0, h * .3, 0, h * .7); gt.addColorStop(0, '#fff36b'); gt.addColorStop(1, '#ffb01f');
       g.fillStyle = gt; g.fillText('CLAW MACHINE', w / 2, h / 2 + 6);
@@ -1212,7 +1233,7 @@ const SKINS = {
       for (const [x, y, r] of [[.27, .3, .05], [.73, .3, .05], [.04, .55, .04], [.96, .55, .04]]) drawStar(g, w * x, h * y, h * r, '#ffd23f');
       drawMonster(g, w * .13, h * .58, h * .24, '#ff4fb0', { horns: true });
       drawMonster(g, w * .87, h * .62, h * .22, '#3fa9ff', { eyes: 3 });
-      g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .42)}px Kalam, cursive`;
+      g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .42)}px "Baloo 2", sans-serif`;
       const a = 'CLAW ', b = 'MACHINE', wa = g.measureText(a).width, wb = g.measureText(b).width, x0 = w / 2 - (wa + wb) / 2, y = h / 2 + 4;
       g.textAlign = 'left'; g.lineWidth = 12; g.strokeStyle = '#1e0640';
       g.strokeText(a, x0, y); g.strokeText(b, x0 + wa, y);
@@ -1247,7 +1268,7 @@ const SKINS = {
       drawBigPaw(g, w * .175, h * .5, h * .26, '#ff8fb8', -.25);
       drawBigPaw(g, w * .825, h * .5, h * .26, '#b48cff', .25);
       // "CLAW" in yellow and orange, "MACHINE" in pink and white, with a dark outline
-      g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .44)}px Kalam, cursive`;
+      g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .44)}px "Baloo 2", sans-serif`;
       const a = 'CLAW ', b = 'MACHINE', wa = g.measureText(a).width, wb = g.measureText(b).width, x0 = w / 2 - (wa + wb) / 2, y = h / 2 + 5;
       g.textAlign = 'left'; g.lineWidth = 12; g.strokeStyle = '#2a1460';
       g.strokeText(a, x0, y); g.strokeText(b, x0 + wa, y);
@@ -1287,7 +1308,7 @@ const SKINS = {
       drawWeb(g, w, sq, h * .55, Math.PI / 2, 'rgba(210, 180, 255, .55)', 2);
       for (const [x, y, r] of [[.05, .76, .06], [.95, .74, .06], [.2, .3, .045], [.8, .32, .045], [.23, .74, .035], [.77, .72, .035]]) drawStar(g, w * x, h * y, h * r, '#ffd23f');
       for (const x of [.13, .87]) drawPumpkin(g, w * x, h * .54, h * .24);
-      g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .44)}px Kalam, cursive`;
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .44)}px "Baloo 2", sans-serif`;
       g.lineWidth = 12; g.strokeStyle = '#3a0f2a'; g.strokeText('CLAW MACHINE', w / 2, h / 2 + 5);
       g.fillStyle = '#ffd23f'; g.fillText('CLAW MACHINE', w / 2, h / 2 + 5);
     },
@@ -1305,7 +1326,7 @@ const LIGHTS = {
   halloween: [0xff9a1f, 0xa24bff, 0x7dff5a, 0xffd23f],
   navidad: [0xff3b3b, 0x4cff6a, 0xffd23f, 0xfff6e0],
 };
-const LIGHT_OFF = new THREE.Color(0x3a3046);
+const LIGHT_OFF = BULB_OFF.color.clone();   // (off they look like the marquee's unlit bulbs, always in view: the user asked)
 const lanterns = [];
 for (const sx of [-1, 1]) for (let i = 0; i < 6; i++) {
   const m = box(.06, .1, .06, new THREE.MeshBasicMaterial({ color: LIGHT_OFF }), sx * (BOX.x - .02), .7 + i * .7, BOX.z + .02);
@@ -1645,7 +1666,7 @@ function shellMat(kind) {
     g.fillStyle = css; g.fillRect(0, 0, w, h);
     if (design === 'sign') {
       // (the traps' signs are emoji, on a disc so they stand out from the dark shell)
-      g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '700 76px Kalam, "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '700 76px "Baloo 2", "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
       for (let i = 0; i < 4; i++) {
         const x = w * (i + .5) / 4, y = h * .52;
         if (sp.disc) { g.fillStyle = sp.disc; g.beginPath(); g.arc(x, y, 50, 0, 7); g.fill(); }
@@ -2371,21 +2392,27 @@ function win(p) {
 // The metagame: a world capsule won counts in the gallery and towards its colour's card (meta.prog).
 // Every CHAR_EVERY of them complete the card once; the player opens it in the gallery, by tapping it
 // (openCard), and gets a character of its rarity. The user asked for that (October 2026); at first the
-// character came on its own. A card just completed is announced at once (cardToast) and on the level's
-// card (newCards), and the gallery's button gets a dot.
+// character came on its own. Every world capsule won is announced at once with how far along its card
+// is (ballToast); a card just completed is also counted on the level's card (newCards), and the
+// gallery's button gets a dot.
 function winBall(kind) {
   const w = WORLDS[lv.world].id, k = `${w}:${kind.slice(1)}`;
   meta.balls[k] = (meta.balls[k] || 0) + 1;
   meta.prog[k] = (meta.prog[k] || 0) + 1;
-  if (meta.prog[k] % CHAR_EVERY === 0) { newCards++; cardToast(kind); $('galBtn').classList.add('new'); }
+  const done = meta.prog[k] % CHAR_EVERY === 0;
+  if (done) { newCards++; $('galBtn').classList.add('new'); }
+  ballToast(kind, done ? CHAR_EVERY : meta.prog[k] % CHAR_EVERY, done);
   try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (e) {}
 }
-// A card just completed: a moment at the top of the screen with its capsule
-function cardToast(kind) {
+// A capsule just won: a moment at the top of the screen with it, its rarity and name, and on the other
+// side a bar to its card being complete (n of CHAR_EVERY, like the gallery's), pink once it is, as the
+// user asked (October 2026; at first it only came when a card was completed)
+function ballToast(kind, n, done) {
   const t = $('toast'), k = KIND[kind], c = capOf(kind);
-  t.innerHTML = `<span class="cap ${c.cls}" style="${c.style}"></span><span><small style="color:${TIERS[k.tier].css}">¡Cápsula completa! · ${TIERS[k.tier].name}</small>Abrila en Cápsulas</span>`;
+  t.innerHTML = `<span class="cap ${c.cls}" style="${c.style}"></span><span class="tt"><small style="color:${TIERS[k.tier].css}">Cápsula ${TIERS[k.tier].name}</small>${k.name}</span>` +
+    `<span class="tbar${done ? ' done' : ''}"><i style="width:${n / CHAR_EVERY * 100}%"></i><b>${n}/${CHAR_EVERY}</b></span>`;
   t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
-  sfx('prize');
+  if (done) sfx('prize');
 }
 // Opening a complete card (world w, capsule index b): a character of its rarity at random (they can
 // repeat: the collection counts them); the rainbow card gives one of any rarity, by the rarities'
@@ -2562,7 +2589,7 @@ function levelCard(cleared) {
   if (cleared) {
     const st = starsFor(coins), last = level === LEVELS.length - 1;
     let html = starsHtml(st) + '<br>' + (coins ? `Te sobraron ${coins} ficha${coins === 1 ? '' : 's'}` : '¡Justo con la última ficha!');
-    if (st < 3) html += `<br><small>3 ★ con ${lv.stars[1]} fichas de sobra</small>`;
+    if (st < 3) html += `<br><small>3 ${ISTAR} con ${lv.stars[1]} fichas de sobra</small>`;
     if (level < 0) html += `<br>Racha: ${dailyDone(st)} día${daily.streak === 1 ? '' : 's'} seguidos`;
     else {
       bestStars[level] = Math.max(bestStars[level] || 0, st);
@@ -2596,8 +2623,10 @@ function showIntro(w) {
 // The cards completed during the level, for its card, with a button to go and open them
 const cardsHtml = () => newCards ? `<span class="won">¡Completaste ${newCards} cápsula${newCards === 1 ? '' : 's'}!<button class="alt" data-go="caps">Abrilas en Cápsulas</button></span>` : '';
 $('ovStats').addEventListener('click', e => { if (e.target.closest('[data-go=caps]')) openGallery(); });
-// Stars as ★★☆ (the ones not won dimmed)
-const starsHtml = (n, cls = 'stars') => `<span class="${cls}">${'★'.repeat(n)}<i>${'★'.repeat(3 - n)}</i></span>`;
+// Stars won as the user's star pictures (the one with an outline; the ones not won greyed out), and a
+// plain one (no outline) to go inline with text (October 2026; they were ★ characters)
+const STAR = '<img src="assets/ui/star.png" alt="★">', ISTAR = '<img class="istar" src="assets/ui/star-plain.png" alt="★">';
+const starsHtml = (n, cls = 'stars') => `<span class="${cls}">${STAR.repeat(n)}<i>${STAR.repeat(3 - n)}</i></span>`;
 
 // A little CSS capsule of a kind, with its rarity's finish ('any' is all the colours; a special one
 // shows its sign); capOf gives the classes and style for any size
@@ -2852,7 +2881,10 @@ const goalHtml = l => {
 // The worlds screen, the levels screen, the gallery and the collection all use them, so they read as
 // one game; a world not open yet is greyed out.
 const coverSrc = w => `assets/covers/${WORLDS[w].id}.png`;
-const banner = (w, title, right = '') => `<div class="banner${worldOpen(w) ? '' : ' locked'}" style="background-image:url(${coverSrc(w)})"><h3>${title}</h3>${right}</div>`;
+// (the banners of the gallery, the collection and the levels screen show the world's back wall picture,
+// as the user asked, October 2026: they showed its cover, whose characters got cut off)
+const backSrc = w => `assets/backs/${WORLDS[w].id}.png`;
+const banner = (w, title, right = '') => `<div class="banner${worldOpen(w) ? '' : ' locked'}" style="background-image:url(${backSrc(w)})"><h3>${title}</h3>${right}</div>`;
 // How far along a world is: levels cleared, stars, characters
 function worldStats(w) {
   const lvls = [0, 1, 2, 3, 4].map(i => w * 5 + i);
@@ -2872,7 +2904,7 @@ function openWorlds(at = worldNow()) {
   worldCar.fill(WORLDS.map((wd, w) => {
     const st = worldStats(w), open = worldOpen(w);
     return `<section class="season wpage"><div class="cover${open ? '' : ' locked'}" style="background-image:url(${coverSrc(w)})"><div class="winfo">` +
-      `<h3>${wd.name}</h3><p>Niveles ${st.done}/5 · ★ ${st.stars}/15 · Personajes ${st.chars}/20</p>` +
+      `<h3>${wd.name}</h3><p>Niveles ${st.done}/5 · ${ISTAR} ${st.stars}/15 · Personajes ${st.chars}/20</p>` +
       (open ? '' : `<p class="lock">🔒 Superá al jefe de ${WORLDS[w - 1].name}</p>`) + '</div>' +
       (open ? `<div class="wplay"><button class="play" data-w="${w}">Jugar</button></div>` : '') + '</div></section>';
   }).join(''), at);
@@ -2887,14 +2919,14 @@ $('dailyBar').addEventListener('click', () => { closeScreens(); startDaily(); })
 function openLevels(w = worldNow()) {
   showScreen('levels');
   const st = worldStats(w);
-  $('lvlBanner').style.backgroundImage = `url(${coverSrc(w)})`;
+  $('lvlBanner').style.backgroundImage = `url(${backSrc(w)})`;
   $('lvlTitle').textContent = WORLDS[w].name;
-  $('lvlSub').innerHTML = `Niveles ${st.done}/5 · ★ ${st.stars}/15`;
+  $('lvlSub').innerHTML = `Niveles ${st.done}/5&nbsp;&nbsp;·&nbsp;&nbsp;${ISTAR} ${st.stars}/15`;
   $('lvlList').innerHTML = [0, 1, 2, 3, 4].map(k => {
     const i = w * 5 + k, l = LEVELS[i], locked = !levelOpen(i), boss = k === 4;
-    const st = bestStars[i] ? starsHtml(bestStars[i], 'stars sm') : locked ? '🔒' : '▶';
+    const st = bestStars[i] ? starsHtml(bestStars[i], 'stars sm') : locked ? '🔒' : '<i class="play">▶</i>';
     return `<button class="lvl${i === level ? ' cur' : ''}${locked ? ' locked' : ''}${boss ? ' boss' : ''}" data-i="${i}"${locked ? ' disabled' : ''}>` +
-      `<span class="n">${boss ? '👑' : k + 1}</span><span class="goal">${boss ? '<b>Jefe · nivel 5</b>' : ''}${goalHtml(l)}<span class="coins">${l.coins} fichas</span>${levelTags(l)}</span><span class="st">${st}</span></button>`;
+      `<span class="n">${boss ? '👑' : k + 1}</span><span class="goal">${boss ? '<b>Jefe Final</b>' : ''}${goalHtml(l)}${levelTags(l)}</span><span class="st">${st}</span></button>`;
   }).join('');
 }
 $('lvlList').addEventListener('click', e => {
@@ -3149,7 +3181,7 @@ function draw(now) {
 }
 
 // Handle for poking at the game from the console
-window.game = { get state() { return state; }, get paused() { return paused; }, set paused(v) { paused = v; }, get claw() { return claw; }, get prizes() { return prizes; }, get score() { return score; }, get level() { return level; }, get got() { return got; }, get meta() { return meta; }, lightShow, lanterns, startLevel, startDaily, showIntro, startRound, startDrop, segments, cable,
+window.game = { get state() { return state; }, get paused() { return paused; }, set paused(v) { paused = v; }, get claw() { return claw; }, get prizes() { return prizes; }, get score() { return score; }, get level() { return level; }, get got() { return got; }, get meta() { return meta; }, lightShow, lanterns, ballToast, startLevel, startDaily, showIntro, startRound, startDrop, segments, cable,
   // Run n simulation steps right now, without waiting for frames (fast, repeatable tests)
   step(n = 1) { for (let i = 0; i < n; i++) { update(STEP); physics(STEP, false); } },
   // Draw the current state right now (the browser pane may not be asking for frames)
