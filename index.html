@@ -119,14 +119,17 @@
   #toast img { width: 56px; height: 56px; }
   #toast small { display: block; font-size: 14px; }
   /* A world's cover as a banner: a strip of it with a title over its darkened lower part */
-  .banner { position: relative; flex: none; display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; height: 104px; margin: 0 0 12px; padding: 10px 14px;
-    border-radius: 16px; border: 3px solid var(--gold); background: #000 center 38% / cover no-repeat; overflow: hidden; }
-  .banner::before { content: ''; position: absolute; inset: 0; background: linear-gradient(transparent 30%, rgba(0, 0, 0, .78)); }
+  /* (the gallery's and collection's world banners are a thin strip, as the user asked, October 2026: they
+     were 104 px high, with the text at the bottom over a dark fade) */
+  .banner { position: relative; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 60px; margin: 0 0 12px; padding: 4px 14px;
+    border-radius: 14px; border: 3px solid var(--gold); background: #000 center 40% / cover no-repeat; overflow: hidden; }
+  .banner::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0, 0, 0, .72), rgba(0, 0, 0, .2) 70%, rgba(0, 0, 0, .45)); }
   .banner > * { position: relative; margin: 0; color: var(--gold); text-shadow: 0 2px 4px #000; }
-  .banner h3, .banner h2 { display: block; margin: 0; font-size: 24px; }
-  .banner span { font-size: 22px; }
+  .banner h3, .banner h2 { display: block; margin: 0; font-size: 22px; }
+  .banner span { font-size: 20px; }
   .banner.locked { filter: grayscale(1) brightness(.6); }
-  #lvlBanner { width: 100%; max-width: 640px; height: 150px; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; text-align: center; }
+  #lvlBanner { width: 100%; max-width: 640px; height: 150px; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; padding: 10px 14px; border-radius: 16px; text-align: center; }
+  #lvlBanner::before { background: linear-gradient(transparent 30%, rgba(0, 0, 0, .78)); }
   #lvlBanner h2 { font-size: 30px; }
   #lvlBanner span { font-size: 18px; color: var(--ink); }
   /* The worlds screen: a page per world with its cover, and the daily challenge as a strip above */
