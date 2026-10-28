@@ -1764,8 +1764,12 @@ const dot = (u, v) => u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
 function solveContacts(cs, dt) {
   for (const c of cs) {
     const vn = dot(relVel(c), c.n);
-    // Across a gap the bodies may still approach, just not past touching (no tunnelling, no fake bumps)
-    c.target = c.pen < 0 ? c.pen / dt : (vn < -BOUNCE_MIN ? -BOUNCE[c.kind] * vn : 0);
+    // Across a gap the bodies may still approach, just not past touching (no tunnelling, no fake bumps).
+    // An impact that closes the gap within this step bounces now: braking it to just touching first, as
+    // before, left it too slow to bounce next step, so a hop died dead about one time in four, and most
+    // small hops did (the user felt the bounces stop short, October 2026).
+    const hits = vn < -BOUNCE_MIN && vn * dt <= c.pen;
+    c.target = hits ? -BOUNCE[c.kind] * vn : c.pen < 0 ? c.pen / dt : 0;
   }
   for (let it = 0; it < SOLVER_ITERS; it++) for (const c of cs) {
     const a = c.a, b = c.b, n = c.n, imb = b ? imOf(b, c) : 0;
