@@ -944,21 +944,21 @@ back.position.set(0, 2.3, -BOX.z); back.receiveShadow = true; scene.add(back);
 // the picture were further back. It is looks only; the capsules and the claw move as before. (The
 // camera never turns, so nothing gives the trick away.)
 back.renderOrder = 1; back.material.depthWrite = false;
-// The back wall shows the world's cover, darkened a little (the material's colour multiplies it) so
-// the capsules still stand out against it; the dotted wall stays until the cover has loaded. The cover
-// (4:5) is cropped top and bottom to the wall's shape. The user approved it (October 2026), so that
-// each world looks its own while playing.
-const coverTexs = [], texLoader = new THREE.TextureLoader();
+// The back wall shows the world's own background (assets/backs/<world>.png, 4:5, the user's: it was the
+// world's cover until they drew these, October 2026), darkened a little (the material's colour
+// multiplies it) so the capsules still stand out against it; the dotted wall stays until it has loaded.
+// It is cropped top and bottom to the wall's shape.
+const BACK_TINT = 0xb0b0b0, coverTexs = [], texLoader = new THREE.TextureLoader();
 function setBackWall(w) {
   if (!coverTexs[w]) {
-    coverTexs[w] = texLoader.load(coverSrc(w), t => { if (lv.world === w) setBackWall(w); });
+    coverTexs[w] = texLoader.load(`assets/backs/${WORLDS[w].id}.png`, t => { if (lv.world === w) setBackWall(w); });
     coverTexs[w].colorSpace = THREE.SRGBColorSpace;
-    const keep = .8 / (BOX.x * 2 / 4.6);   // the cover's width/height over the wall's: the share of its height shown
+    const keep = .8 / (BOX.x * 2 / 4.6);   // the picture's width/height over the wall's: the share of its height shown
     coverTexs[w].repeat.set(1, keep); coverTexs[w].offset.set(0, (1 - keep) / 2);
   }
   const t = coverTexs[w], ready = !!t.image;
   back.material.map = ready ? t : backTex;
-  back.material.color.set(ready ? 0x8a8a8a : 0xffffff);
+  back.material.color.set(ready ? BACK_TINT : 0xffffff);
   back.material.needsUpdate = true;
 }
 const GLASS = new THREE.MeshStandardMaterial({ color: 0xbfe6ff, transparent: true, opacity: .07, roughness: 0, depthWrite: false });
@@ -1154,7 +1154,8 @@ const SKINS = {
   // snow on top, red bows, holly and snowflakes (its bulbs stay), a red
   // floor, and a green scoreboard
   navidad: {
-    body: 0xd9202c, bulbs: true, floor: '#c8222e',
+    // (the body and floor colours follow its marquee and pillar pictures: the user asked, October 2026)
+    body: 0xe81222, bulbs: true, floor: '#c8222e',
     pillar(g, w, h) {
       candyStripes(g, 0, 0, w, h, w * .55);
       for (let y = 380; y < h - 160; y += 420) {
@@ -1186,7 +1187,7 @@ const SKINS = {
   // purple pillars dripping lime slime with stars and little monsters peeking out, a dark purple
   // marquee slimed top and bottom with a monster each side, and a dark purple scoreboard
   monstruos: {
-    body: 0xff3fa4,
+    body: 0xf52aa6, floor: '#4b1fa8',   // (the pink and the purple of its pillar pictures)
     pillar(g, w, h) {
       g.fillStyle = '#5a1fa0'; g.fillRect(0, 0, w, h);
       g.fillStyle = 'rgba(160, 90, 255, .5)';
@@ -1225,7 +1226,7 @@ const SKINS = {
   // pillars with yellow diagonal stripes, paw prints and stars, a blue marquee with big paws and
   // stars (its bulbs stay, round it), and a blue scoreboard
   animales: {
-    body: 0xffbf1f, bulbs: true,
+    body: 0xffcc12, bulbs: true, floor: '#2a62d0',   // (its marquee's yellow frame, and a blue floor)
     pillar(g, w, h) {
       g.fillStyle = '#2f6fe0'; g.fillRect(0, 0, w, h);
       g.fillStyle = '#ffc928';
@@ -1257,7 +1258,7 @@ const SKINS = {
     boardBg: '#1d2f8f',
   },
   halloween: {
-    body: 0xff7a1a,
+    body: 0xff8a0c, floor: '#4b23a3',   // (its marquee's orange frame, and its deep purple)
     // The front pillars: orange with lighter polka dots, bats and stars going up, a web near the
     // bottom, and purple slime dripping from the top
     pillar(g, w, h) {
