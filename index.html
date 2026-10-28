@@ -70,7 +70,9 @@
     background: #000; display: flex; flex-direction: column; align-items: center; }   /* (black, as the user asked) */
   .screen > * { flex: none; }
   /* (the title sits close to the top, to leave the page more room, as the user asked, October 2026) */
-  .screen h2 { margin: 0 0 8px; font-size: 38px; line-height: 1.1; color: var(--gold); text-shadow: 0 3px 0 var(--pink-dark); }
+  /* (the screens' titles and the banners' text are white, as the user tried, October 2026; they were
+     gold, which the covers' world names on the worlds screen keep) */
+  .screen h2 { margin: 0 0 8px; font-size: 38px; line-height: 1.1; color: #fff; text-shadow: 0 3px 0 var(--pink-dark); }
   .screen .sub { margin: 0 0 18px; font-size: 20px; opacity: .85; text-align: center; }
   /* The gallery's and the exhibitor's worlds side by side, one whole world at a time: swipe (dragged
      with the mouse on a computer) or the arrows to the next. The user asked for it (October 2026); the
@@ -119,7 +121,9 @@
      (October 2026); before, it was a dark grey shelf with the characters standing on its board. Each
      rarity has its colours: the panel (--bg), its frame and tab (--rim), the tiles (--tile). */
   .rack { --bg: #f1e3c6; --rim: #8a5a36; --tile: #e4d0a8; --ink2: #4a2c14;
-    position: relative; margin: 22px 2px 16px; padding: 26px 8px 10px; border: 4px solid var(--rim); border-radius: 18px;
+    /* (at most 560 wide, like the gallery's shelf: on a computer's wider page the tiles grew, and the
+       characters, 150% of a tile, with them, until they overlapped; the user noticed, October 2026) */
+    position: relative; max-width: 560px; margin: 22px auto 16px; padding: 26px 8px 10px; border: 4px solid var(--rim); border-radius: 18px;
     background: var(--bg); box-shadow: inset 0 0 0 3px rgba(255, 255, 255, .45), 0 6px 0 rgba(0, 0, 0, .35); }
   .rack.t1 { --bg: #d6f2d8; --rim: #3f8f57; --tile: #b9e3c0; --ink2: #1d4a2a; }
   .rack.t2 { --bg: #cfe8f6; --rim: #3a76a6; --tile: #afd3ea; --ink2: #173a5a; }
@@ -170,14 +174,14 @@
   /* (the gallery's and collection's world banners are a thin strip, as the user asked, October 2026: they
      were 104 px high, with the text at the bottom over a dark fade, then 60) */
   .banner { position: relative; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 46px; margin: 0 0 10px; padding: 2px 12px;
-    border-radius: 14px; border: 3px solid var(--gold); background: #000 center 40% / cover no-repeat; overflow: hidden; }
+    border-radius: 14px; border: 3px solid #fff; background: #000 center 40% / cover no-repeat; overflow: hidden; }
   .banner::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0, 0, 0, .72), rgba(0, 0, 0, .2) 70%, rgba(0, 0, 0, .45)); }
-  .banner > * { position: relative; margin: 0; color: var(--gold); text-shadow: 0 2px 4px #000; }
-  .banner h3, .banner h2 { display: block; margin: 0; font-size: 20px; }
+  .banner > * { position: relative; margin: 0; color: #fff; text-shadow: 0 2px 4px #000; }
+  .banner h3, .banner h2 { display: block; margin: 0; font-size: 20px; color: #fff; }
   .banner span { font-size: 18px; }
   .banner.locked { filter: grayscale(1) brightness(.6); }
   /* (twice as high as the other screens' banners, as the user asked, October 2026; it was 150) */
-  #lvlBanner { width: 100%; max-width: 640px; height: 92px; border-color: #6d3bf9; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 8px 14px; border-radius: 16px; text-align: center; }
+  #lvlBanner { width: 100%; max-width: 640px; height: 92px; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 8px 14px; border-radius: 16px; text-align: center; }
   /* (the fade comes down from the top, and the levels and stars sit on a dark see-through label with
      round ends, like the characters' name plates: the user asked, October 2026) */
   #lvlBanner::before { background: linear-gradient(rgba(0, 0, 0, .72), transparent 80%); }
@@ -191,7 +195,7 @@
   .wpage { display: flex; justify-content: center; padding: 0 22px 8px; }
   /* (on a computer the covers leave room at the sides, so the fade there is much wider) */
   @media (min-width: 760px) { #worldShelf { --fade: 160px; } }
-  .cover { position: relative; height: 100%; max-width: 100%; aspect-ratio: 4 / 5; border-radius: 22px; border: 4px solid var(--gold); overflow: hidden;
+  .cover { position: relative; height: 100%; max-width: 100%; aspect-ratio: 4 / 5; border-radius: 22px; border: 4px solid #fff; overflow: hidden;
     background: #000 center / cover no-repeat; box-shadow: 0 8px 24px rgba(0, 0, 0, .6); }
   .cover.locked { filter: grayscale(1) brightness(.55); border-color: #666; }
   /* (a dark fade at the top, under the world's name and progress, so they read on any art) */
@@ -204,8 +208,9 @@
   .winfo p { margin: 2px 0 0; font-size: clamp(13px, 3.9vw, 17px); text-shadow: 0 1px 0 #000, 0 0 5px #000, 0 0 10px #000; }
   .winfo .lock { font-size: 20px; }
   .wplay { position: absolute; left: 0; right: 0; bottom: 16px; text-align: center; }
-  .wplay .play { font: inherit; font-size: 24px; color: #3a1f00; background: var(--gold); border: 4px solid #a8740a; border-radius: 16px; padding: 1px 44px;
-    cursor: pointer; box-shadow: 0 5px 0 #a8740a; }
+  /* (Jugar looks like the screens' main button, Volver a la máquina, as the user asked) */
+  .wplay .play { font: inherit; font-size: 24px; color: #3a2400; background: linear-gradient(#ffe36e, #f6c837); border: 4px solid #d9a21b; border-radius: 16px;
+    min-height: 50px; min-width: 60%; padding: 0 44px; cursor: pointer; box-shadow: 0 5px 0 #a8740a; }
   .wplay .play:active { transform: translateY(4px); box-shadow: 0 1px 0 #a8740a; }
   #dailyBar { display: none; flex: none; align-items: center; justify-content: space-between; gap: 10px; width: 100%; max-width: 600px; margin: 6px 0 12px; padding: 8px 14px;
     font: inherit; font-size: 18px; color: var(--ink); background: var(--panel); border: 3px solid #4cc9f0; border-radius: 14px; cursor: pointer; text-align: left; }
@@ -3067,7 +3072,9 @@ function openGallery(at = worldNow()) {
           : `<span class="bar"><i style="width:${part / CHAR_EVERY * 100}%"></i><b>${locked ? '?' : `${part}/${CHAR_EVERY}`}</b></span>`) + `</div>`;
     };
     const slots = worldKinds(w).map(slot).join('');
-    return `<section class="season${locked ? ' locked' : ''}">${banner(w, wd.name, locked ? '<span>🔒</span>' : '')}` +
+    // (the banner counts the capsules won at least once, of the world's nine, like the collection's count)
+    const have = worldKinds(w).filter(k => meta.balls[`${wd.id}:${k.key.slice(1)}`]).length;
+    return `<section class="season${locked ? ' locked' : ''}">${banner(w, wd.name, locked ? '<span>🔒</span>' : `<span>${have}/9</span>`)}` +
       (locked ? lockedNote(w) : '') + `<div class="shelf">${slots}</div></section>`;   // (the user dropped the hint line, October 2026)
   }).join(''), at);
 }
