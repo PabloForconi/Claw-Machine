@@ -940,8 +940,12 @@ function setSolids() {
 // Marquee with chasing bulbs: a thin strip on the roof (MARQUEE_H tall), so there is more room for the game
 // (it covers the roof's front too, from the top of the glass up: the user asked for the marquee to take
 // the whole front of the top, October 2026; it used to sit on the roof, 0.5 tall)
-const MARQUEE_H = .8, MARQUEE_Y = 4.6 + MARQUEE_H / 2;
-const marqueeTex = canvasTex(1024, Math.round(1024 * MARQUEE_H / CAB_X), (g, w, h) => {
+// It is as wide as the pillar pictures reach (COL_W, they stick out past the cabinet's sides), scaled up
+// from 0.8 tall over CAB_X with its shape kept, so it grows a little upwards; the user asked for it to
+// line up with them (October 2026). Looks only: nothing the claw uses changes.
+const COL_W = 4.6 * 100 / 2100, MARQUEE_W = 2 * (BOX.x + COL_W);
+const MARQUEE_H = .8 * MARQUEE_W / CAB_X, MARQUEE_Y = 4.6 + MARQUEE_H / 2;
+const marqueeTex = canvasTex(1024, Math.round(1024 * MARQUEE_H / MARQUEE_W), (g, w, h) => {
   if (skin) return skin.marquee(g, w, h);
   g.fillStyle = '#3a1f6b'; g.fillRect(0, 0, w, h);
   g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .56)}px Kalam, cursive`;
@@ -950,13 +954,13 @@ const marqueeTex = canvasTex(1024, Math.round(1024 * MARQUEE_H / CAB_X), (g, w, 
 });
 document.fonts.load('700 120px Kalam').then(() => { marqueeTex.repaint(); boardTex.repaint(); }).catch(() => {});
 const MARQUEE_MAT = new THREE.MeshBasicMaterial({ map: marqueeTex });
-box(CAB_X, MARQUEE_H, .3, [PINK, PINK, PINK, PINK, MARQUEE_MAT, PINK], 0, MARQUEE_Y, BOX.z + POST - .145);   // (its front a hair in front of the roof's and the uprights')
+box(MARQUEE_W, MARQUEE_H, .3, [PINK, PINK, PINK, PINK, MARQUEE_MAT, PINK], 0, MARQUEE_Y, BOX.z + POST - .145);   // (its front a hair in front of the roof's and the uprights')
 const bulbs = [];
 const BULB_ON = new THREE.MeshBasicMaterial({ color: 0xfff3b0 }), BULB_OFF = new THREE.MeshBasicMaterial({ color: 0x8a6a2a });
 const BULB_GEO = new THREE.BoxGeometry(.075, .075, .04);   // little square lights, like the rest of the machine
 for (let i = 0; i < 22; i++) for (const y of [MARQUEE_Y - MARQUEE_H / 2 + .02, MARQUEE_Y + MARQUEE_H / 2 - .02]) {
   const b = new THREE.Mesh(BULB_GEO, BULB_OFF);
-  b.position.set((CAB_X / 2 - .15) * (i / 10.5 - 1), y, BOX.z + POST + .02); scene.add(b); bulbs.push([b, i]);
+  b.position.set((MARQUEE_W / 2 - .15) * (i / 10.5 - 1), y, BOX.z + POST + .02); scene.add(b); bulbs.push([b, i]);
 }
 
 // ---------- Machine skins ----------
@@ -1299,6 +1303,28 @@ function setMarquee(w) {
   MARQUEE_MAT.map = img || marqueeTex; MARQUEE_MAT.needsUpdate = true;
   for (const [b] of bulbs) b.visible = !!img || !skin || !!skin.bulbs;
 }
+// A world's front pillars can be a picture too (assets/columns/<world>.jpg, 100 × 2100), as the user tried
+// (October 2026). It is wider than the pillar: its inner edge lines up with the pillar's inner edge and
+// the rest sticks out past the cabinet's side, the same on both sides (the right one is mirrored). It is
+// a plane just in front of the pillar, the pillar's full height; the pillar's inner face shows it too.
+// Until it loads (or with COLUMN_IMG off) the skin's drawn pillars stay.
+const COLUMN_IMG = true, columnImgs = {};   // (COL_W is with the marquee)
+const COLUMN_MAT = mat(0xffffff, { roughness: .4 });
+const columns = [-1, 1].map(sx => {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(COL_W, 4.6), COLUMN_MAT);
+  m.position.set(sx * (BOX.x + COL_W / 2), 2.3, BOX.z + POST + .004); m.scale.x = -sx; m.visible = false;
+  scene.add(m); return m;
+});
+function setColumns(w) {
+  const id = WORLDS[w].id;
+  if (COLUMN_IMG && !columnImgs[id]) {
+    columnImgs[id] = texLoader.load(`assets/columns/${id}.jpg`, () => { if (lv.world === w) setColumns(w); });
+    columnImgs[id].colorSpace = THREE.SRGBColorSpace;
+  }
+  const img = COLUMN_IMG && columnImgs[id].image ? columnImgs[id] : null;
+  for (const m of columns) m.visible = !!img;
+  if (img) { COLUMN_MAT.map = img; COLUMN_MAT.needsUpdate = true; PILLAR_FACE.map = img; PILLAR_FACE.color.set(0xffffff); PILLAR_FACE.needsUpdate = true; }
+}
 function setSkin(w) {
   skin = SKINS[WORLDS[w].skin] || null;
   PINK.color.set(skin ? skin.body : PINK_HEX);
@@ -1309,7 +1335,7 @@ function setSkin(w) {
   for (const m of lanterns) m.visible = !!skin?.lanterns;
   if (skin?.lantern) LANTERN.color.set(skin.lantern);
   marqueeTex.repaint(); boardTex.repaint(); floorTex.repaint();
-  setMarquee(w);
+  setMarquee(w); setColumns(w);
 }
 
 // Room floor
@@ -3029,7 +3055,7 @@ addEventListener('blur', () => { keys.l = keys.r = keys.u = keys.d = false; });
 // in that gap. The scoreboard is on the machine itself, so nothing takes room at the top. On wide
 // screens the controls sit in the bottom corners, beside the machine, so they take no height.
 const FIT_CORNERS = [];
-for (const x of [-1, 1]) for (const y of [-1.72, 5.45]) for (const z of [-1, 1]) FIT_CORNERS.push(new THREE.Vector3(x * (CAB_X / 2 + .05), y, z * (CAB_Z / 2 + .05)));
+for (const x of [-1, 1]) for (const y of [-1.72, MARQUEE_Y + MARQUEE_H / 2 + .03]) for (const z of [-1, 1]) FIT_CORNERS.push(new THREE.Vector3(x * (CAB_X / 2 + .05), y, z * (CAB_Z / 2 + .05)));
 function fit() {
   const w = innerWidth, h = innerHeight, wide = w / h > 1.2;
   document.body.classList.toggle('wide', wide);
