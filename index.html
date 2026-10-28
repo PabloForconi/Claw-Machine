@@ -708,11 +708,22 @@ function cookLevel(l, world) {
   return { ...l, world, goal: l.goal.map(([name, n]) => ({ key: key(name), n })), stars: l.stars || [Math.round(l.coins * .2), Math.round(l.coins * .4)],
     onTop, bury, kept: new Set([...onTop, bury].filter(k => k && !SPECIAL[k])) };
 }
+// The saved game's version: when it changes, every saved bit of the game (levels, stars, capsules,
+// characters, the daily run) is wiped once, so everyone starts again from the beginning; the settings
+// (sound, music, hand) are kept. Version 2 is the end of testing mode (October 2026): the user asked for
+// the game locked and empty again, with no capsules won and no characters.
+const SAVE_KEY = 'clawMachine.save', SAVE_VERSION = '2';
+try {
+  if (localStorage.getItem(SAVE_KEY) !== SAVE_VERSION) {
+    for (const k of ['levelsDone', 'stars', 'meta', 'daily']) localStorage.removeItem('clawMachine.' + k);
+    localStorage.setItem(SAVE_KEY, SAVE_VERSION);
+  }
+} catch (e) {}
 const LEVELS_KEY = 'clawMachine.levelsDone';   // how many levels have been cleared (they unlock in order)
 const STARS_KEY = 'clawMachine.stars';         // the most stars won on each level
-// For testing the user asked for the whole game unlocked (October 2026): every world and level is open.
-// Set UNLOCK_ALL to false to unlock them in order again.
-const UNLOCK_ALL = true;
+// For testing the user had the whole game unlocked for a while (October 2026); now worlds and levels
+// unlock in order again. UNLOCK_ALL true opens everything.
+const UNLOCK_ALL = false;
 const worldOpen = w => UNLOCK_ALL || levelsDone >= w * 5;   // a world opens with its first level
 const levelOpen = i => UNLOCK_ALL || i <= levelsDone;
 // Pedestals, as [x from, x to, height], all over the back half of the floor (STAND_Z): one in the
@@ -748,9 +759,9 @@ const FINGER_ANGLES = [-Math.PI / 2, -Math.PI / 2 + 2 * Math.PI / 3, -Math.PI / 
 // won ever (balls) and towards the next character (prog, 0–9), and how many of each character
 // (chars, world:index, 0–19, the sheet's rows left to right). newCards counts the cards completed in
 // the level, for its card.
-// For testing, the user asked for a character with every capsule (October 2026): CHAR_EVERY is 1 for
-// now. Set it back to 10 to play the metagame as designed.
-const META_KEY = 'clawMachine.meta', CHAR_EVERY = 1;
+// Every CHAR_EVERY capsules of a colour complete its card. For testing it was 1 for a while (a character
+// with every capsule); the user asked for the designed 10 back (October 2026).
+const META_KEY = 'clawMachine.meta', CHAR_EVERY = 10;
 let meta = { balls: {}, prog: {}, chars: {} }, newCards = 0;
 
 let prizes = [], claw, coins, score, won, state, aimT;
