@@ -102,7 +102,7 @@
   .season.locked .shelf, .season.locked .rack { opacity: .5; }
   /* The gallery's capsules: rarity, and a bar to the next character with how far along it is, small,
      inside it (the user asked for it in place of a big number and the total won, October 2026) */
-  .slot .bar, .slot .open { box-sizing: border-box; width: 86%; height: 24px; border-radius: 12px; }
+  .slot .bar, .slot .open { box-sizing: border-box; width: 86%; border-radius: 12px; }
   .slot .bar { position: relative; background: rgba(0, 0, 0, .18); overflow: hidden; }
   .slot .bar i { display: block; height: 100%; background: var(--gold); }
   .slot .bar b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: inherit; line-height: 1; color: #2b2038; text-shadow: 0 1px 0 rgba(255, 255, 255, .6); }
@@ -152,13 +152,13 @@
   #toast small { display: block; font-size: 14px; }
   /* A world's cover as a banner: a strip of it with a title over its darkened lower part */
   /* (the gallery's and collection's world banners are a thin strip, as the user asked, October 2026: they
-     were 104 px high, with the text at the bottom over a dark fade) */
-  .banner { position: relative; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 60px; margin: 0 0 12px; padding: 4px 14px;
+     were 104 px high, with the text at the bottom over a dark fade, then 60) */
+  .banner { position: relative; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 46px; margin: 0 0 10px; padding: 2px 12px;
     border-radius: 14px; border: 3px solid var(--gold); background: #000 center 40% / cover no-repeat; overflow: hidden; }
   .banner::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0, 0, 0, .72), rgba(0, 0, 0, .2) 70%, rgba(0, 0, 0, .45)); }
   .banner > * { position: relative; margin: 0; color: var(--gold); text-shadow: 0 2px 4px #000; }
-  .banner h3, .banner h2 { display: block; margin: 0; font-size: 22px; }
-  .banner span { font-size: 20px; }
+  .banner h3, .banner h2 { display: block; margin: 0; font-size: 20px; }
+  .banner span { font-size: 18px; }
   .banner.locked { filter: grayscale(1) brightness(.6); }
   #lvlBanner { width: 100%; max-width: 640px; height: 150px; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; padding: 10px 14px; border-radius: 16px; text-align: center; }
   #lvlBanner::before { background: linear-gradient(transparent 30%, rgba(0, 0, 0, .78)); }
@@ -236,10 +236,24 @@
   @keyframes flyBot { to { transform: translate(40px, 150px) rotate(30deg); opacity: 0; } }
   @keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
   @keyframes glow { 0% { opacity: 0; transform: scale(.4); } 40% { opacity: 1; } 100% { opacity: .8; transform: scale(1.15); } }
-  #revealText { font-size: 30px; line-height: 1.2; }
-  #reveal.go #revealText, #reveal.go #revealOk { animation: fadeIn .4s 1s both; }
+  /* (the card looks like the gallery's and the collection's: cool white, its rarity's colour (--rc, the
+     collection's frames) on its border and on a tab with the rarity over it, a soft shadow on the floor
+     under the character, a pink badge for a new one, as the user asked, October 2026) */
+  #reveal .card { position: relative; margin-top: 16px; background: #f4f7fb; color: #1f1530; border: 5px solid var(--rc); box-shadow: 0 6px 0 rgba(0, 0, 0, .4), 0 0 40px rgba(0, 0, 0, .5); }
+  #reveal .rtab { position: absolute; top: 0; left: 50%; transform: translate(-50%, -60%) rotate(-2deg); padding: 4px 18px 5px; border-radius: 12px; background: var(--rc);
+    color: #fff; font-size: 22px; line-height: 1.1; white-space: nowrap; text-shadow: 0 2px 0 rgba(0, 0, 0, .3); box-shadow: 0 3px 0 rgba(0, 0, 0, .3); }
+  #revealStage::after { content: ''; position: absolute; left: 50%; bottom: 14px; width: 130px; height: 24px; transform: translateX(-50%); border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(30, 40, 70, .4), rgba(30, 40, 70, 0)); z-index: -1; }
+  #revealStage { z-index: 0; }
+  #revealText { margin: 0 0 16px; font-size: 32px; line-height: 1.2; }
+  #revealText b { display: block; font-weight: inherit; color: #1f1530; }
+  #revealText .status { display: inline-block; margin-top: 6px; padding: 2px 12px; border-radius: 10px; font-size: 17px; background: #dde3ee; color: #3a4560; }
+  #revealText .status.new { background: #ff4f7b; color: #fff; box-shadow: 0 2px 0 #b8264f; }
+  #reveal.go #revealText, #reveal.go #revealOk, #reveal.go .rtab { animation: fadeIn .4s 1s both; }
+  #reveal.go .rtab { animation-name: tabIn; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } }
-  #revealText small { display: block; font-size: 18px; }
+  @keyframes tabIn { from { opacity: 0; transform: translate(-50%, -20%) rotate(-2deg); } }
+  #revealOk { width: 100%; }
   /* The cards completed in a level, on its card */
   .card .won { display: block; margin-top: 10px; }
   .card .won button { display: block; margin: 8px auto 0; font-size: 20px; }
@@ -255,8 +269,13 @@
      and for the rarity's colour on the card's border, over one neutral background for all (October
      2026); before, it was panels per rarity, then rings of progress on coloured tiles. */
   #gallery .season { display: flex; flex-direction: column; }
-  .shelf { flex: 1 0 auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 20px 8px;
-    width: 100%; max-width: 560px; margin: 14px auto 0; }
+  .shelf { flex: 1 1 0; min-height: 270px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 18px 8px;
+    width: 100%; max-width: 560px; margin: 12px auto 0; }
+  /* (each card is a size container, and what is in it shrinks with its height, so all nine fit on a short
+     phone screen too: the user's showed the last row cut off) */
+  .slot { container-type: size; }
+  .slot .cap { width: min(58px, 46cqh); height: min(58px, 46cqh); }
+  .slot .bar, .slot .open { height: min(24px, 20cqh); }
   /* (the rarities' colours are the collection's frames, .rack's --rim; the rainbow one is pink) */
   .slot.t0 { --tc: #8a5a36; } .slot.t1 { --tc: #3f8f57; } .slot.t2 { --tc: #3a76a6; } .slot.t3 { --tc: #ea9112; } .slot.t4 { --tc: #b04fa8; }
   /* The other rarity finishes: white stripes (uncommon), white dots (rare) */
@@ -283,17 +302,18 @@
   .lvl .goal b { width: 100%; font-size: 20px; color: #4cc9f0; }
   /* A capsule's card: its name on a label in its rarity's colour on the top border, the capsule, and
      the bar, or ¡Abrir! in the same place and size, so a card never changes height */
-  .slot { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; gap: 4px; padding: 14px 6px 8px;
+  .slot { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; gap: 2px; padding: 12px 6px 6px;
     border: 4px solid var(--tc); border-radius: 16px; background: #f4f7fb; box-shadow: 0 4px 0 rgba(0, 0, 0, .35); }
-  .slot .cap { width: 58px; height: 58px; box-shadow: none; }
+  .slot .cap { box-shadow: none; }
   /* (a soft shadow on the floor under the capsule, like the characters') */
   .slot .pod { position: relative; z-index: 0; }
-  .slot .pod::after { content: ''; position: absolute; z-index: -1; left: 50%; bottom: -8px; width: 56px; height: 14px; transform: translateX(-50%); border-radius: 50%;
+  .slot .pod::after { content: ''; position: absolute; z-index: -1; left: 50%; bottom: -8px; width: min(56px, 44cqh); height: 14px; transform: translateX(-50%); border-radius: 50%;
     background: radial-gradient(closest-side, rgba(30, 40, 70, .5), rgba(30, 40, 70, 0)); }
   .slot.none .cap { filter: grayscale(1) brightness(.45); }
   .slot.none .bar { opacity: .45; }
-  .slot .name { position: absolute; z-index: 1; top: -2px; left: 50%; transform: translate(-50%, -50%); max-width: calc(100% + 8px); padding: 2px 8px; border-radius: 8px; background: var(--tc);
-    color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, .3); font-size: clamp(11px, 3.2vw, 16px); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 0 rgba(0, 0, 0, .25); }
+  .slot .name { position: absolute; z-index: 1; top: -2px; left: 50%; transform: translate(-50%, -50%); max-width: calc(100% + 8px); padding: 2px 6px; border-radius: 8px; background: var(--tc);
+    color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, .3); font-size: clamp(11px, 2.6vw, 17px);   /* (the characters' plates' size, as the user asked) */
+    line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 0 rgba(0, 0, 0, .25); }
   .back { font: inherit; font-size: 24px; color: #3a2400; background: linear-gradient(#ffe36e, #f6c837); border: 4px solid #d9a21b; border-radius: 16px;
     padding: 8px 24px; cursor: pointer; box-shadow: 0 5px 0 #a8740a; }
   .back:active { transform: translateY(4px); box-shadow: 0 1px 0 #a8740a; }
@@ -313,11 +333,30 @@
   .lvl .coins { display: block; width: 100%; font-size: 16px; opacity: .75; }
   .lvl .st { flex: none; font-size: 28px; color: var(--gold); }
   .card .row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-  .card button.alt { background: var(--panel); color: var(--ink); border-color: var(--gold); }
+  .card button.alt { background: linear-gradient(#6c3fdc, #4b26b0); color: #fff; border-color: #f4c63a; box-shadow: 0 5px 0 #b98a14; text-shadow: 0 2px 0 rgba(0, 0, 0, .25); }
+  .card button.alt:active { box-shadow: 0 1px 0 #b98a14; }
   .card .goal { display: inline-flex; align-items: center; gap: 4px; margin: 0 6px; }
   #opts { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .7); padding: 16px; }
-  .opt { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 6px 0 20px; font-size: 22px; text-align: left; cursor: pointer; }
-  .opt input { width: 26px; height: 26px; accent-color: var(--gold); cursor: pointer; }
+  /* The settings, like the maze game's (the user asked, October 2026): Música and Sonido with switches,
+     and which hand moves the claw, two buttons with a hand each, in the screens' button colours */
+  #opts .card { padding: 18px 20px 20px; }
+  .orows { margin: 4px 0 18px; padding: 2px 16px; border-radius: 16px; background: rgba(0, 0, 0, .25); text-align: left; }
+  .opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; font-size: 22px; }
+  .opt + .opt { border-top: 2px dashed rgba(255, 210, 63, .25); }
+  .opt span { display: flex; align-items: center; gap: 10px; }
+  .opt svg { width: 26px; height: 26px; color: var(--gold); }
+  .opt.col { flex-direction: column; align-items: stretch; gap: 10px; }
+  #opts .tog { position: relative; flex: none; width: 60px; height: 32px; min-height: 0; padding: 0; border: 0; border-radius: 16px; background: #4a3a6e; cursor: pointer;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, .45); transition: background .18s; }
+  #opts .tog::after { content: ''; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff6e0;
+    box-shadow: 0 2px 3px rgba(0, 0, 0, .4); transition: left .18s cubic-bezier(.3, 1.4, .5, 1); }
+  #opts .tog.on { background: #5fc46a; } #opts .tog.on::after { left: 31px; } #opts .tog:active { transform: none; }
+  .seg { display: flex; gap: 10px; }
+  #opts .seg button { flex: 1 1 0; min-height: 48px; padding: 0 6px; font: inherit; font-size: 19px; color: #fff; cursor: pointer; white-space: nowrap; border-radius: 14px;
+    border: 3px solid #f4c63a; background: linear-gradient(#6c3fdc, #4b26b0); box-shadow: 0 4px 0 #b98a14; text-shadow: 0 2px 0 rgba(0, 0, 0, .25); }
+  #opts .seg button.on { color: #3a2400; text-shadow: none; border-color: #d9a21b; background: linear-gradient(#ffe36e, #f6c837); box-shadow: 0 4px 0 #a8740a; }
+  #opts .seg button:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8740a; }
+  #optsOk { width: 100%; }
   #controls button {
     pointer-events: auto; font: inherit; color: var(--ink); background: var(--pink); border: 4px solid var(--pink-dark);
     border-radius: 16px; font-size: 22px; cursor: pointer; box-shadow: 0 5px 0 var(--pink-dark); padding: 0;
@@ -331,7 +370,23 @@
   .card { background: var(--panel); border: 5px solid var(--gold); border-radius: 22px; padding: 22px 30px; text-align: center; max-width: 360px; width: 100%; }
   .card h2 { margin: 0 0 8px; font-size: 34px; color: var(--gold); }
   .card p { margin: 0 0 18px; font-size: 22px; line-height: 1.4; }
-  .card button { font: inherit; font-size: 24px; color: #3a1f00; background: var(--gold); border: 4px solid #a8740a; border-radius: 16px; padding: 8px 24px; cursor: pointer; }
+  /* (the cards' buttons look like the screens': a bright yellow, or violet with a gold rim for .alt) */
+  .card button { font: inherit; font-size: 24px; color: #3a2400; background: linear-gradient(#ffe36e, #f6c837); border: 4px solid #d9a21b; border-radius: 16px;
+    min-height: 50px; padding: 4px 24px; cursor: pointer; box-shadow: 0 5px 0 #a8740a; }
+  .card button:active { transform: translateY(4px); box-shadow: 0 1px 0 #a8740a; }
+  /* Motion, as the user asked (October 2026): buttons light up under the mouse and give a little as they
+     are pressed; the pop-ups (a level's card, the settings, a card opening) spring in over a fading
+     dark, and the screens fade in */
+  button { transition: transform .1s ease, filter .15s ease, box-shadow .1s ease; }
+  @media (hover: hover) { .back:hover, .card button:hover, .seg button:hover, .slot.ready:hover, #gear:hover, #lvlBtn:hover, #galBtn:hover, #charBtn:hover { filter: brightness(1.1); } }
+  .back:active, .card button:active { transform: translateY(4px) scale(.97); }
+  #gear:active, #lvlBtn:active, #galBtn:active, #charBtn:active { transform: scale(.88); }
+  .slot.ready:active { transform: scale(.95); }
+  #over:not([hidden]), #opts:not([hidden]), #reveal:not([hidden]) { animation: dimIn .2s ease both; }
+  #over:not([hidden]) > .card, #opts:not([hidden]) > .card, #reveal:not([hidden]) > .card { animation: popIn .34s cubic-bezier(.2, 1.35, .5, 1) both; }
+  .screen:not([hidden]) { animation: dimIn .18s ease both; }
+  @keyframes popIn { from { transform: scale(.7); opacity: 0; } }
+  @keyframes dimIn { from { opacity: 0; } }
 </style>
 <script type="importmap">
 { "imports": {
@@ -351,9 +406,10 @@
 <div id="toast"></div>
 <div id="reveal" hidden>
   <div class="card">
+    <span class="rtab" id="revealTier"></span>
     <div id="revealStage"></div>
     <p id="revealText"></p>
-    <button id="revealOk">¡Genial!</button>
+    <button id="revealOk" class="back">¡Genial!</button>
   </div>
 </div>
 <div id="chars" class="screen" hidden>
@@ -387,8 +443,12 @@
 <div id="opts" hidden>
   <div class="card">
     <h2>Ajustes</h2>
-    <label class="opt"><span>Pad a la derecha</span><input type="checkbox" id="swap"></label>
-    <button id="optsOk">Listo</button>
+    <div class="orows">
+      <div class="opt"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3" fill="currentColor"/><circle cx="17" cy="16" r="3" fill="currentColor"/></svg> Música</span><button class="tog" id="togMusic" aria-label="Música"></button></div>
+      <div class="opt"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg> Sonido</span><button class="tog" id="togSound" aria-label="Sonido"></button></div>
+      <div class="opt col"><span>Mover la garra con</span><div class="seg"><button id="handL">👈 Izquierda</button><button id="handR">Derecha 👉</button></div></div>
+    </div>
+    <button id="optsOk" class="back">Listo</button>
   </div>
 </div>
 <div id="over" hidden>
@@ -506,11 +566,11 @@ const SETTLE_STEPS = 600;   // physics steps (5 s) run at a reset so the pile is
 // row 1 common, row 4 legendary, as the user chose; the names are the user's (October 2026). See the
 // metagame further down (winBall).
 const TIERS = [
-  { name: 'Común', design: 'plain', w: .45, css: '#c9cfdb' },
-  { name: 'Infrecuente', design: 'stripes', w: .28, css: '#80ed99' },
-  { name: 'Rara', design: 'dots', w: .17, css: '#4cc9f0' },
-  { name: 'Legendaria', design: 'metal', w: .07, css: '#ffae2b' },   // (orange yellow, as the user asked; it was #ffd23f)
-  { name: 'Arcoíris', design: 'rainbow', w: .03, css: '#ff9fbd' },
+  { name: 'Común', design: 'plain', w: .45, css: '#c9cfdb', rim: '#8a5a36' },
+  { name: 'Infrecuente', design: 'stripes', w: .28, css: '#80ed99', rim: '#3f8f57' },
+  { name: 'Rara', design: 'dots', w: .17, css: '#4cc9f0', rim: '#3a76a6' },
+  { name: 'Legendaria', design: 'metal', w: .07, css: '#ffae2b', rim: '#ea9112' },   // (orange yellow, as the user asked; it was #ffd23f)
+  { name: 'Arcoíris', design: 'rainbow', w: .03, css: '#ff9fbd', rim: '#b04fa8' },
 ];
 const WORLDS = [
   { id: 'animales', name: 'Animalitos', skin: 'animales', balls: [['Marrón', '#9b5d34'], ['Crema', '#f1dcb0'], ['Naranja', '#ff9640'], ['Gris', '#a3aab5'], ['Rosa', '#ff9fbd'], ['Celeste', '#6fc2f0'], ['Verde', '#7fd66b'], ['Dorada', '#ffd23f']],
@@ -2261,8 +2321,10 @@ function openCard(w, b) {
   const kind = worldKinds(w)[b], c = capOf(kind.key, { [kind.key]: kind }), half = `<span class="cap ${c.cls}" style="${c.style}"></span>`;
   $('revealStage').innerHTML = `<span class="glow" style="--g:${TIERS[tier].css}"></span><img src="${charSrc(w, i)}" alt="">` +
     `<span class="half top">${half}</span><span class="half bot">${half}</span>`;
-  $('revealText').innerHTML = `<small style="color:${TIERS[tier].css}">${CHAR_TIERS[tier]}</small>${charName(w, i)}<small>${n > 1 ? `Repetido · tenés ${n}` : '¡Nuevo personaje!'}</small>`;
+  $('revealTier').textContent = CHAR_TIERS[tier];
+  $('revealText').innerHTML = `<b>${charName(w, i)}</b><span class="status${n > 1 ? '' : ' new'}">${n > 1 ? `Repetido · tenés ${n}` : '¡Nuevo personaje!'}</span>`;
   const r = $('reveal');
+  r.style.setProperty('--rc', TIERS[tier].rim);
   r.hidden = false; r.classList.remove('go'); void r.offsetWidth; r.classList.add('go');
   sfx('motor'); setTimeout(() => sfx('prize'), 700);
 }
@@ -2476,11 +2538,22 @@ const hudTime = hud;
 
 // ---------- Sound (tiny synth, no assets) ----------
 
+// The effects and the music each have a switch in the settings, like the maze game's (the user asked,
+// October 2026), kept in localStorage
+const SOUND_KEY = 'clawMachine.soundMuted', MUSIC_KEY = 'clawMachine.musicMuted';
+const readFlag = k => { try { return localStorage.getItem(k) === '1'; } catch (e) { return false; } };
+const saveFlag = (k, on) => { try { localStorage.setItem(k, on ? '1' : '0'); } catch (e) {} };
+let soundMuted = readFlag(SOUND_KEY), musicMuted = readFlag(MUSIC_KEY);
 let ac = null;
+function audio() {
+  if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+  if (ac.state === 'suspended') ac.resume();
+  return ac;
+}
 function sfx(name) {
+  if (soundMuted) return;
   try {
-    if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
-    if (ac.state === 'suspended') ac.resume();
+    audio();
     const t = ac.currentTime;
     const tone = (f, f2, d, type, v, at = 0) => {
       const o = ac.createOscillator(), g = ac.createGain();
@@ -2504,6 +2577,41 @@ function sfx(name) {
     }
   } catch (e) {}
 }
+
+// Background music, from the same little synth (there is no music file yet): a cheerful loop, an
+// arpeggio over C, G, Am and F, a bar each, with a soft bass and a little tune over it, at MUSIC_BPM.
+// Notes are scheduled a little ahead (every 100 ms, up to .3 s on). It starts with the first touch or
+// key (browsers only play sound after one) and stops while the page is hidden.
+const MUSIC_BPM = 108, MUSIC_VOL = .035;
+const CHORDS = [[60, 64, 67], [55, 59, 62], [57, 60, 64], [53, 57, 60]];   // MIDI notes: C, G, Am, F
+const TUNE = [76, 0, 79, 0, 76, 74, 72, 0,  74, 0, 79, 0, 74, 72, 71, 0,  72, 0, 76, 0, 72, 71, 69, 0,  69, 0, 72, 0, 74, 0, 0, 0];   // eighths, 0 = rest
+const music = { on: false, next: 0, step: 0, timer: 0 };
+const hz = m => 440 * 2 ** ((m - 69) / 12);
+function note(m, at, d, type, v) {
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.value = hz(m);
+  g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(v, at + .015); g.gain.exponentialRampToValueAtTime(.0005, at + d);
+  o.connect(g).connect(ac.destination); o.start(at); o.stop(at + d + .05);
+}
+function musicTick() {
+  const e = 30 / MUSIC_BPM;   // an eighth, in seconds
+  while (music.next < ac.currentTime + .3) {
+    const s = music.step % 32, ch = CHORDS[s >> 3], i = s % 8, at = music.next;
+    note([ch[0], ch[1], ch[2], ch[0] + 12, ch[2], ch[1], ch[0] + 12, ch[2]][i], at, e * .9, 'triangle', MUSIC_VOL);
+    if (i % 4 === 0) note(ch[0] - 12, at, e * 3.6, 'sine', MUSIC_VOL * 2.2);
+    if (TUNE[s]) note(TUNE[s], at, e * 1.8, 'square', MUSIC_VOL * .45);
+    music.next += e; music.step++;
+  }
+}
+function musicStart() {
+  if (music.on || musicMuted) return;
+  try { audio(); } catch (e) { return; }
+  music.on = true; music.next = ac.currentTime + .1;
+  music.timer = setInterval(musicTick, 100);
+}
+function musicStop() { music.on = false; clearInterval(music.timer); }
+for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { if (!music.on && !document.hidden) musicStart(); }, { capture: true });
+document.addEventListener('visibilitychange', () => { if (document.hidden) musicStop(); });
 
 // ---------- Input ----------
 
@@ -2568,13 +2676,23 @@ $('bd').addEventListener('pointerdown', dropButton);
 // right-handed players. Kept in localStorage. The game holds still while the panel is open.
 const SWAP_KEY = 'clawMachine.padRight';
 const CLEAR_DELAY = .9, LOSE_WAIT = 3;   // seconds: before a cleared level's card; most a lost one waits for a falling prize
+// (the pad on the right means moving the claw with the right hand)
 function setSwap(on) {
-  document.body.classList.toggle('swap', on); $('swap').checked = on;
+  document.body.classList.toggle('swap', on);
+  $('handL').classList.toggle('on', !on); $('handR').classList.toggle('on', on);
   try { localStorage.setItem(SWAP_KEY, on ? '1' : '0'); } catch (e) {}
 }
 try { setSwap(localStorage.getItem(SWAP_KEY) === '1'); } catch (e) {}
-$('swap').addEventListener('change', e => setSwap(e.target.checked));
-$('gear').addEventListener('click', () => { $('opts').hidden = false; paused = true; stickEnd(); });
+$('handL').addEventListener('click', () => setSwap(false));
+$('handR').addEventListener('click', () => setSwap(true));
+function renderOpts() { $('togMusic').classList.toggle('on', !musicMuted); $('togSound').classList.toggle('on', !soundMuted); }
+$('togMusic').addEventListener('click', () => {
+  musicMuted = !musicMuted; saveFlag(MUSIC_KEY, musicMuted);
+  if (musicMuted) musicStop(); else musicStart();
+  renderOpts();
+});
+$('togSound').addEventListener('click', () => { soundMuted = !soundMuted; saveFlag(SOUND_KEY, soundMuted); renderOpts(); sfx('coin'); });
+$('gear').addEventListener('click', () => { renderOpts(); $('opts').hidden = false; paused = true; stickEnd(); });
 $('optsOk').addEventListener('click', () => { $('opts').hidden = true; paused = false; });
 $('again').addEventListener('click', () => cardMain && cardMain());
 $('ovLevels').addEventListener('click', () => { $('over').hidden = true; openLevels(); });
