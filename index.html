@@ -94,18 +94,18 @@
   .rack { margin-bottom: 14px; }
   .rack .rtitle { display: block; margin: 0 6px 2px; font-size: 16px; }
   .rack.t0 .rtitle { color: #c9cfdb; } .rack.t1 .rtitle { color: #80ed99; } .rack.t2 .rtitle { color: #4cc9f0; } .rack.t3 .rtitle { color: #ffd23f; }
-  /* (the board: its light top, 22 px, and under it its darker front edge, 9 px; both were made deeper
-     upwards at the user's request) */
-  .row5 { --top: #7a4a2a; --edge: #4a2a16; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: end; gap: 4px; padding: 6px 6px 31px;
-    background: linear-gradient(to top, var(--edge) 0 9px, var(--top) 9px 31px, transparent 31px);
+  /* (the shelf: a dark grey back, then the board, its lighter grey top 22 px deep and its darker front
+     edge 9 px, all greys from the user's reference, October 2026; it used to be wood, gold for the
+     legendary row. The board's depths were made deeper upwards at the user's request) */
+  .row5 { --top: #2c2c2c; --edge: #1c1c1c; --back: #141414; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: end; gap: 4px; padding: 6px 6px 31px;
+    background: linear-gradient(to top, var(--edge) 0 9px, var(--top) 9px 31px, var(--back) 31px); border-radius: 10px 10px 0 0;
     box-shadow: 0 12px 14px -6px rgba(0, 0, 0, .35); }
-  .rack.t3 .row5 { --top: #c99a1c; --edge: #7a5a0a; }
   /* Each character stands on the board (its picture has a little room and its shadow under it), with
      its name over it */
   .toy { position: relative; display: flex; flex-direction: column; align-items: center; font-size: clamp(14px, 2.4vw, 20px); line-height: 1.1; text-align: center; }
   .toy > span { min-height: 2.2em; display: flex; align-items: flex-end; justify-content: center; }
   .toy img { width: 100%; aspect-ratio: 1; object-fit: contain; pointer-events: none; margin-bottom: calc(-15% - 12px); }
-  .toy.none img { filter: brightness(0) invert(.2); }   /* (a dark grey silhouette) */
+  .toy.none img { filter: brightness(0); }   /* (a black silhouette, shadow and all, on the dark grey back) */
   .toy.none span { opacity: .5; }
   .toy b { position: absolute; top: 2.4em; right: 0; padding: 0 5px; border-radius: 8px; font-size: 13px; background: var(--pink); color: var(--ink); }
   /* A character just won, at the top of the screen for a moment */
