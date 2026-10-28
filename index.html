@@ -113,7 +113,7 @@
   /* A tile: the name's plate at the top, then the character over a soft spot of floor; a character not
      won yet is a dark silhouette with "?" and no name */
   .toy { position: relative; display: flex; flex-direction: column; align-items: center; padding: 0 3px; border-radius: 12px;
-    background: radial-gradient(60% 12% at 50% 86%, rgba(0, 0, 0, .12), transparent 100%), var(--tile);
+    background: radial-gradient(60% 10% at 50% 92%, rgba(0, 0, 0, .12), transparent 100%), var(--tile);
     box-shadow: inset 0 2px 0 rgba(255, 255, 255, .5), inset 0 -2px 0 rgba(0, 0, 0, .08); }
   /* (the plate sits on the tile's top edge, half over it, as the user asked: its height is 1.2em + 4px.
      The picture keeps clear of it: at first it was pulled up under the plate with it, and the user saw
@@ -121,9 +121,11 @@
   .toy .plate { position: relative; z-index: 1; max-width: 100%; margin: calc(-.6em - 2px) 0 5px; padding: 2px 6px; border-radius: 8px; background: rgba(255, 255, 255, .94); color: var(--ink2);
     font-size: clamp(11px, 2.6vw, 17px); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 0 rgba(0, 0, 0, .12); }
   .toy.none .plate { visibility: hidden; }
-  /* (the cuts leave room round each character, so the picture is drawn bigger than the tile and cropped to it) */
-  .toy .pic { position: relative; width: 100%; overflow: hidden; }
-  .toy img { display: block; width: 130%; max-width: none; aspect-ratio: 1; margin: -9% -15% -12%; object-fit: contain; pointer-events: none; }
+  /* (every cut has the same scale and its base at the same height, so the characters keep their sizes
+     as drawn and stand on one line; the picture is a little wider than the tile, and what sticks out at
+     the sides may show past it, as the user asked: only the top and bottom are clipped) */
+  .toy .pic { position: relative; width: 100%; clip-path: inset(0 -50%); }
+  .toy img { display: block; width: 135%; max-width: none; aspect-ratio: 1; margin: -8% -17.5% -10%; object-fit: contain; pointer-events: none; }
   .toy.none img { filter: brightness(0); opacity: .72; }
   .toy .pic i { position: absolute; inset: 0 0 12%; display: flex; align-items: center; justify-content: center; font-style: normal;
     font-size: clamp(16px, 4.5vw, 30px); color: rgba(255, 255, 255, .45); }

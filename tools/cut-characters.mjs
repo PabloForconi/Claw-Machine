@@ -1,10 +1,13 @@
 // Cuts the 20 characters out of each concept sheet (concept/<world>.png, 5 across and 4 down, on a
 // transparent background) into assets/chars/<world>/<row><col>.png: each one square, SIZE pixels, the
-// character centred with its soft shadow under it. Run from the project folder: node tools/cut-characters.mjs
+// character centred with its soft shadow under it. All are cut at one scale: SIDE pixels of the sheet
+// make the square, so they keep their sizes as drawn (the sheets are all 1402 × 1122, 280 px a cell;
+// the biggest character is about 1.13 cells wide and 1.05 high). The user asked for that, October 2026:
+// each used to be scaled to fill its own square. Run from the project folder: node tools/cut-characters.mjs
 import fs from 'node:fs';
 import { readPng, writePng } from './png.mjs';
 
-const WORLDS = ['animales', 'monstruos', 'halloween', 'navidad'], SIZE = 220, PAD = .06, BASE = .88;
+const WORLDS = ['animales', 'monstruos', 'halloween', 'navidad'], SIZE = 220, SIDE = 360, BASE = .88;
 
 for (const world of WORLDS) {
   const img = readPng(fs.readFileSync(`concept/${world}.png`)), { w, h, px } = img;
@@ -35,11 +38,9 @@ for (const world of WORLDS) {
   }
   fs.mkdirSync(`assets/chars/${world}`, { recursive: true });
   cells.forEach((b, k) => {
-    // The box: the solid blob, with room under it for the shadow and a little all round, made square.
-    // Every character's base (the bottom of its solid part) is at BASE of the height, so they all stand
-    // at the same level on the collection's shelves.
-    const bw = b.x1 - b.x0 + 1, bh = b.y1 - b.y0 + 1, shadow = Math.round(bh * .1);
-    const side = Math.round(Math.max(bw, bh + shadow) * (1 + 2 * PAD));
+    // The box: SIDE square round the blob, the same for all. Every character's base (the bottom of its
+    // solid part) is at BASE of the height, so they all stand at the same level in the collection.
+    const bh = b.y1 - b.y0 + 1, shadow = Math.round(bh * .1), side = SIDE;
     const cx = (b.x0 + b.x1) / 2, top = b.y1 + 1 - side * BASE;
     const out = Buffer.alloc(SIZE * SIZE * 4), scale = side / SIZE;
     // Area-averaged downscale with premultiplied alpha (the transparent pixels carry junk colours);
