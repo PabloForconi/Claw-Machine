@@ -263,7 +263,8 @@
   .lvl.daily { border-color: #4cc9f0; }
   .lvl.daily .n { background: #4cc9f0; color: #13223a; }
   .lvl .goal b { width: 100%; font-size: 20px; color: #4cc9f0; }
-  .slot { background: var(--panel); border: 4px solid var(--pink-dark); border-radius: 18px; padding: 16px 6px 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .slot { background: var(--panel); border: 4px solid var(--pink-dark); border-radius: 18px; padding: 12px 6px 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .slot .cap { width: 58px; height: 58px; box-shadow: 0 4px 0 rgba(0, 0, 0, .28); }   /* (smaller than 76, so the cards are less tall, as the user asked) */
   .slot.none .cap { filter: grayscale(1) brightness(.35); box-shadow: none; }
   .slot.none .bar, .slot.none .name { opacity: .45; }
   .slot .name { font-size: 17px; line-height: 1; }
