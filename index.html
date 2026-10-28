@@ -93,7 +93,10 @@
   .backs { margin-top: auto; padding-top: 4px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: 100%; max-width: 420px; }
   .backs .back { flex: 1 1 0; min-width: 0; min-height: 50px; padding: 0 8px; white-space: nowrap; }
   .backs .back:not(.alt) { flex-basis: 100%; }
-  .back.alt { background: var(--panel); color: var(--ink); border-color: var(--gold); }
+  /* (the colours from the user's reference, October 2026: violet buttons with a gold rim and white text,
+     and the way back in a brighter yellow) */
+  .back.alt { background: linear-gradient(#6c3fdc, #4b26b0); color: #fff; border-color: #f4c63a; box-shadow: 0 5px 0 #b98a14; text-shadow: 0 2px 0 rgba(0, 0, 0, .25); }
+  .back.alt:active { box-shadow: 0 1px 0 #b98a14; }
   .season h3 { display: flex; justify-content: space-between; margin: 0 4px 10px; font-size: 22px; color: var(--gold); }
   .season .sub { font-size: 16px; margin-bottom: 10px; }
   .season.locked .shelf, .season.locked .rack { opacity: .5; }
@@ -291,7 +294,7 @@
   .slot.none .bar { opacity: .45; }
   .slot .name { position: absolute; z-index: 1; top: -2px; left: 50%; transform: translate(-50%, -50%); max-width: calc(100% + 8px); padding: 2px 8px; border-radius: 8px; background: var(--tc);
     color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, .3); font-size: clamp(11px, 3.2vw, 16px); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 0 rgba(0, 0, 0, .25); }
-  .back { font: inherit; font-size: 24px; color: #3a1f00; background: var(--gold); border: 4px solid #a8740a; border-radius: 16px;
+  .back { font: inherit; font-size: 24px; color: #3a2400; background: linear-gradient(#ffe36e, #f6c837); border: 4px solid #d9a21b; border-radius: 16px;
     padding: 8px 24px; cursor: pointer; box-shadow: 0 5px 0 #a8740a; }
   .back:active { transform: translateY(4px); box-shadow: 0 1px 0 #a8740a; }
   /* (on a phone the buttons are smaller, so they take fewer rows) */
@@ -2740,7 +2743,7 @@ function carousel(shelf, prev, next, dots) {
   c.show = (i, smooth = true) => {
     const el = pages()[i];
     if (!el) return;
-    c.idx = i;
+    c.idx = c.going = i;
     shelf.scrollTo({ left: el.offsetLeft - (shelf.clientWidth - el.offsetWidth) / 2, behavior: smooth ? 'smooth' : 'instant' });
     mark(i);
   };
@@ -2749,12 +2752,25 @@ function carousel(shelf, prev, next, dots) {
   c.fill = (html, at) => { shelf.innerHTML = html; dots.innerHTML = pages().map(() => '<i></i>').join(''); c.show(at, false); };
   // (a dot goes to its page)
   dots.addEventListener('click', e => { const i = [...dots.children].indexOf(e.target); if (i >= 0) c.show(i); });
-  let settle = 0;
-  shelf.addEventListener('scroll', () => { clearTimeout(settle); settle = setTimeout(() => mark(c.idx = near()), 150); });
+  // The dots follow the scroll as it goes, on the page most of which is in view, so they change as soon
+  // as a swipe passes half way (they used to wait for the scroll to stop, which the user found slow,
+  // October 2026). While show() slides to a page they stay on it, not on the ones it passes.
+  let ticking = false;
+  shelf.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      ticking = false;
+      const i = near();
+      if (c.going != null) { if (i === c.going) c.going = null; return; }
+      if (i !== c.idx) mark(c.idx = i);
+    });
+  });
   // The mouse works like a finger: dragged sideways it swipes the pages, up or down it scrolls the page
   // (as does the wheel). The drag only starts once the mouse has moved a few pixels, in the direction it
   // moved most, so a click on a card still reaches it.
   const drag = { id: null };
+  shelf.addEventListener('pointerdown', () => { c.going = null; });   // (a finger or the mouse takes over from a slide)
   shelf.addEventListener('pointerdown', e => {
     if (e.pointerType !== 'mouse' || e.button !== 0) return;
     const page = pages()[c.idx];
