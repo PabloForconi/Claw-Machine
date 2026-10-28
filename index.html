@@ -124,19 +124,25 @@
   .banner h3, .banner h2 { display: block; margin: 0; font-size: 24px; }
   .banner span { font-size: 22px; }
   .banner.locked { filter: grayscale(1) brightness(.6); }
-  #lvlBanner { width: 100%; max-width: 640px; height: 150px; flex-direction: column; align-items: flex-start; justify-content: flex-end; gap: 2px; }
+  #lvlBanner { width: 100%; max-width: 640px; height: 150px; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; text-align: center; }
   #lvlBanner h2 { font-size: 30px; }
   #lvlBanner span { font-size: 18px; color: var(--ink); }
   /* The worlds screen: a page per world with its cover, and the daily challenge as a strip above */
-  .wpage { display: flex; justify-content: center; }
+  /* (the worlds' carousel fades out at its sides, so covers slide in and out softly when swiped; each
+     page keeps a margin as wide as the fade, so a cover at rest is never under it) */
+  #worldShelf { --fade: 22px; -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--fade), #000 calc(100% - var(--fade)), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 var(--fade), #000 calc(100% - var(--fade)), transparent); }
+  .wpage { display: flex; justify-content: center; padding: 0 22px 8px; }
   .cover { position: relative; height: 100%; max-width: 100%; aspect-ratio: 4 / 5; border-radius: 22px; border: 4px solid var(--gold); overflow: hidden;
     background: #000 center / cover no-repeat; box-shadow: 0 8px 24px rgba(0, 0, 0, .6); }
   .cover.locked { filter: grayscale(1) brightness(.55); border-color: #666; }
+  /* (a dark fade at the top, under the world's name and progress, so they read on any art) */
+  .cover::before { content: ''; position: absolute; inset: 0 0 auto; height: 34%; background: linear-gradient(rgba(0, 0, 0, .7), transparent); }
   /* (the world's name and progress at the top of the cover, Jugar alone at the bottom, nothing darkening
      the art: the user asked for it, October 2026) */
   .winfo { position: absolute; left: 0; right: 0; top: 0; padding: 14px 14px 0; text-align: center; }
   .winfo h3 { margin: 0; font-size: 30px; color: var(--gold); text-shadow: 0 2px 0 #000, 0 0 6px #000, 0 0 12px #000; }
-  .winfo p { margin: 2px 0 0; font-size: 17px; text-shadow: 0 1px 0 #000, 0 0 5px #000, 0 0 10px #000; }
+  .winfo p { margin: 2px 0 0; font-size: clamp(13px, 3.9vw, 17px); text-shadow: 0 1px 0 #000, 0 0 5px #000, 0 0 10px #000; }
   .winfo .lock { font-size: 20px; }
   .wplay { position: absolute; left: 0; right: 0; bottom: 16px; text-align: center; }
   .wplay .play { font: inherit; font-size: 24px; color: #3a1f00; background: var(--gold); border: 4px solid #a8740a; border-radius: 16px; padding: 1px 44px;
