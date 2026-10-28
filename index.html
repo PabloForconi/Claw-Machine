@@ -309,7 +309,6 @@
 </div>
 <div id="chars" class="screen" hidden>
   <h2>Colección</h2>
-  <p id="charTotal" class="sub"></p>
   <div id="charShelf" class="pages"></div>
   <div class="nav"><button id="charPrev" aria-label="Mundo anterior">‹</button><span id="charDots" class="dots"></span><button id="charNext" aria-label="Mundo siguiente">›</button></div>
   <div class="backs"><button id="charToGal" class="back alt">Cápsulas</button><button id="charToLvl" class="back alt">★ Mundos</button><button id="charBack" class="back">Volver a la máquina</button></div>
@@ -2780,8 +2779,6 @@ $('shelf').addEventListener('click', e => { const el = e.target.closest('.slot.r
 // row 4 legendary, as on the concept sheets), and on it the five characters: the ones won with how
 // many (they can repeat), the rest as dark silhouettes with "?".
 function openChars() {
-  const total = Object.keys(meta.chars).length;
-  $('charTotal').textContent = `Tenés ${total} de ${WORLDS.length * 20} personajes`;
   showScreen('chars');
   charCar.fill(WORLDS.map((wd, w) => {
     const have = wd.chars.filter((c, i) => meta.chars[`${wd.id}:${i}`]).length;
