@@ -800,16 +800,18 @@ function setSolids() {
 }
 
 // Marquee with chasing bulbs: a thin strip on the roof (MARQUEE_H tall), so there is more room for the game
-const MARQUEE_H = .5, MARQUEE_Y = 4.9 + MARQUEE_H / 2;
+// (it covers the roof's front too, from the top of the glass up: the user asked for the marquee to take
+// the whole front of the top, October 2026; it used to sit on the roof, 0.5 tall)
+const MARQUEE_H = .8, MARQUEE_Y = 4.6 + MARQUEE_H / 2;
 const marqueeTex = canvasTex(1024, Math.round(1024 * MARQUEE_H / CAB_X), (g, w, h) => {
   if (skin) return skin.marquee(g, w, h);
   g.fillStyle = '#3a1f6b'; g.fillRect(0, 0, w, h);
-  g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .72)}px Kalam, cursive`;
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .56)}px Kalam, cursive`;
   g.lineWidth = 10; g.strokeStyle = '#8a1f48'; g.strokeText('CLAW MACHINE', w / 2, h / 2 + 5);
   g.fillStyle = '#ffd23f'; g.fillText('CLAW MACHINE', w / 2, h / 2 + 5);
 });
 document.fonts.load('700 120px Kalam').then(() => { marqueeTex.repaint(); boardTex.repaint(); }).catch(() => {});
-box(CAB_X, MARQUEE_H, .3, [PINK, PINK, PINK, PINK, new THREE.MeshBasicMaterial({ map: marqueeTex }), PINK], 0, MARQUEE_Y, BOX.z + POST - .15);   // (its front flush with the uprights')
+box(CAB_X, MARQUEE_H, .3, [PINK, PINK, PINK, PINK, new THREE.MeshBasicMaterial({ map: marqueeTex }), PINK], 0, MARQUEE_Y, BOX.z + POST - .145);   // (its front a hair in front of the roof's and the uprights')
 const bulbs = [];
 const BULB_ON = new THREE.MeshBasicMaterial({ color: 0xfff3b0 }), BULB_OFF = new THREE.MeshBasicMaterial({ color: 0x8a6a2a });
 const BULB_GEO = new THREE.BoxGeometry(.075, .075, .04);   // little square lights, like the rest of the machine
@@ -898,11 +900,11 @@ const SKINS = {
       g.fillStyle = '#4a1d7a'; g.fillRect(0, 0, w, h);
       const sq = h * .13, cols = ['#ff8a1f', '#1a0f12', '#ff5d8f', '#ffd23f'];
       for (const y of [0, h - sq]) for (let i = 0, x = 0; x < w; x += sq, i++) { g.fillStyle = cols[(i + skinTick) % 4]; g.fillRect(x, y, sq, sq); }
-      drawWeb(g, 0, sq, h * .7, 0, 'rgba(210, 180, 255, .55)', 2);
-      drawWeb(g, w, sq, h * .7, Math.PI / 2, 'rgba(210, 180, 255, .55)', 2);
-      for (const [x, y, r] of [[.07, .72, 9], [.93, .7, 9], [.14, .32, 7], [.86, .34, 7]]) drawStar(g, w * x, h * y, r, '#ffd23f');
-      for (const x of [.2, .8]) drawPumpkin(g, w * x, h * .55, h * .26);
-      g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .62)}px Kalam, cursive`;
+      drawWeb(g, 0, sq, h * .55, 0, 'rgba(210, 180, 255, .55)', 2);
+      drawWeb(g, w, sq, h * .55, Math.PI / 2, 'rgba(210, 180, 255, .55)', 2);
+      for (const [x, y, r] of [[.05, .76, .06], [.95, .74, .06], [.2, .3, .045], [.8, .32, .045], [.23, .74, .035], [.77, .72, .035]]) drawStar(g, w * x, h * y, h * r, '#ffd23f');
+      for (const x of [.13, .87]) drawPumpkin(g, w * x, h * .54, h * .24);
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .44)}px Kalam, cursive`;
       g.lineWidth = 12; g.strokeStyle = '#3a0f2a'; g.strokeText('CLAW MACHINE', w / 2, h / 2 + 5);
       g.fillStyle = '#ffd23f'; g.fillText('CLAW MACHINE', w / 2, h / 2 + 5);
     },
