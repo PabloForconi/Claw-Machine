@@ -7,7 +7,7 @@ Prototipo de juego 3D para el navegador: una máquina de garra llena de cápsula
 ## Cómo se juega
 
 - Se juega por niveles (20): cada uno pide atrapar ciertas cápsulas (por ejemplo, 3 marrones) con una cantidad de fichas. Cada intento cuesta una ficha; si se terminan antes de cumplir, reintentás. Superar un nivel desbloquea el siguiente y da de 1 a 3 estrellas según las fichas que te sobran.
-- Cada nivel puede traer algo nuevo, que se explica al empezar: bombas (💣, te sacan una ficha), calaveras (💀, perdés el nivel), cápsulas +2 (dos fichas más), objetivos en orden, cápsulas chicas o grandes, pedestales (uno, dos, tres o en escalera), una legendaria enterrada y, cada cinco niveles, un jefe.
+- Cada nivel puede traer algo nuevo, que se explica al empezar: bombas (💣, te sacan una ficha), calaveras (💀, perdés el nivel), cápsulas +2 (dos fichas más), objetivos en orden, cápsulas chicas o grandes, pedestales (uno, dos o en escalera), una legendaria enterrada y, cada cinco niveles, un jefe.
 - Si sacás premios dos rondas seguidas, ganás una ficha.
 - Mové la garra con el pad (o las flechas / WASD): izquierda-derecha y adelante-atrás; cuanto más lo empujás, más rápido va. Bajala con **¡BAJAR!** (o Espacio). Tenés 15 segundos por intento.
 - Arriba a la izquierda: la ★ abre los **Mundos** (cada uno con su portada y sus 5 niveles), la cápsula abre **Cápsulas** (las que juntaste, por mundo) y el osito abre la **Colección** de personajes.

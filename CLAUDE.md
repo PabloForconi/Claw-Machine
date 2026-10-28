@@ -200,6 +200,8 @@ Each capsule (`mkPrize()`) is two solid halves of one colour, with its rarity's 
     - `traps`: bombs and skulls in the pile. `bonus`: +2 capsules, only in the first pile, or every restock would bring a new one.
     - `stands`: pedestals from `STANDS` (one, two or three apart, or `stairs`, three steps rising to the right), boxes at the back half of the floor (`STAND_Z`). `onTop` lists the kind set on each top (null for none), placed still.
       - The user asked for these as a recurring twist (October 2026). They replaced a clear wall across the middle, which the user didn't like.
+      - A top that holds a prize is `STAND_W` (1.42) wide and deep, more than the open claw (about 1.3 across), so the fingers never bite its edges; the user found that odd (October 2026). So there is `one` in the middle, `two` at the sides, and `stairs`, whose two lower steps stay narrow and whose top step is wide. Three apart no longer fit, and level 18 became two with a loose bomb.
+      - Over a top, `floorUnder()` raises the lowest point of the head as over the floor (the top's height plus the fingers' thickness), so the claw settles on it instead of scraping it with its fingertips. The claw then held the top prize on all pedestal levels.
     - `bury`: that kind lies in the back right corner (`BURY_AT`) under a heap, in a pile of `pile` (48).
     - `giant`: the boss, a big gold capsule (`SPECIAL.giant`, radius 0.36) that slips 3× more (`slip`).
       - At first it was 0.42, to be pushed into a hole with its walls taken away. Bigger than the closed claw, it rode up wedged in the fingers and overlapped them and the box; the user found the claw looked broken.
@@ -208,7 +210,7 @@ Each capsule (`mkPrize()`) is two solid halves of one colour, with its rarity's 
     - `tip`: a card at the start explaining what is new (`card()`).
   - The curve, as discussed with the user:
     - Each new thing first comes in an easy level with its tip.
-    - A boss every five levels: the giant (5, and 20 with a pedestal), the legendary on the pedestal (10), the buried legendary (15). Pedestals come back as two (12), stairs (16) and three (18).
+    - A boss every five levels: the giant (5, and 20 with a pedestal), the legendary on the pedestal (10), the buried legendary (15). Pedestals come back as two (12), stairs (16) and two again with a bomb (18).
     - An easier level after each hard one.
   - The colours kept in one place (`lv.kept`: those `onTop` and `bury`) never appear elsewhere (`mkPrize()` rerolls them), and they aren't restocked.
   - Nothing falls in on its own when a level starts.

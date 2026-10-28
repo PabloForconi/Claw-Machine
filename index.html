@@ -527,7 +527,7 @@ const LEVELS = [
   { goal: [['L1', 1]], coins: 9, bury: 'L1', pile: 48, tip: '<b>¡Jefe!</b> La legendaria está enterrada debajo de las demás: desenterrala.' },
   { goal: [['U1', 2], ['L1', 1]], coins: 12, bonus: 1, stands: 'stairs', onTop: [null, null, 'L1'], tip: 'Una <b>escalera</b>: la legendaria está en el escalón más alto.' },
   { goal: [['C1', 1], ['C2', 1], ['R1', 1], ['U2', 1]], coins: 12, order: true, traps: { bomb: 2 } },
-  { goal: [['L1', 2], ['C2', 2]], coins: 14, size: [.26, .36], stands: 'three', onTop: ['L1', 'bomb', 'L1'] },
+  { goal: [['L1', 2], ['C2', 2]], coins: 14, size: [.26, .36], stands: 'two', onTop: ['L1', 'L1'], traps: { bomb: 1 } },
   { goal: [['C1', 1], ['C2', 1], ['U1', 1], ['U2', 1], ['R1', 1]], coins: 14, traps: { skull: 1, bomb: 2 } },
   { goal: [['giant', 1], ['L1', 1]], coins: 14, giant: true, stands: 'one', onTop: ['L1'], traps: { bomb: 2 }, tip: '<b>¡Jefe final!</b> La gigante y la legendaria del pedestal, con bombas.' },
 ].map((l, i) => cookLevel(l, Math.floor(i / 5)));
@@ -545,16 +545,31 @@ const STARS_KEY = 'clawMachine.stars';         // the most stars won on each lev
 const UNLOCK_ALL = true;
 const worldOpen = w => UNLOCK_ALL || levelsDone >= w * 5;   // a world opens with its first level
 const levelOpen = i => UNLOCK_ALL || i <= levelsDone;
-// Pedestals, as [x from, x to, height], all at the back half of the floor (STAND_Z): one in the middle,
-// two or three apart, or three in a row stepping up to the right
+// Pedestals, as [x from, x to, height], all over the back half of the floor (STAND_Z): one in the
+// middle, two apart, or three steps rising to the right. A top that holds a prize is STAND_W wide and
+// deep, more than the open claw (about 1.3 across with its fingers), so the fingers never bite its
+// edges; the user found that odd (October 2026). Before, they were about 0.6. So three no longer fit
+// in a row (that level has two now), and of the stairs only the top step, the prize's, is wide; the
+// claw doesn't come down on the lower ones.
+const STAND_W = 1.42;
 const STANDS = {
-  one: [[-.32, .32, .7]],
-  two: [[-1.05, -.45, .7], [.45, 1.05, .7]],
-  three: [[-1.28, -.72, .7], [-.28, .28, .7], [.72, 1.28, .7]],
-  stairs: [[0, .6, .35], [.6, 1.2, .7], [1.2, 1.8, 1.05]],
+  one: [[-STAND_W / 2, STAND_W / 2, .7]],
+  two: [[-1.97, -1.97 + STAND_W, .7], [1.97 - STAND_W, 1.97, .7]],
+  stairs: [[-.45, .05, .35], [.05, 1.97 - STAND_W, .7], [1.97 - STAND_W, 1.97, 1.05]],
 };
-const STAND_Z = [-.8, -.2];
+const STAND_Z = [-1.47, -1.47 + STAND_W];
 const standBox = ([x0, x1, h]) => ({ min: [x0, 0, STAND_Z[0]], max: [x1, h, STAND_Z[1]] });
+// Over a pedestal's top the claw comes down as it does onto the floor: its lowest point is raised by
+// the top's height, plus the fingers' thickness, so the closing fingers slide over the top instead of
+// scraping it and giving way (with the old narrow tops they went down past the edge instead)
+function floorUnder(x, z) {
+  let top = 0;
+  for (const st of STANDS[lv.stands] || []) {
+    const b = standBox(st);
+    if (x > b.min[0] && x < b.max[0] && z > b.min[2] && z < b.max[2]) top = Math.max(top, b.max[1] + FINGER_R + .01);
+  }
+  return top;
+}
 // Three prongs, one at the back. (A caught prize rides in the claw, so it can't slip out through the
 // gap between two fingers, which is why there were four for a while.)
 const FINGER_ANGLES = [-Math.PI / 2, -Math.PI / 2 + 2 * Math.PI / 3, -Math.PI / 2 + 4 * Math.PI / 3];
@@ -1489,7 +1504,7 @@ function spawn(n, y0, initial, around) {
     do {
       if (around && i < 12) { x = clamp(around.x - rnd() * .9, -1.7, 1.7); z = clamp(around.z + rnd() * .9, -1.2, 1.2); }
       else { x = (rnd() * 2 - 1) * 1.7; z = (rnd() * 2 - 1) * 1.2; }
-    } while (++tries < 50 && ((x < HOLE.x + .5 && z > HOLE.z - .5) || WALLS.some(w => x > w.min[0] - .35 && x < w.max[0] + .35 && z > w.min[2] - .35 && z < w.max[2] + .35)));
+    } while (++tries < 50 && ((x < HOLE.x + .5 && z > HOLE.z - .5) || WALLS.some(w => x > w.min[0] - .3 && x < w.max[0] + .3 && z > w.min[2] - .3 && z < w.max[2] + .3)));
     prizes.push(mkPrize(x, y0 + Math.floor(i / (around && i < 12 ? 4 : 12)) * .7 + rnd() * .2, z, kinds[i]));
   }
 }
@@ -2032,7 +2047,8 @@ function swingHead(dt) {
   // Once it has landed the heavy claw stays where it came down, sinking but not skating sideways
   // over the round tops of the capsules under its fingers
   if (state === 'drop' && c.landed) { [h.x, h.z] = c.landed; h.vx = c.vx; h.vz = c.vz; }
-  if (h.y < HEAD_MIN_Y) { h.y = HEAD_MIN_Y; if (h.vy < 0) h.vy *= -.2; h.vx *= .9; h.vz *= .9; }
+  const minY = HEAD_MIN_Y + floorUnder(h.x, h.z);
+  if (h.y < minY) { h.y = minY; if (h.vy < 0) h.vy *= -.2; h.vx *= .9; h.vz *= .9; }
   // The hole walls stop the claw: it rests on their top edge or slides off their sides
   const s = clawWallPush(), sl = Math.hypot(...s);
   if (sl > 0) c.touching = true;
@@ -2550,7 +2566,7 @@ function levelTags(l, boss) {
   if (l.size) t.push(`<span class="tag">${l.size[1] <= .28 ? 'chicas' : l.size[0] >= .33 ? 'grandes' : 'de varios tamaños'}</span>`);
   for (const [k, n] of Object.entries(l.traps || {})) t.push(`<span class="tag">${capHtml(k)}${k === 'bomb' ? (n > 1 ? 'bombas' : 'bomba') : 'calavera'}</span>`);
   if (l.bonus) t.push(`<span class="tag">${capHtml('bonus')}fichas</span>`);
-  if (l.stands) t.push(`<span class="tag">${{ one: 'pedestal', two: '2 pedestales', three: '3 pedestales', stairs: 'escalera' }[l.stands]}</span>`);
+  if (l.stands) t.push(`<span class="tag">${{ one: 'pedestal', two: '2 pedestales', stairs: 'escalera' }[l.stands]}</span>`);
   if (l.bury) t.push('<span class="tag">enterrada</span>');
   return t.length ? `<span class="tags">${t.join('')}</span>` : '';
 }
