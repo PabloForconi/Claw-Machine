@@ -465,7 +465,7 @@ const WORLDS = [
     chars: ['Reddy', 'Blobby', 'Spike', 'Violett', 'Sunny', 'Pinky', 'Chompy', 'Bloop', 'Fuzzy', 'Cyclo', 'Grumpy', 'Zappy', 'Bubbles', 'Triple', 'Flappy', 'Zippy', 'Spiky', 'Wobble', 'Horny', 'Boingo'] },
   { id: 'halloween', name: 'Halloween', skin: 'halloween', balls: [['Calabaza', '#ff8a1f'], ['Hueso', '#eee3c8'], ['Violeta', '#8f52e0'], ['Moco', '#93dc3c'], ['Fantasma', '#cfe3ff'], ['Sangre', '#d9283a'], ['Dorada', '#ffd23f'], ['Plateada', '#c8d0de']],
     chars: ['Vampi', 'Fanty', 'Pumpi', 'Mumi', 'Franki', 'Witchi', 'Gati', 'Skully', 'Devily', 'Oculi', 'Lobin', 'Batty', 'Zombi', 'Reap', 'Candy', 'Caldi', 'Shadow', 'Boozy', 'Spidey', 'Jacky'] },
-  { id: 'navidad', name: 'Navidad', balls: [['Roja', '#e0323c'], ['Verde', '#2fa64b'], ['Nieve', '#f7f7fb'], ['Jengibre', '#b46a38'], ['Hielo', '#9fd8ff'], ['Caramelo', '#ff7aa0'], ['Dorada', '#ffd23f'], ['Plateada', '#c8d0de']],
+  { id: 'navidad', name: 'Navidad', skin: 'navidad', balls: [['Roja', '#e0323c'], ['Verde', '#2fa64b'], ['Nieve', '#f7f7fb'], ['Jengibre', '#b46a38'], ['Hielo', '#9fd8ff'], ['Caramelo', '#ff7aa0'], ['Dorada', '#ffd23f'], ['Plateada', '#c8d0de']],
     chars: ['Santy', 'Ruddy', 'Snowy', 'Gingy', 'Elfi', 'Polar', 'Pengu', 'Treely', 'Giftie', 'Candy', 'Globie', 'Holly', 'Orbi', 'Twinkle', 'Jingly', 'Puddi', 'Flaky', 'Jingle', 'Santaball', 'Wreathy'] },
 ];
 // A world's nine kinds of capsule: b0–b7, two per rarity, then b8, the rainbow one
@@ -650,9 +650,10 @@ function canvasTex(w, h, paint) {
   return tex;
 }
 
+// (bg can be a function, so the colour can change: a skin's floor, see setSkin)
 const dots = (bg) => {
   const t = canvasTex(128, 128, (g, w, h) => {
-    g.fillStyle = bg; g.fillRect(0, 0, w, h); g.fillStyle = 'rgba(255,255,255,.12)';
+    g.fillStyle = typeof bg === 'function' ? bg() : bg; g.fillRect(0, 0, w, h); g.fillStyle = 'rgba(255,255,255,.12)';
     for (const [x, y] of [[32, 32], [96, 96]]) { g.beginPath(); g.arc(x, y, 9, 0, 7); g.fill(); }
   });
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
@@ -665,7 +666,7 @@ const dots = (bg) => {
 const POST = .175, CAB_X = 2 * (BOX.x + POST), CAB_Z = 2 * (BOX.z + POST);
 
 // Floor slab with the hole cut out: two boxes forming an L, plus rims all round
-const floorTex = dots('#5a43a0'); floorTex.repeat.set(6, 4.5);
+const floorTex = dots(() => skin?.floor || '#5a43a0'); floorTex.repeat.set(6, 4.5);
 const FLOOR = mat(0xffffff, { map: floorTex });
 const slabA = box(BOX.x - HOLE.x, .6, BOX.z * 2, FLOOR, (HOLE.x + BOX.x) / 2, -.3, 0);
 const slabB = box(HOLE.x + BOX.x, .6, HOLE.z + BOX.z, FLOOR, (HOLE.x - BOX.x) / 2, -.3, (HOLE.z - BOX.z) / 2);
@@ -829,7 +830,8 @@ for (let i = 0; i < 22; i++) for (const y of [MARQUEE_Y - MARQUEE_H / 2 + .02, M
 // - a purple marquee with a chequered border that chases, pumpkins and webs (in place of the bulbs);
 // - lanterns glowing up the inside of the pillars;
 // - a graveyard with bats on the scoreboard.
-// Animales and Monstruos have one too, from other references. Navidad keeps the pink machine for now.
+// Animales, Monstruos and Navidad have one too, from other references. The pink machine (no skin) is
+// what a world without one gets.
 const PINK_HEX = 0xe8457a;
 // A little bat, spread wings, centred at x, y, s wide
 function drawBat(g, x, y, s, color) {
@@ -910,7 +912,90 @@ function drawMonster(g, x, y, r, color, { eyes = 1, horns = false } = {}) {
   g.fillStyle = '#3a0f2a'; g.beginPath(); g.ellipse(x, y + r * .45, r * .38, r * .2, 0, 0, Math.PI); g.fill();
   g.fillStyle = '#fff'; for (const sx of [-1, 1]) { g.beginPath(); g.moveTo(x + sx * r * .22, y + r * .45); g.lineTo(x + sx * r * .12, y + r * .45); g.lineTo(x + sx * r * .17, y + r * .58); g.fill(); }
 }
+// A six-armed snowflake
+function drawSnowflake(g, x, y, r, color) {
+  g.strokeStyle = color; g.lineWidth = Math.max(2, r * .16); g.lineCap = 'round';
+  for (let i = 0; i < 6; i++) {
+    const a = i * Math.PI / 3, c = Math.cos(a), s = Math.sin(a);
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + c * r, y + s * r); g.stroke();
+    for (const k of [.55]) for (const sd of [-1, 1]) {
+      const bx = x + c * r * k, by = y + s * r * k, b = a + sd * .7;
+      g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + Math.cos(b) * r * .32, by + Math.sin(b) * r * .32); g.stroke();
+    }
+  }
+}
+// Two holly leaves and three berries
+function drawHolly(g, x, y, s, flip = 1) {
+  g.fillStyle = '#1f8a3a';
+  for (const a of [-.5, .5]) {
+    g.save(); g.translate(x, y); g.rotate(a * flip + (flip < 0 ? Math.PI : 0)); g.beginPath(); g.ellipse(s * .5, 0, s * .5, s * .2, 0, 0, 7); g.fill(); g.restore();
+  }
+  g.fillStyle = '#e0202c';
+  for (const [dx, dy] of [[0, -.08], [-.16, .1], [.16, .1]]) { g.beginPath(); g.arc(x + dx * s, y + dy * s, s * .13, 0, 7); g.fill(); }
+  g.fillStyle = 'rgba(255, 255, 255, .5)'; g.beginPath(); g.arc(x - s * .03, y - s * .12, s * .04, 0, 7); g.fill();
+}
+// A red bow with gold edges
+function drawBow(g, x, y, s) {
+  g.fillStyle = '#d4141f'; g.strokeStyle = '#ffd23f'; g.lineWidth = Math.max(2, s * .05);
+  for (const sx of [-1, 1]) { g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + sx * s * .55, y - s * .55, x + sx * s * .6, y); g.quadraticCurveTo(x + sx * s * .55, y + s * .3, x, y); g.fill(); g.stroke(); }
+  for (const sx of [-1, 1]) { g.beginPath(); g.moveTo(x, y); g.lineTo(x + sx * s * .35, y + s * .6); g.lineTo(x + sx * s * .18, y + s * .55); g.fill(); }
+  g.beginPath(); g.arc(x, y, s * .13, 0, 7); g.fill(); g.stroke();
+}
+// Snow lying along y from x0 to x1: a white band with a lumpy lower edge
+function drawSnow(g, x0, x1, y, depth) {
+  g.fillStyle = '#ffffff'; g.beginPath(); g.moveTo(x0, y - depth * .2);
+  for (let x = x0, i = 0; x <= x1 + 1; x += depth * 1.2, i++) g.quadraticCurveTo(x + depth * .6, y + depth * (i % 2 ? .9 : .55), x + depth * 1.2, y + depth * .3);
+  g.lineTo(x1, y - depth); g.lineTo(x0, y - depth); g.fill();
+  g.fillStyle = 'rgba(190, 220, 255, .6)'; g.fillRect(x0, y - depth * .15, x1 - x0, depth * .12);
+}
+// Red and white candy stripes over a rectangle
+function candyStripes(g, x, y, w, h, step) {
+  g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
+  g.fillStyle = '#ffffff'; g.fillRect(x, y, w, h); g.fillStyle = '#e0202c';
+  for (let k = -h; k < w + h; k += step * 2) { g.beginPath(); g.moveTo(x + k, y + h); g.lineTo(x + k + step, y + h); g.lineTo(x + k + step + h, y); g.lineTo(x + k + h, y); g.fill(); }
+  g.restore();
+}
 const SKINS = {
+  // The Navidad machine, from the user's reference picture (October 2026): a red cabinet, candy cane
+  // pillars with green panels holding gold stars under snow, a green marquee between candy stripes with
+  // snow on top, red bows, holly and snowflakes (its bulbs stay), warm lights up the pillars, a red
+  // floor, and snow, holly and snowflakes on a green scoreboard
+  navidad: {
+    body: 0xd9202c, bulbs: true, lanterns: true, lantern: 0xfff0b0, floor: '#c8222e',
+    pillar(g, w, h) {
+      candyStripes(g, 0, 0, w, h, w * .55);
+      for (let y = 380; y < h - 160; y += 420) {
+        g.fillStyle = '#1b7a35'; g.beginPath(); g.roundRect(w * .1, y, w * .8, 230, 12); g.fill();
+        g.strokeStyle = '#ffd23f'; g.lineWidth = 4; g.stroke();
+        drawStar(g, w / 2, y + 125, w * .3, '#ffd23f');
+        drawSnow(g, w * .05, w * .95, y + 18, 26);
+      }
+      drawSnow(g, 0, w, 60, 50);
+      g.fillStyle = 'rgba(255, 255, 255, .2)'; g.fillRect(w * .8, 0, w * .08, h);
+    },
+    marquee(g, w, h) {
+      const band = h * .13;
+      candyStripes(g, 0, 0, w, band, band * .9); candyStripes(g, 0, h - band, w, band, band * .9);
+      g.fillStyle = '#1b7a35'; g.fillRect(0, band, w, h - 2 * band);
+      g.fillStyle = '#ffd23f'; g.fillRect(0, band, w, 4); g.fillRect(0, h - band - 4, w, 4);
+      drawSnow(g, 0, w, band + h * .06, h * .1);
+      for (const [x, y, r] of [[.25, .42, .07], [.75, .42, .07], [.04, .6, .05], [.96, .6, .05]]) drawSnowflake(g, w * x, h * y, h * r, '#ffffff');
+      for (const [x, f] of [[.2, 1], [.8, -1]]) drawHolly(g, w * x, h * .74, h * .16, f);
+      for (const x of [.1, .9]) drawBow(g, w * x, h * .45, h * .34);
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(h * .42)}px Kalam, cursive`;
+      g.lineWidth = 12; g.strokeStyle = '#8a0f17'; g.strokeText('CLAW MACHINE', w / 2, h / 2 + 6);
+      const gt = g.createLinearGradient(0, h * .3, 0, h * .7); gt.addColorStop(0, '#fff36b'); gt.addColorStop(1, '#ffb01f');
+      g.fillStyle = gt; g.fillText('CLAW MACHINE', w / 2, h / 2 + 6);
+    },
+    board(g, w, h) {
+      g.save(); g.beginPath(); g.roundRect(11, 11, w - 22, h - 22, 28); g.clip();
+      g.fillStyle = '#165f2c'; g.fillRect(0, 0, w, h);
+      drawSnowflake(g, w * .035, h * .45, 16, 'rgba(255, 255, 255, .85)');
+      drawSnowflake(g, w * .965, h * .45, 16, 'rgba(255, 255, 255, .85)');
+      drawHolly(g, w * .04, h * .82, 40, 1); drawHolly(g, w * .96, h * .82, 40, -1);
+      g.restore();
+    },
+  },
   // The Monstruos machine, from the user's reference picture (October 2026): a hot pink cabinet,
   // purple pillars dripping lime slime with stars and little monsters peeking out, a dark purple
   // marquee slimed top and bottom with a monster each side, and slime and monsters on the scoreboard
@@ -1070,7 +1155,7 @@ function setSkin(w) {
   for (const [b] of bulbs) b.visible = !skin || !!skin.bulbs;
   for (const m of lanterns) m.visible = !!skin?.lanterns;
   if (skin?.lantern) LANTERN.color.set(skin.lantern);
-  marqueeTex.repaint(); boardTex.repaint();
+  marqueeTex.repaint(); boardTex.repaint(); floorTex.repaint();
 }
 
 // Room floor

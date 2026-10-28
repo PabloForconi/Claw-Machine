@@ -314,8 +314,14 @@ The user asked for collectable characters as a metagame (October 2026), differen
     - a dark purple marquee slimed top and bottom (`drawSlime()`), with a horned pink cyclops and a three-eyed blue monster at its sides, "CLAW" yellow and "MACHINE" white-pink;
     - no bulbs;
     - a thin slime along the scoreboard's top (kept above the labels), and monsters and stars in its corners.
-  - A skin's options: `body`, `pillar`, `marquee`, `board`, `bulbs`, `lanterns` and `lantern` (their colour), and `chase` (the marquee repaints to animate, Halloween's chequer).
-  - The drawing helpers are `drawBat()`, `drawStar()`, `drawWeb()`, `drawPumpkin()`, `drawPaw()`, `drawBigPaw()`, `drawSlime()` and `drawMonster()`. Navidad keeps the pink machine with its bulbs.
+  - Navidad has one too, from another reference of the user's (October 2026):
+    - a red cabinet and a red floor (`floor`, the floor's dotted texture repaints);
+    - candy cane front pillars with green panels holding gold stars under snow;
+    - a green marquee between candy stripes, with snow along its top, red bows, holly and snowflakes, and gold text;
+    - its bulbs stay, and warm lights glow up the pillars;
+    - snowflakes and holly in the green scoreboard's corners.
+  - A skin's options: `body`, `floor`, `pillar`, `marquee`, `board`, `bulbs`, `lanterns` and `lantern` (their colour), and `chase` (the marquee repaints to animate, Halloween's chequer).
+  - The drawing helpers are `drawBat()`, `drawStar()`, `drawWeb()`, `drawPumpkin()`, `drawPaw()`, `drawBigPaw()`, `drawSlime()`, `drawMonster()`, `drawSnowflake()`, `drawHolly()`, `drawBow()`, `drawSnow()` and `candyStripes()`. All four worlds now have a skin; the pink machine with its bulbs is what a world without one gets.
 - The worlds, levels, gallery and exhibitor screens each have buttons to the others. `showScreen()` / `closeScreens()` switch them: the game is paused and not drawn meanwhile, Escape goes back, and back to the level's card if it had ended.
 - The daily challenge picks one of the open worlds by the date.
 - To try it locally with the pictures, run `node tools/serve.mjs` (`.claude/launch.json` "claw-machine", port 8131). `file://` and the in-app browser's `data:` snapshot don't load `assets/`. Port 8123 is often taken by `../Laberinto`'s server.
