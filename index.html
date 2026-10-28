@@ -151,7 +151,6 @@
   #lvlBanner { width: 100%; max-width: 640px; height: 150px; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; padding: 10px 14px; border-radius: 16px; text-align: center; }
   #lvlBanner::before { background: linear-gradient(transparent 30%, rgba(0, 0, 0, .78)); }
   #lvlBanner h2 { font-size: clamp(24px, 7.5vw, 30px); line-height: 1.1; white-space: nowrap; }
-  #lvlBanner h2 small { display: block; font-size: 18px; color: var(--ink); }
   #lvlBanner span { font-size: 18px; color: var(--ink); }
   /* The worlds screen: a page per world with its cover, and the daily challenge as a strip above */
   /* (the worlds' carousel fades out at its sides, so covers slide in and out softly when swiped; each
@@ -169,9 +168,8 @@
   /* (the world's name and progress at the top of the cover, Jugar alone at the bottom, nothing darkening
      the art: the user asked for it, October 2026) */
   .winfo { position: absolute; left: 0; right: 0; top: 0; padding: 14px 14px 0; text-align: center; }
-  /* ("Mundo n" on a small line over the name, so a long name like Dulce Halloween fits on one) */
+  /* (only the world's name, as the user asked: "Mundo n" was dropped) */
   .winfo h3 { display: block; margin: 0; font-size: clamp(24px, 7.5vw, 32px); line-height: 1.1; white-space: nowrap; color: var(--gold); text-shadow: 0 2px 0 #000, 0 0 6px #000, 0 0 12px #000; }
-  .winfo h3 small { display: block; font-size: 18px; color: var(--ink); }
   .winfo p { margin: 2px 0 0; font-size: clamp(13px, 3.9vw, 17px); text-shadow: 0 1px 0 #000, 0 0 5px #000, 0 0 10px #000; }
   .winfo .lock { font-size: 20px; }
   .wplay { position: absolute; left: 0; right: 0; bottom: 16px; text-align: center; }
@@ -2644,7 +2642,7 @@ function openWorlds(at = worldNow()) {
   worldCar.fill(WORLDS.map((wd, w) => {
     const st = worldStats(w), open = worldOpen(w);
     return `<section class="season wpage"><div class="cover${open ? '' : ' locked'}" style="background-image:url(${coverSrc(w)})"><div class="winfo">` +
-      `<h3><small>Mundo ${w + 1}</small>${wd.name}</h3><p>Niveles ${st.done}/5 · ★ ${st.stars}/15 · Personajes ${st.chars}/20</p>` +
+      `<h3>${wd.name}</h3><p>Niveles ${st.done}/5 · ★ ${st.stars}/15 · Personajes ${st.chars}/20</p>` +
       (open ? '' : `<p class="lock">🔒 Superá al jefe de ${WORLDS[w - 1].name}</p>`) + '</div>' +
       (open ? `<div class="wplay"><button class="play" data-w="${w}">Jugar</button></div>` : '') + '</div></section>';
   }).join(''), at);
@@ -2660,7 +2658,7 @@ function openLevels(w = worldNow()) {
   showScreen('levels');
   const st = worldStats(w);
   $('lvlBanner').style.backgroundImage = `url(${coverSrc(w)})`;
-  $('lvlTitle').innerHTML = `<small>Mundo ${w + 1}</small>${WORLDS[w].name}`;
+  $('lvlTitle').textContent = WORLDS[w].name;
   $('lvlSub').innerHTML = `Niveles ${st.done}/5 · ★ ${st.stars}/15`;
   $('lvlList').innerHTML = [0, 1, 2, 3, 4].map(k => {
     const i = w * 5 + k, l = LEVELS[i], locked = !levelOpen(i), boss = k === 4;
@@ -2793,7 +2791,7 @@ function openGallery(at = worldNow()) {
         (ready ? `<span class="open">¡Abrir!${ready > 1 ? ` ×${ready}` : ''}</span>`
           : `<span class="bar"><i style="width:${part / CHAR_EVERY * 100}%"></i><b>${locked ? '?' : `${part}/${CHAR_EVERY}`}</b></span>`) + `</div>`;
     }).join('');
-    return `<section class="season${locked ? ' locked' : ''}">${banner(w, `Mundo ${w + 1} · ${wd.name}`, locked ? '<span>🔒</span>' : '')}` +
+    return `<section class="season${locked ? ' locked' : ''}">${banner(w, wd.name, locked ? '<span>🔒</span>' : '')}` +
       (locked ? lockedNote(w) : '') + `<div class="shelf">${slots}</div></section>`;   // (the user dropped the hint line, October 2026)
   }).join(''), at);
 }
