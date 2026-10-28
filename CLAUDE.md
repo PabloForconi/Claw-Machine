@@ -351,9 +351,11 @@ No zooming on a phone: on an iPhone two quick taps zoomed the whole page in, as 
 - a touch guard cancels the default of a touch that ends within 350 ms of the one before. The game reads taps from pointer events, which still arrive. A click-only button tapped twice that fast only gets the first click.
 - pinch gestures (`gesturestart`/`gesturechange`) and `dblclick` are refused.
 
-Controls: arrows or WASD to move (up/W moves the claw back, away from the camera), Space or Enter to drop. On screen there is the pad and the ¡BAJAR! button.
+Controls: arrows or WASD to move (up/W moves the claw back, away from the camera), Space or Enter to drop. On screen there is the pad and the BAJAR button.
+- The BAJAR button (`#bd`) is a red arcade button seen from above, in the pad's dark navy ring, from the user's reference (October 2026), with the same simple shines as the pad (a gloss on the dome, `::before`, and a faint one on the ring, `::after`). Its text is BAJAR, smaller and white (it was a yellow disc saying ¡BAJAR!; the board's hint says BAJAR too). Pressed, the dome sinks into the ring instead of the button moving down.
 - The pad (`#pad`, `stick`) is a joystick like the one in `../Laberinto`; it replaced a four-button d-pad, as the user asked (October 2026).
   - Its base rests in the pad area, jumps to where the finger lands, and the knob follows the finger up to `STICK_R`.
+  - Its look is from the user's reference (October 2026), in CSS only: a dark navy base (`#stick`, rings of radial gradient: a thick rim, a darker groove, a well and a hole in the middle) with a faint shine on the rim's top left (`::before`), and a blue arcade ball (`#knob`) with a soft gloss (`::before`) and a small glint (`::after`). It used to be pink rings.
   - The direction steers the claw, and how far it is pushed sets the speed (dead zone `STICK_DEAD`).
   - Touching it while idle starts the round.
 - The gear (`#gear`, top right) opens a settings panel (`#opts`) that pauses the game while open.

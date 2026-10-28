@@ -29,10 +29,20 @@
   /* Pad: a joystick like the maze game's. Its base rests here; touched, it jumps to the finger and the
      knob follows it, and how far you push sets the speed. */
   #pad { position: relative; width: 150px; height: 150px; pointer-events: auto; touch-action: none; cursor: grab; }
+  /* Its look is from the user's reference (October 2026): a dark navy base, a thick rim round a darker
+     groove, a well and a hole in the middle, with a soft shine on the rim's top left; and a blue arcade
+     ball with a gloss and a little glint. It used to be pink rings. */
   #stick { position: absolute; left: 50%; top: 50%; width: 124px; height: 124px; margin: -62px 0 0 -62px; border-radius: 50%; pointer-events: none;
-    background: rgba(232, 69, 122, .22); border: 4px solid var(--pink-dark); box-shadow: 0 4px 0 rgba(138, 31, 72, .6); }
-  #knob { position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px; border-radius: 50%;
-    background: var(--pink); border: 4px solid var(--pink-dark); box-shadow: 0 4px 0 var(--pink-dark); }
+    background: radial-gradient(circle, #070c13 0 12%, #223044 13% 17%, #141e2b 18% 58%, #070b12 59% 64%, #2b384d 65% 72%, #1e2938 86%, #18212e 100%);
+    box-shadow: inset 0 2px 2px rgba(255, 255, 255, .1), inset 0 -3px 5px rgba(0, 0, 0, .5), 0 5px 0 #070b11, 0 9px 14px rgba(0, 0, 0, .4); }
+  #stick::before { content: ''; position: absolute; inset: 5px; border-radius: 50%; border: 6px solid transparent; border-top-color: rgba(255, 255, 255, .2);
+    transform: rotate(-40deg); filter: blur(.6px); }
+  #knob { position: absolute; left: 50%; top: 50%; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%;
+    background: radial-gradient(circle at 40% 34%, #5cc8ff 0, #1c9bff 32%, #0a63e8 70%, #0747b6 100%);
+    box-shadow: inset -3px -5px 8px rgba(0, 25, 90, .35), 0 6px 0 rgba(3, 8, 16, .55), 0 9px 10px rgba(0, 0, 0, .35); }
+  #knob::before { content: ''; position: absolute; left: 15%; top: 12%; width: 40%; height: 26%; border-radius: 50%;
+    background: rgba(255, 255, 255, .5); transform: rotate(-28deg); filter: blur(.5px); }
+  #knob::after { content: ''; position: absolute; right: 22%; top: 21%; width: 7px; height: 7px; border-radius: 50%; background: rgba(255, 255, 255, .85); }
   #gear { position: fixed; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); width: 44px; height: 44px; padding: 0;
     display: grid; place-items: center; font: inherit; font-size: 26px; line-height: 1; color: var(--ink); cursor: pointer;
     background: var(--panel); border: 3px solid var(--gold); border-radius: 12px; }
@@ -362,10 +372,22 @@
     border-radius: 16px; font-size: 22px; cursor: pointer; box-shadow: 0 5px 0 var(--pink-dark); padding: 0;
   }
   #controls button:active, #controls button.on { transform: translateY(4px); box-shadow: 0 1px 0 var(--pink-dark); }
+  /* The drop button: a red arcade button seen from above, in the pad's dark navy ring, from the user's
+     reference (October 2026), with simple shines like the pad's: a soft gloss on the dome and a faint one
+     on the ring. Its text is BAJAR, smaller and white. Pressed, the dome sinks a little into the ring. It
+     used to be a yellow disc with ¡BAJAR!. */
   #controls #bd {
-    width: 120px; height: 120px; border-radius: 50%; font-size: 26px;
-    background: var(--gold); color: #3a1f00; border-color: #a8740a; box-shadow: 0 6px 0 #a8740a;
+    position: relative; isolation: isolate; width: 120px; height: 120px; border-radius: 50%; font-size: 21px; letter-spacing: .5px; color: #fff;
+    text-shadow: 0 2px 0 rgba(110, 0, 0, .55); border: 12px solid #222d3d;
+    background: radial-gradient(circle at 42% 36%, #ff5446 0, #f0261c 42%, #cf1212 78%, #a80d0d 100%);
+    box-shadow: inset 0 0 0 3px #070b12, inset 0 -6px 8px rgba(90, 0, 0, .35), 0 0 0 2px #121a26, 0 5px 0 #070b11, 0 9px 14px rgba(0, 0, 0, .4);
   }
+  #controls #bd::before { content: ''; position: absolute; z-index: -1; left: 16%; top: 12%; width: 44%; height: 26%; border-radius: 50%;
+    background: rgba(255, 255, 255, .42); transform: rotate(-28deg); filter: blur(.5px); }
+  #controls #bd::after { content: ''; position: absolute; inset: -10px; border-radius: 50%; border: 5px solid transparent; border-top-color: rgba(255, 255, 255, .18);
+    transform: rotate(-40deg); filter: blur(.6px); pointer-events: none; }
+  #controls #bd:active, #controls #bd.on { transform: none; filter: brightness(.9);
+    box-shadow: inset 0 0 0 5px #070b12, inset 0 4px 8px rgba(90, 0, 0, .45), 0 0 0 2px #121a26, 0 5px 0 #070b11, 0 9px 14px rgba(0, 0, 0, .4); }
   #over { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .7); padding: 16px; }
   .card { background: var(--panel); border: 5px solid var(--gold); border-radius: 22px; padding: 22px 30px; text-align: center; max-width: 360px; width: 100%; }
   .card h2 { margin: 0 0 8px; font-size: 34px; color: var(--gold); }
@@ -398,7 +420,7 @@
 <body>
 <div id="controls">
   <div id="pad" aria-label="Mover la garra"><div id="stick"><div id="knob"></div></div></div>
-  <button id="bd">¡BAJAR!</button>
+  <button id="bd">BAJAR</button>
 </div>
 <button id="gear" aria-label="Ajustes">⚙</button>
 <button id="lvlBtn" aria-label="Mundos y niveles">★</button>
@@ -2573,7 +2595,7 @@ const capHtml = (key, kinds) => { const c = capOf(key, kinds); return `<span cla
 // Update the scoreboard on the base; it is only repainted when something on it changes. While idle its
 // hint says how to play, or that one more catch wins a coin when a streak is going.
 function hud() {
-  const hint = state !== 'idle' ? '' : streak === STREAK_N - 1 ? '¡Uno más seguido y ganás una ficha!' : FREE_PLAY ? 'Mové el pad o tocá ¡BAJAR!' : 'Mové el pad o tocá ¡BAJAR! (1 ficha)';
+  const hint = state !== 'idle' ? '' : streak === STREAK_N - 1 ? '¡Uno más seguido y ganás una ficha!' : FREE_PLAY ? 'Mové el pad o tocá BAJAR' : 'Mové el pad o tocá BAJAR (1 ficha)';
   const next = { coins: FREE_PLAY ? '∞' : coins, goal: level + ':' + lv.goal.map(goalLeft).join(), time: state === 'aim' ? String(Math.ceil(aimT)) : '–', low: state === 'aim' && aimT < 5, hint,
     flash: coinFlash > 0 && board.flashColor };
   if (Object.keys(next).some(k => next[k] !== board[k])) { Object.assign(board, next); boardTex.repaint(); }
