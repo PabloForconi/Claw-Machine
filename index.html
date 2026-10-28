@@ -2769,7 +2769,7 @@ function openGallery(at = worldNow()) {
         `<span class="tot">${n ? `${n} en total` : '&nbsp;'}</span></div>`;
     }).join('');
     return `<section class="season${locked ? ' locked' : ''}">${banner(w, `Mundo ${w + 1} · ${wd.name}`, locked ? '<span>🔒</span>' : '')}` +
-      (locked ? lockedNote(w) : `<p class="sub">${CHAR_EVERY > 1 ? `Cada ${CHAR_EVERY} de un color completan su tarjeta` : 'Cada cápsula completa su tarjeta'}: tocala para abrirla</p>`) + `<div class="shelf">${slots}</div></section>`;
+      (locked ? lockedNote(w) : '') + `<div class="shelf">${slots}</div></section>`;   // (the user dropped the hint line, October 2026)
   }).join(''), at);
 }
 $('shelf').addEventListener('click', e => { const el = e.target.closest('.slot.ready'); if (el) openCard(+el.dataset.w, +el.dataset.b); });
