@@ -107,7 +107,7 @@
     background: var(--bg); box-shadow: inset 0 0 0 3px rgba(255, 255, 255, .45), 0 6px 0 rgba(0, 0, 0, .35); }
   .rack.t1 { --bg: #d6f2d8; --rim: #3f8f57; --tile: #b9e3c0; --ink2: #1d4a2a; }
   .rack.t2 { --bg: #cfe8f6; --rim: #3a76a6; --tile: #afd3ea; --ink2: #173a5a; }
-  .rack.t3 { --bg: #ffeeb8; --rim: #c08a1a; --tile: #f8db86; --ink2: #5a3b00; }
+  .rack.t3 { --bg: #ffe9c2; --rim: #ea9112; --tile: #ffd690; --ink2: #5a3000; }   /* (an orange yellow, as the user asked; it was a mustard gold, #c08a1a) */
   .rack.t4 { --bg: #f7dcf3; --rim: #b04fa8; --tile: #ecc3e6; --ink2: #4f1748; }
   .rack .rtitle { position: absolute; top: -18px; left: 12px; padding: 3px 14px 4px; border-radius: 10px; background: var(--rim); color: #fff;
     font-size: 18px; line-height: 1.1; transform: rotate(-3deg); text-shadow: 0 2px 0 rgba(0, 0, 0, .3); box-shadow: 0 3px 0 rgba(0, 0, 0, .3); }
@@ -250,7 +250,7 @@
   .shelf { flex: 1 0 auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 20px 8px;
     width: 100%; max-width: 560px; margin: 14px auto 0; }
   /* (the rarities' colours are the collection's frames, .rack's --rim; the rainbow one is pink) */
-  .slot.t0 { --tc: #8a5a36; } .slot.t1 { --tc: #3f8f57; } .slot.t2 { --tc: #3a76a6; } .slot.t3 { --tc: #c08a1a; } .slot.t4 { --tc: #b04fa8; }
+  .slot.t0 { --tc: #8a5a36; } .slot.t1 { --tc: #3f8f57; } .slot.t2 { --tc: #3a76a6; } .slot.t3 { --tc: #ea9112; } .slot.t4 { --tc: #b04fa8; }
   /* The other rarity finishes: white stripes (uncommon), white dots (rare) */
   .cap.stripes { background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .8) 0 6%, transparent 20%),
       repeating-linear-gradient(-50deg, rgba(255, 255, 255, .55) 0 12%, transparent 12% 30%),
@@ -501,7 +501,7 @@ const TIERS = [
   { name: 'Común', design: 'plain', w: .45, css: '#c9cfdb' },
   { name: 'Infrecuente', design: 'stripes', w: .28, css: '#80ed99' },
   { name: 'Rara', design: 'dots', w: .17, css: '#4cc9f0' },
-  { name: 'Legendaria', design: 'metal', w: .07, css: '#ffd23f' },
+  { name: 'Legendaria', design: 'metal', w: .07, css: '#ffae2b' },   // (orange yellow, as the user asked; it was #ffd23f)
   { name: 'Arcoíris', design: 'rainbow', w: .03, css: '#ff9fbd' },
 ];
 const WORLDS = [
