@@ -121,7 +121,8 @@
   .toy.none img { filter: brightness(0); opacity: .72; }
   .toy .pic i { position: absolute; inset: 0 0 12%; display: flex; align-items: center; justify-content: center; font-style: normal;
     font-size: clamp(16px, 4.5vw, 30px); color: rgba(255, 255, 255, .45); }
-  .toy b { position: absolute; top: -8px; right: -4px; padding: 1px 6px; border-radius: 10px; font-size: 13px; line-height: 1.2;
+  .toy b { position: absolute; bottom: -6px; right: -4px;   /* (at the bottom, clear of the name, as the user asked) */
+    padding: 1px 6px; border-radius: 10px; font-size: 13px; line-height: 1.2;
     background: #ff4f7b; color: #fff; box-shadow: 0 2px 0 rgba(0, 0, 0, .3); }
   /* A character just won, at the top of the screen for a moment */
   #toast { position: fixed; top: max(64px, calc(env(safe-area-inset-top) + 54px)); left: 50%; display: flex; align-items: center; gap: 10px;
