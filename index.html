@@ -94,24 +94,35 @@
   .slot .bar { position: relative; width: 80%; height: 20px; border-radius: 10px; background: rgba(255, 255, 255, .12); overflow: hidden; }
   .slot .bar i { display: block; height: 100%; background: var(--gold); }
   .slot .bar b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: inherit; line-height: 1; color: #fff6e0; text-shadow: 0 1px 2px rgba(0, 0, 0, .9); }
-  /* The exhibitor: a shelf (rack) per rarity, its board under five characters standing on it */
-  .rack { margin-bottom: 14px; }
-  .rack .rtitle { display: block; margin: 0 6px 2px; font-size: 16px; }
-  .rack.t0 .rtitle { color: #c9cfdb; } .rack.t1 .rtitle { color: #80ed99; } .rack.t2 .rtitle { color: #4cc9f0; } .rack.t3 .rtitle { color: #ffd23f; }
-  /* (the shelf: a dark grey back, then the board, its lighter grey top 22 px deep and its darker front
-     edge 14 px, greys from the user's reference, then lightened at their request, October 2026; it used to be wood, gold for the
-     legendary row. The board's depths were made deeper upwards at the user's request) */
-  .row5 { --top: #464646; --edge: #303030; --back: #242424; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: end; gap: 4px; padding: 6px 6px 36px;
-    background: linear-gradient(to top, var(--edge) 0 14px, var(--top) 14px 36px, var(--back) 36px); border-radius: 10px 10px 0 0;
-    box-shadow: 0 12px 14px -6px rgba(0, 0, 0, .35); }
-  /* Each character stands on the board (its picture has a little room and its shadow under it), with
-     its name over it */
-  .toy { position: relative; display: flex; flex-direction: column; align-items: center; font-size: clamp(14px, 2.4vw, 20px); line-height: 1.1; text-align: center; }
-  .toy > span { min-height: 2.2em; display: flex; align-items: flex-end; justify-content: center; }
-  .toy img { width: 100%; aspect-ratio: 1; object-fit: contain; pointer-events: none; margin-bottom: calc(-15% - 12px); }
-  .toy.none img { filter: brightness(0); }   /* (a black silhouette, shadow and all, on the dark grey back) */
-  .toy.none span { opacity: .5; }
-  .toy b { position: absolute; top: 2.4em; right: 0; padding: 0 5px; border-radius: 8px; font-size: 13px; background: var(--pink); color: var(--ink); }
+  /* The exhibitor: a framed panel (rack) per rarity, its name on a tab over the top left corner, and in
+     it five tiles, a character each with its name on a plate above it. From the user's reference
+     (October 2026); before, it was a dark grey shelf with the characters standing on its board. Each
+     rarity has its colours: the panel (--bg), its frame and tab (--rim), the tiles (--tile). */
+  .rack { --bg: #f1e3c6; --rim: #8a5a36; --tile: #e4d0a8; --ink2: #4a2c14;
+    position: relative; margin: 22px 2px 16px; padding: 18px 8px 10px; border: 4px solid var(--rim); border-radius: 18px;
+    background: var(--bg); box-shadow: inset 0 0 0 3px rgba(255, 255, 255, .45), 0 6px 0 rgba(0, 0, 0, .35); }
+  .rack.t1 { --bg: #d6f2d8; --rim: #3f8f57; --tile: #b9e3c0; --ink2: #1d4a2a; }
+  .rack.t2 { --bg: #cfe8f6; --rim: #3a76a6; --tile: #afd3ea; --ink2: #173a5a; }
+  .rack.t3 { --bg: #ffeeb8; --rim: #c08a1a; --tile: #f8db86; --ink2: #5a3b00; }
+  .rack .rtitle { position: absolute; top: -18px; left: 12px; padding: 3px 14px 4px; border-radius: 10px; background: var(--rim); color: #fff;
+    font-size: 18px; line-height: 1.1; transform: rotate(-3deg); text-shadow: 0 2px 0 rgba(0, 0, 0, .3); box-shadow: 0 3px 0 rgba(0, 0, 0, .3); }
+  .row5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  /* A tile: the name's plate at the top, then the character over a soft spot of floor; a character not
+     won yet is a dark silhouette with "?" and no name */
+  .toy { position: relative; display: flex; flex-direction: column; align-items: center; padding: 5px 3px 0; border-radius: 12px;
+    background: radial-gradient(60% 12% at 50% 86%, rgba(0, 0, 0, .12), transparent 100%), var(--tile);
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, .5), inset 0 -2px 0 rgba(0, 0, 0, .08); }
+  .toy .plate { max-width: 100%; padding: 2px 6px; border-radius: 8px; background: rgba(255, 255, 255, .7); color: var(--ink2);
+    font-size: clamp(11px, 2.6vw, 17px); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .toy.none .plate { visibility: hidden; }
+  /* (the cuts leave room round each character, so the picture is drawn bigger than the tile and cropped to it) */
+  .toy .pic { position: relative; width: 100%; overflow: hidden; }
+  .toy img { display: block; width: 130%; max-width: none; aspect-ratio: 1; margin: -16% -15% -8%; object-fit: contain; pointer-events: none; }
+  .toy.none img { filter: brightness(0); opacity: .72; }
+  .toy .pic i { position: absolute; inset: 0 0 12%; display: flex; align-items: center; justify-content: center; font-style: normal;
+    font-size: clamp(16px, 4.5vw, 30px); color: rgba(255, 255, 255, .45); }
+  .toy b { position: absolute; top: -8px; right: -4px; padding: 1px 6px; border-radius: 10px; font-size: 13px; line-height: 1.2;
+    background: #ff4f7b; color: #fff; box-shadow: 0 2px 0 rgba(0, 0, 0, .3); }
   /* A character just won, at the top of the screen for a moment */
   #toast { position: fixed; top: max(64px, calc(env(safe-area-inset-top) + 54px)); left: 50%; display: flex; align-items: center; gap: 10px;
     padding: 6px 16px 6px 6px; border-radius: 18px; background: var(--panel); border: 3px solid var(--gold); font-size: 20px;
@@ -2784,8 +2795,8 @@ function openChars() {
     const have = wd.chars.filter((c, i) => meta.chars[`${wd.id}:${i}`]).length;
     const rows = CHAR_TIERS.map((t, r) => `<div class="rack t${r}"><span class="rtitle">${t}</span><div class="row5">` + [0, 1, 2, 3, 4].map(c => {
       const i = r * 5 + c, n = meta.chars[`${wd.id}:${i}`] || 0;
-      return `<span class="toy${n ? '' : ' none'}"><span>${n ? charName(w, i) : '?'}</span><img src="${charSrc(w, i)}" alt="" loading="lazy" draggable="false">` +
-        `${n > 1 ? `<b>×${n}</b>` : ''}</span>`;
+      return `<span class="toy${n ? '' : ' none'}"><span class="plate">${n ? charName(w, i) : '?'}</span>` +
+        `<span class="pic"><img src="${charSrc(w, i)}" alt="" loading="lazy" draggable="false">${n ? '' : '<i>?</i>'}</span>${n > 1 ? `<b>×${n}</b>` : ''}</span>`;
     }).join('') + '</div></div>').join('');
     return `<section class="season${worldOpen(w) ? '' : ' locked'}">${banner(w, wd.name, `<span>${have}/20</span>`)}${worldOpen(w) ? '' : lockedNote(w)}${rows}</section>`;
   }).join(''), worldNow());
