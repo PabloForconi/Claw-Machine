@@ -376,7 +376,8 @@
   .card button:active { transform: translateY(4px); box-shadow: 0 1px 0 #a8740a; }
   /* Motion, as the user asked (October 2026): buttons light up under the mouse and give a little as they
      are pressed; the pop-ups (a level's card, the settings, a card opening) spring in over a fading
-     dark, and the screens fade in */
+     dark, and the screens' contents fade in (on their black, which shows at once: fading the whole screen
+     let the machine show through for a moment between two screens, which the user saw) */
   button { transition: transform .1s ease, filter .15s ease, box-shadow .1s ease; }
   @media (hover: hover) { .back:hover, .card button:hover, .seg button:hover, .slot.ready:hover, #gear:hover, #lvlBtn:hover, #galBtn:hover, #charBtn:hover { filter: brightness(1.1); } }
   .back:active, .card button:active { transform: translateY(4px) scale(.97); }
@@ -384,7 +385,7 @@
   .slot.ready:active { transform: scale(.95); }
   #over:not([hidden]), #opts:not([hidden]), #reveal:not([hidden]) { animation: dimIn .2s ease both; }
   #over:not([hidden]) > .card, #opts:not([hidden]) > .card, #reveal:not([hidden]) > .card { animation: popIn .34s cubic-bezier(.2, 1.35, .5, 1) both; }
-  .screen:not([hidden]) { animation: dimIn .18s ease both; }
+  .screen:not([hidden]) > * { animation: dimIn .18s ease both; }
   @keyframes popIn { from { transform: scale(.7); opacity: 0; } }
   @keyframes dimIn { from { opacity: 0; } }
 </style>
