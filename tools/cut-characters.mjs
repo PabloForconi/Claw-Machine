@@ -1,16 +1,18 @@
-// Cuts the 20 characters out of each concept sheet (concept/<world>.png, 5 across and 4 down, on a
+// Cuts the 20 characters out of each concept sheet (concept/char_<world>.png, 5 across and 4 down, on a
 // transparent background) into assets/chars/<world>/<row><col>.png: each one square, SIZE pixels, the
-// character centred with its soft shadow under it. All are cut at one scale: SIDE pixels of the sheet
-// make the square, so they keep their sizes as drawn (the sheets are all 1402 × 1122, 280 px a cell;
-// the biggest character is about 1.13 cells wide and 1.05 high). The user asked for that, October 2026:
-// each used to be scaled to fill its own square. Run from the project folder: node tools/cut-characters.mjs
+// character centred. The sheets have no floor shadow: the user redrew them without it (October 2026,
+// 1920 × 1080, 384 × 270 px a cell), and the page draws the shadow itself. The first sheets had it baked
+// in, which showed as a haze round the character when it was tinted white. All are cut at one scale:
+// SIDE pixels of the sheet make the square, so they keep their sizes as drawn (the new sheets draw them
+// at the old ones' size; the biggest is about 320 px wide and 260 high). The user asked for that: each
+// used to be scaled to fill its own square. Run from the project folder: node tools/cut-characters.mjs
 import fs from 'node:fs';
 import { readPng, writePng } from './png.mjs';
 
 const WORLDS = ['animales', 'monstruos', 'halloween', 'navidad'], SIZE = 220, SIDE = 360, BASE = .88;
 
 for (const world of WORLDS) {
-  const img = readPng(fs.readFileSync(`concept/${world}.png`)), { w, h, px } = img;
+  const img = readPng(fs.readFileSync(`concept/char_${world}.png`)), { w, h, px } = img;
   // The solid parts (alpha over 128), labelled into connected blobs; each character is its biggest blob
   // in its cell of the 5 × 4 grid
   const label = new Int32Array(w * h).fill(-1), blobs = [];
@@ -40,7 +42,7 @@ for (const world of WORLDS) {
   cells.forEach((b, k) => {
     // The box: SIDE square round the blob, the same for all. Every character's base (the bottom of its
     // solid part) is at BASE of the height, so they all stand at the same level in the collection.
-    const bh = b.y1 - b.y0 + 1, shadow = Math.round(bh * .1), side = SIDE;
+    const side = SIDE;
     const cx = (b.x0 + b.x1) / 2, top = b.y1 + 1 - side * BASE;
     const out = Buffer.alloc(SIZE * SIZE * 4), scale = side / SIZE;
     // Area-averaged downscale with premultiplied alpha (the transparent pixels carry junk colours);
@@ -53,9 +55,8 @@ for (const world of WORLDS) {
         if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
         const p = yy * w + xx, l = label[p];
         if (l >= 0 && blobs[l] !== b) continue;
-        // (faint pixels only next to the blob, or under it for the shadow: further out they are the
-        // neighbours' soft edges)
-        if (l < 0 && (xx < b.x0 - 6 || xx > b.x1 + 6 || yy < b.y0 - 6 || yy > b.y1 + shadow)) continue;
+        // (faint pixels only next to the blob: further out they are the neighbours' soft edges)
+        if (l < 0 && (xx < b.x0 - 6 || xx > b.x1 + 6 || yy < b.y0 - 6 || yy > b.y1 + 6)) continue;
         const i = p * 4, al = px[i + 3] < 10 ? 0 : px[i + 3];
         r += px[i] * al; g += px[i + 1] * al; bl += px[i + 2] * al; a += al;
       }

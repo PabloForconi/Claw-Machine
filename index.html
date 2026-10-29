@@ -51,8 +51,8 @@
   #galBtn .cap { width: 24px; height: 24px; box-shadow: none; }
   #charBtn { left: calc(max(10px, env(safe-area-inset-left)) + 104px); }
   #charBtn img { width: 34px; height: 34px; }
-  /* (the icons up here have no shadows: the bear is assets/ui/bear.png, its picture with the floor shadow
-     taken out, as the user asked, October 2026. The gear is drawn in SVG, sized to look as big as the star
+  /* (the icons up here have no shadows, as the user asked, October 2026: the bear is assets/ui/bear.png,
+     a copy of its picture, which has no floor shadow any more. The gear is drawn in SVG, sized to look as big as the star
      next to it: a round shape looks bigger than a pointed one of the same size; it was the ⚙ character) */
   #gear svg { display: block; width: 26px; height: 26px; }
   /* A capsule drawn in CSS for the gallery: its colour (--c) with a highlight, the lower half a little
@@ -151,6 +151,11 @@
      as drawn and stand on one line; the picture is a little wider than the tile, and what sticks out at
      the sides may show past it, as the user asked: only the top and bottom are clipped) */
   .toy .pic { position: relative; width: 100%; clip-path: inset(0 -50%); }
+  /* (the character's shadow on the floor, drawn here since the pictures have none of their own (the user
+     redrew them without it, October 2026): round its base, which is at 88% of the picture, 95% down the
+     .pic box, about as wide as the characters) */
+  .toy .pic::before { content: ''; position: absolute; z-index: -1; left: 4%; right: 4%; top: 86%; height: 14%; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(30, 20, 50, .38), rgba(30, 20, 50, 0)); }
   .toy img { display: block; width: 150%; max-width: none; aspect-ratio: 1; margin: -9% -25% -12%; object-fit: contain; pointer-events: none; }
   .toy.none img { filter: brightness(0); opacity: .72; }
   /* (on the middle of the silhouette's body, a little bigger, as the user asked, October 2026: it sat
@@ -284,7 +289,12 @@
      asked, October 2026; its base, at 88% of the picture, stands on the floor shadow) */
   #revealStage .who { left: -11px; top: 2px; width: 222px; height: 222px; transform-origin: 50% 88%; opacity: 0; z-index: 2; }
   #revealStage .who img { position: absolute; inset: 0; width: 100%; height: 100%; }
-  #revealStage .who .white { filter: brightness(0) invert(1) drop-shadow(0 0 5px rgba(255, 190, 60, .9)); }   /* (golden edge: white on the white card didn't show) */
+  /* (the white is a white copy of it fading out over it, so it is tinted white less and less. No golden
+     edge any more: the rays are behind it from the burst on, as the user asked) */
+  #revealStage .who .white { filter: brightness(0) invert(1); }
+  /* (the pictures have no floor shadow of their own since the user redrew them without it, October 2026:
+     tinted white, the old baked-in one looked like a white haze round the character. Its shadow is the
+     stage's .shadow, which comes in as it lands) */
   #revealFx { position: absolute; inset: 0; width: 100%; height: 100%; }
   .rspace { height: 206px; }
   /* (the card looks like the gallery's and the collection's: cool white, its rarity's colour (--rc, the
@@ -1538,7 +1548,29 @@ function setSkin(w) {
   PILLAR_FACE.needsUpdate = true;
   for (const [b] of bulbs) b.visible = !skin || !!skin.bulbs;
   marqueeTex.repaint(); boardTex.repaint(); floorTex.repaint();
-  setMarquee(w); setColumns(w);
+  setMarquee(w); setColumns(w); setWallpaper(w);
+}
+// Behind the machine, the world's wallpaper (assets/wallpapers/<world>.jpg, 1672 × 941, the user's, to
+// try: October 2026). It fills the screen like CSS's cover (coverBg, from fit), so a phone shows its
+// middle. The dark purple stays until it loads, or with WALLPAPER off. The room's floor is hidden under it,
+// or its far edge cut the wallpaper off halfway down the screen.
+const WALLPAPER = true, wallImgs = {}, BG = new THREE.Color(0x1b1430);
+function setWallpaper(w) {
+  const id = WORLDS[w].id;
+  if (WALLPAPER && !wallImgs[id]) {
+    wallImgs[id] = texLoader.load(`assets/wallpapers/${id}.jpg`, () => { if (lv.world === w) setWallpaper(w); });
+    wallImgs[id].colorSpace = THREE.SRGBColorSpace;
+  }
+  scene.background = WALLPAPER && wallImgs[id].image ? wallImgs[id] : BG;
+  room.visible = scene.background === BG;
+  coverBg();
+}
+function coverBg() {
+  const t = scene.background;
+  if (!t?.isTexture) return;
+  const a = innerWidth / innerHeight, ia = t.image.width / t.image.height;
+  if (a < ia) { t.repeat.set(a / ia, 1); t.offset.set((1 - a / ia) / 2, 0); }
+  else { t.repeat.set(1, ia / a); t.offset.set(0, (1 - ia / a) / 2); }
 }
 
 // Room floor
@@ -1797,6 +1829,32 @@ const vX = new THREE.Vector3(), vY = new THREE.Vector3(), vZ = new THREE.Vector3
 const HEMI_TOP = new THREE.SphereGeometry(1, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2);
 const HEMI_BOT = new THREE.SphereGeometry(1, 28, 14, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
 const BAND = new THREE.TorusGeometry(1, .04, 6, 32), BAND_MAT = mat(0x2a1d40);
+// A capsule's shadow fades in over SHADOW_IN once it shows, instead of popping up on the pile at once
+// as it rains in from the top (the user asked, October 2026). A shadow map has no transparency, so each
+// new capsule casts its shadow through a depth material of its own (shadowFader()) that drops all but
+// p.fade of the shadow map's texels, in a 4 × 4 ordered dither (random ones looked grainy), which the
+// soft shadow blurs into a lighter shadow. (Its own alphaTest can't do it: the shadow pass copies the capsule's material's over it.) Once
+// in, it goes back to the usual one.
+const SHADOW_IN = .7;
+function shadowFader(fade) {
+  const m = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+  m.onBeforeCompile = sh => {
+    sh.uniforms.uFade = fade;
+    sh.fragmentShader = 'uniform float uFade;\n' + sh.fragmentShader.replace('void main() {',
+      'void main() {\n  vec2 q = floor(gl_FragCoord.xy), h = floor(q * .5);\n' +
+      '  if (fract(dot(h, vec2(.5, h.y * .75))) * .25 + fract(dot(q, vec2(.5, q.y * .75))) >= uFade) discard;');
+  };
+  m.customProgramCacheKey = () => 'shadowFader';
+  return m;
+}
+function shadowIn(p, now) {
+  if (!p.depth) return;
+  if (p.shadeAt == null) p.shadeAt = now;
+  const k = (now - p.shadeAt) / 1000 / SHADOW_IN;
+  if (k < 1) { p.fade.value = Math.max(0, k); return; }
+  for (const m of p.mesh.children) m.customDepthMaterial = undefined;
+  p.depth.dispose(); p.depth = null;
+}
 // The shell of a capsule: a world capsule's colour with its rarity's finish (plain, white stripes, white
 // dots, metallic, or rainbow bands), or a special one's colour with its sign printed round it. The
 // texture covers each half, top to bottom. Cached by colour and finish (the kinds' keys repeat across
@@ -1850,13 +1908,14 @@ function mkPrize(x, y, z, kind) {
   const r = SPECIAL[kind]?.r || size[0] + rnd() * (size[1] - size[0]);
   const g = new THREE.Group(), shell = shellMat(kind);
   const halves = [new THREE.Mesh(HEMI_TOP, shell), new THREE.Mesh(HEMI_BOT, shell)];
-  for (const m of halves) m.castShadow = m.receiveShadow = true;
+  const fade = { value: 0 }, depth = shadowFader(fade);   // (see SHADOW_IN)
+  for (const m of halves) { m.castShadow = m.receiveShadow = true; m.customDepthMaterial = depth; }
   const band = new THREE.Mesh(BAND, BAND_MAT); band.rotation.x = Math.PI / 2;
   g.add(...halves, band);
   g.scale.setScalar(r);
   g.rotation.set(rnd() * 6, rnd() * 6, rnd() * 6);
   scene.add(g);
-  const p = { x, y, z, vx: (rnd() - .5) * .4, vy: 0, vz: (rnd() - .5) * .4, wx: 0, wy: 0, wz: 0, r, rare, kind, held: false, mesh: g };
+  const p = { x, y, z, vx: (rnd() - .5) * .4, vy: 0, vz: (rnd() - .5) * .4, wx: 0, wy: 0, wz: 0, r, rare, kind, held: false, mesh: g, depth, fade };
   setMass(p, (r / .3) ** 3);   // bigger capsules are heavier
   return p;
 }
@@ -2645,14 +2704,39 @@ function openCard(w, b) {
   startReveal();
 }
 // The opening's timeline (s), after the maze game's: the capsule waits REV_WAIT, shakes for REV_SHAKE and
-// bursts at REVEAL_OPEN. From then on (s since the burst) the character lands at REV_LAND and settles by
-// REV_END, the rays come in after REV_RAYS, hold until REV_HOLD and fade over REV_FADE, the tab and the
-// name pop in at REV_NAME, and the line under them and the button at REV_LINE.
+// bursts at REVEAL_OPEN, swelling just before (REV_PUSH) as if the character pushed it open from inside.
+// From then on (s since the burst) the character jumps at once, lands at REV_LAND and settles by
+// REV_END; the rays come in with the burst (over REV_RAYS), hold until REV_HOLD and fade over REV_FADE, the tab and the
+// name pop in at REV_NAME, the line under them (¡Nuevo personaje! or Ya lo tenés) at REV_LINE, and the
+// button last, at REV_OK (one after the other, as the user asked, October 2026).
 const REV_WAIT = .4, REV_SHAKE = 1, REVEAL_OPEN = REV_WAIT + REV_SHAKE;
-const REV_LAND = .63, REV_END = 1.26, REV_RAYS = .25, REV_HOLD = 1.9, REV_FADE = 1.4;
-const REV_NAME = REV_LAND + .25, REV_LINE = REV_HOLD + REV_FADE + .1;
+const REV_PUSH = .15, REV_LAND = .7, REV_END = REV_LAND + .63, REV_RAYS = .12, REV_HOLD = 1.9, REV_FADE = 1.4;
+const REV_NAME = REV_LAND + .25, REV_LINE = REV_HOLD + REV_FADE + .1, REV_OK = REV_LINE + .4;
 const REV_SPIN = .25;   // how fast the rays turn (rad/s)
 const REV_HZ0 = 2.5;   // the shake's hits a second at first
+// the character's size in the capsule, of its own: its full size, about the capsule's (the median
+// character fills two thirds of its picture, about 150 px, the capsule's width). The user found it too
+// small at 0.3–0.6, then still at 0.82 (October 2026).
+const REV_IN = 1;
+// how far under the card's top edge the top of its head gets at the top of the jump (px): just under it,
+// as the user asked (October 2026). REV_HEAD is where a head's top is in its picture, a share of its
+// height: it goes from 0.06 to 0.35 across the 80 characters, and this is the middle one. Every character
+// jumps the same: the user wants them alike, even if a hat or ears go past the card's edge.
+const REV_TOP_GAP = 6, REV_HEAD = .2;
+// The jump: its height off the arc (ty, px) at a share a of its time, from ty0 with hop h, and its size
+const jumpTy = (a, ty0, h) => ty0 * (1 - a) - 4 * h * a * (1 - a), jumpSc = a => REV_IN + (1 - REV_IN) * a * a * (3 - 2 * a);
+// The hop that takes the head's top up to REV_TOP_GAP under the card's edge (stage px; the picture is 222
+// px, its base 197 px down the stage, at 88% of it)
+function jumpHop(ty0, oy) {
+  const top = (a, h) => 197 + jumpTy(a, ty0, h) - 222 * (.88 - REV_HEAD) * jumpSc(a);
+  let lo = 0, hi = 800;
+  for (let i = 0; i < 30; i++) {
+    const h = (lo + hi) / 2; let m = Infinity;
+    for (let a = 0; a <= 1; a += .01) m = Math.min(m, top(a, h));
+    if (m > -oy + REV_TOP_GAP) lo = h; else hi = h;
+  }
+  return lo;
+}
 let rev = null;   // the opening on show: its start, its sparkles and its elements (game.rev.fix freezes it at a time, for testing)
 function startReveal() {
   const r = $('reveal'), st = $('revealStage'), q = c => st.querySelector(c), fx = $('revealFx');
@@ -2663,21 +2747,25 @@ function startReveal() {
     life: 1.6 + Math.random() * 1.2, s: 4 + Math.random() * 6.5, vy: 11 + Math.random() * 14 }));
   rev = { t0: performance.now(), sparks, hit: 0, popped: false, landed: false, fix: null,
     el: { r, rays: q('.rays'), shadow: q('.shadow'), top: q('.half.top'), bot: q('.half.bot'), who: q('.who'), white: q('.who .white'),
+      // cy: how far below the stage's middle the capsule sits, so it is in the middle of the card (the
+      // user asked, October 2026; the character still ends where it was)
+      cy: H / 2 - (st.offsetTop + 100), hop: 0,
       fx, g: fx.getContext('2d'), dpr, ox: st.offsetLeft, oy: st.offsetTop, tab: $('revealTier'), name: r.querySelector('#revealText b'),
       line: r.querySelector('#revealText .status'), ok: $('revealOk') } };
+  rev.el.hop = jumpHop(rev.el.cy + 100 - 197 + 84 * REV_IN, st.offsetTop);
   requestAnimationFrame(revealTick);
   // (in case the frames stall, as they can in a background tab, the end is drawn anyway, so the
   // character and the button always come)
   clearTimeout(revealSafe); const mine = rev;
-  revealSafe = setTimeout(() => { if (rev === mine && !r.hidden && rev.fix == null && !rev.el.ok.classList.contains('in')) revealFrame(REVEAL_OPEN + REV_LINE + 1.5); },
-    (REVEAL_OPEN + REV_LINE + .3) * 1000);
+  revealSafe = setTimeout(() => { if (rev === mine && !r.hidden && rev.fix == null && !rev.el.ok.classList.contains('in')) revealFrame(REVEAL_OPEN + REV_OK + 1.5); },
+    (REVEAL_OPEN + REV_OK + .3) * 1000);
 }
 let revealSafe = 0;
 function revealTick() {
   if (!rev || rev.el.r.hidden) { rev = null; return; }
   const t = rev.fix != null ? rev.fix : (performance.now() - rev.t0) / 1000;
   revealFrame(t);
-  if (t < REVEAL_OPEN + REV_LINE + 1.5 || rev.fix != null) requestAnimationFrame(revealTick);
+  if (t < REVEAL_OPEN + REV_OK + 1.5 || rev.fix != null) requestAnimationFrame(revealTick);
 }
 function revealFrame(t) {
   const R = rev, e = R.el, s = t - REVEAL_OPEN, cl = v => Math.min(1, Math.max(0, v)), sm = u => u * u * (3 - 2 * u);
@@ -2692,30 +2780,32 @@ function revealFrame(t) {
       x = 11 * a * Math.sin(ph); y = -13 * a * Math.abs(Math.sin(ph)); rot = .2 * a * Math.sin(ph + .6);
       const hit = Math.floor(ph / Math.PI); if (hit !== R.hit) { R.hit = hit; sfx('rattle'); }
     }
-    e.top.style.transform = e.bot.style.transform = `translate(${x}px, ${y}px) rotate(${rot}rad)`;
+    const b = sm(cl((t - REVEAL_OPEN + REV_PUSH) / REV_PUSH));   // (it swells, pushed from inside)
+    e.top.style.transform = e.bot.style.transform = `translate(${x}px, ${y + e.cy - 6 * b}px) rotate(${rot}rad) scale(${1 - .05 * b}, ${1 + .1 * b})`;
     e.top.style.opacity = e.bot.style.opacity = 1; e.who.style.opacity = 0;
     e.shadow.style.opacity = 0;   // (no shadow under the capsule: the user found it unneeded)
     e.rays.style.opacity = 0;
   } else {
     if (!R.popped) { R.popped = true; sfx('pop'); }
     // the halves: the top one shoots up, flattens from its flat edge and fades; the bottom one drops fast.
-    // They are in front of the character only at first, while it is inside.
+    // They stay in front of the character, which starts inside the capsule, behind them (the user asked
+    // for it to feel inside it).
     const u = cl(s / .14), up = 540 * (1 - Math.pow(1 - u, 1.5)), k = cl((s - .06) / .09);
-    e.top.style.transform = `translateY(${-up}px) scaleY(${1 - .95 * Math.pow(k, 1.6)})`;
+    e.top.style.transform = `translateY(${e.cy - up}px) scaleY(${1 - .95 * Math.pow(k, 1.6)})`;
     e.top.style.opacity = 1 - cl((s - .07) / .08);
-    e.bot.style.transform = `translateY(${128 * Math.pow(s / .05, 1.3)}px)`;
+    e.bot.style.transform = `translateY(${e.cy + 128 * Math.pow(s / .05, 1.3)}px)`;
     e.bot.style.opacity = 1 - cl(s / .15);
-    e.top.style.zIndex = e.bot.style.zIndex = s < .06 ? 3 : 1;
-    // the character: white in the capsule, it jumps forward out of it in an arc, growing as it comes
-    // towards us, stretched by its speed, lands with a squash and settles with a bounce (the maze's rat
+    // the character: white, in the middle of the card where the capsule was, it jumps forward out of it at
+    // once, as if it had burst it (the user asked, October 2026), in an arc to where it stands, growing as
+    // it comes towards us, stretched by its speed, lands with a squash and settles with a bounce (the maze's rat
     // jump). It doesn't turn: the user asked for no roll. It only reaches its size as it lands, so at the
     // top of the arc its head stays inside the card.
     let ty = 0, sc = 1, ax = 1, ay = 1;
+    const mid = sc0 => e.cy + 100 - 197 + 84 * sc0;   // (how far to move it, at a size, to put its middle on the capsule's)
     if (s < REV_LAND) {
-      const a = s / REV_LAND, vy = -145 + 400 * a;
-      ty = -55 * (1 - a) - 200 * a * (1 - a);
-      sc = .5 + .5 * sm(a);
-      ay = 1 + .1 * Math.min(1, Math.abs(vy) / 200); ax = 1 - .5 * (ay - 1);
+      const a = s / REV_LAND, ty0 = mid(REV_IN), vy = -ty0 - 4 * e.hop * (1 - 2 * a);
+      ty = jumpTy(a, ty0, e.hop); sc = jumpSc(a);
+      ay = 1 + .1 * Math.min(1, Math.abs(vy) / 250) + .1 * (1 - cl(s / .12)); ax = 1 - .5 * (ay - 1);   // (stretched more as it springs off)
     } else if (s < REV_END) {
       if (!R.landed) { R.landed = true; sfx('prize'); }
       const b = (s - REV_LAND) / (REV_END - REV_LAND), d = -.2 * Math.cos(3 * Math.PI * b) * (1 - b) * (1 - b);
@@ -2723,13 +2813,14 @@ function revealFrame(t) {
     }
     e.who.style.transform = `translateY(${ty}px) scale(${sc * ax}, ${sc * ay})`;
     e.who.style.opacity = 1;
-    e.white.style.opacity = 1 - cl((s - .17) / .14);   // (white until about frame 5, its colours by frame 8)
-    // the rays: in a moment after it bursts, turning, then fading back to the card
-    e.rays.style.opacity = (cl((s - REV_RAYS) / .3) * (1 - shadowA)).toFixed(3);
+    e.white.style.opacity = 1 - cl((s - .2) / .2);   // (white at first, over the rays, its colours by 0.4 s)
+    // the rays: in as it bursts, turning, then fading back to the card
+    e.rays.style.opacity = (cl(s / REV_RAYS) * (1 - shadowA)).toFixed(3);
     e.rays.style.transform = `rotate(${s * REV_SPIN}rad)`;
     e.shadow.style.opacity = shadowA.toFixed(3); e.shadow.style.transform = `scaleX(${ax})`;
     if (s >= REV_NAME) { e.tab.classList.add('in'); e.name.classList.add('in'); }
-    if (s >= REV_LINE) { e.line.classList.add('in'); e.ok.classList.add('in'); }
+    if (s >= REV_LINE) e.line.classList.add('in');
+    if (s >= REV_OK) e.ok.classList.add('in');
   }
   // the flash and the sparkles, on the canvas over everything (in the stage's px)
   const g = e.g, dpr = e.dpr;
@@ -2737,7 +2828,7 @@ function revealFrame(t) {
   if (s < 0) return;
   g.setTransform(dpr, 0, 0, dpr, e.ox * dpr, e.oy * dpr);
   if (s < .3) {
-    const a = 1 - s / .3, fl = g.createRadialGradient(100, 100, 0, 100, 100, 108 + 270 * (1 - a));
+    const a = 1 - s / .3, fl = g.createRadialGradient(100, 100 + e.cy, 0, 100, 100 + e.cy, 108 + 270 * (1 - a));
     fl.addColorStop(0, `rgba(255,252,235,${.9 * a})`); fl.addColorStop(1, 'rgba(255,252,235,0)');
     g.fillStyle = fl; g.fillRect(-300, -300, 800, 800);
   }
@@ -3519,6 +3610,7 @@ function fit() {
   const e = extent(hi);
   camera.setViewOffset(w, h, 0, (e.top + e.bottom) / 2 - (topPad + freeH / 2), w, h);
   camera.updateProjectionMatrix();
+  coverBg();
 }
 addEventListener('resize', fit);
 
@@ -3532,7 +3624,7 @@ function frame(now) {
 }
 
 function draw(now) {
-  for (const p of prizes) p.mesh.position.set(p.x, p.y, p.z);
+  for (const p of prizes) { p.mesh.position.set(p.x, p.y, p.z); shadowIn(p, now); }
   syncClaw();
   const tick = Math.floor(now / 160), bulbTick = Math.floor(now / BULB_CHASE);
   // (the marquee's bulbs chase; when a capsule drops in they all blink at once a few times first, as the
