@@ -9,7 +9,9 @@
 import fs from 'node:fs';
 import { readPng, writePng } from './png.mjs';
 
-const WORLDS = ['animales', 'monstruos', 'halloween', 'navidad'], SIZE = 220, SIDE = 360, BASE = .88;
+// (SIZE is SIDE, the sheets' own resolution: at 220 they looked soft on the user's iPhone, drawn 222 px
+// wide in the capsule's opening on a 3× screen, October 2026)
+const WORLDS = ['animales', 'monstruos', 'halloween', 'navidad'], SIDE = 360, SIZE = SIDE, BASE = .88;
 
 for (const world of WORLDS) {
   const img = readPng(fs.readFileSync(`concept/char_${world}.png`)), { w, h, px } = img;

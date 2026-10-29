@@ -276,8 +276,11 @@
   #reveal .rclip { position: absolute; inset: 0; border-radius: 17px; overflow: hidden; pointer-events: none; }
   #revealStage { position: absolute; top: 22px; left: 50%; width: 200px; height: 200px; margin-left: -100px; }
   #revealStage > * { position: absolute; display: block; }
-  /* (centred on the character's chest, 100 × 115 of the stage, and big enough to cover the card as it turns) */
-  #revealStage .rays { width: 1000px; height: 1000px; max-width: none; left: -400px; top: -385px; opacity: 0; }
+  /* (big enough to cover the card as it turns, and turning about the picture's bright centre, which is at
+     496 × 500 of it, a little left of its middle. It is put on the stage's middle here, and revealFrame
+     moves it down by cy to the middle of the card, where the capsule bursts: the user found it off centre
+     on the character's chest, 100 × 115 of the stage, October 2026) */
+  #revealStage .rays { width: 1000px; height: 1000px; max-width: none; left: -396px; top: -400px; transform-origin: 496px 500px; opacity: 0; }
   #revealStage .shadow { left: 35px; top: 184px; width: 130px; height: 24px; border-radius: 50%; background: radial-gradient(closest-side, rgba(30, 40, 70, .4), rgba(30, 40, 70, 0)); opacity: 0; }
   #revealStage .half { left: 25px; top: 25px; width: 150px; height: 150px; z-index: 3; }
   /* (without the capsule's drop shadow: the halves' clip cut it flat under the ball, which the user saw as
@@ -841,8 +844,9 @@ try {
 const LEVELS_KEY = 'clawMachine.levelsDone';   // how many levels have been cleared (they unlock in order)
 const STARS_KEY = 'clawMachine.stars';         // the most stars won on each level
 // For testing the user had the whole game unlocked for a while (October 2026); now worlds and levels
-// unlock in order again. UNLOCK_ALL true opens everything.
-const UNLOCK_ALL = false;
+// unlock in order again. UNLOCK_ALL true opens everything: it is on again for testing, as the user asked
+// (October 2026).
+const UNLOCK_ALL = true;
 const worldOpen = w => UNLOCK_ALL || levelsDone >= w * PER_WORLD;   // a world opens with its first level
 const levelOpen = i => UNLOCK_ALL || i <= levelsDone;
 // Pedestals, as [x from, x to, height], all over the back half of the floor (STAND_Z): one in the
@@ -881,6 +885,9 @@ const FINGER_ANGLES = [-Math.PI / 2, -Math.PI / 2 + 2 * Math.PI / 3, -Math.PI / 
 // Every CHAR_EVERY capsules of a colour complete its card. It is 1 for testing (a character with every
 // capsule), as the user asked again (October 2026); the design is 10, which the user had back for a while.
 const META_KEY = 'clawMachine.meta', CHAR_EVERY = 1;
+// FREE_OPEN, for testing (the user asked, October 2026): every card of an open world can be opened at
+// any time, without capsules, and opening one uses none up.
+const FREE_OPEN = true;
 let meta = { balls: {}, prog: {}, chars: {} }, newCards = 0;
 
 let prizes = [], claw, coins, score, won, state, aimT;
@@ -2680,8 +2687,10 @@ function ballToast(kind, n, done) {
 // shares. It is shown coming out of its capsule (#reveal), and the collection's button gets a dot.
 function openCard(w, b) {
   const wd = WORLDS[w], k = `${wd.id}:${b}`;
-  if ((meta.prog[k] || 0) < CHAR_EVERY) return;
-  meta.prog[k] -= CHAR_EVERY;
+  if (!FREE_OPEN) {
+    if ((meta.prog[k] || 0) < CHAR_EVERY) return;
+    meta.prog[k] -= CHAR_EVERY;
+  }
   galDot();   // (it stayed on after the card was opened, which the user noticed, October 2026)
   let tier = b === 8 ? 4 : b >> 1;
   if (tier === 4) { let r = Math.random() * TIERS.slice(0, 4).reduce((s, t) => s + t.w, 0); tier = 0; while (r > TIERS[tier].w) r -= TIERS[tier++].w; }
@@ -2816,7 +2825,7 @@ function revealFrame(t) {
     e.white.style.opacity = 1 - cl((s - .2) / .2);   // (white at first, over the rays, its colours by 0.4 s)
     // the rays: in as it bursts, turning, then fading back to the card
     e.rays.style.opacity = (cl(s / REV_RAYS) * (1 - shadowA)).toFixed(3);
-    e.rays.style.transform = `rotate(${s * REV_SPIN}rad)`;
+    e.rays.style.transform = `translateY(${e.cy}px) rotate(${s * REV_SPIN}rad)`;
     e.shadow.style.opacity = shadowA.toFixed(3); e.shadow.style.transform = `scaleX(${ax})`;
     if (s >= REV_NAME) { e.tab.classList.add('in'); e.name.classList.add('in'); }
     if (s >= REV_LINE) e.line.classList.add('in');
@@ -3511,8 +3520,8 @@ function openGallery(at = worldNow()) {
     const locked = !worldOpen(w), kinds = Object.fromEntries(worldKinds(w).map(k => [k.key, k]));
     const slot = k => {
       const id = `${wd.id}:${k.key.slice(1)}`, n = meta.balls[id] || 0, prog = meta.prog[id] || 0, c = capOf(k.key, kinds);
-      const ready = Math.floor(prog / CHAR_EVERY), part = prog % CHAR_EVERY;
-      return `<div class="slot t${k.tier}${n ? '' : ' none'}${ready ? ' ready' : ''}" data-w="${w}" data-b="${k.key.slice(1)}">` +
+      const ready = FREE_OPEN && !locked ? 1 : Math.floor(prog / CHAR_EVERY), part = prog % CHAR_EVERY;
+      return `<div class="slot t${k.tier}${n || ready ? '' : ' none'}${ready ? ' ready' : ''}" data-w="${w}" data-b="${k.key.slice(1)}">` +
         `<span class="name">${k.name}</span><div class="pod"><div class="cap ${c.cls}" style="${c.style}"></div></div>` +
         (ready ? `<span class="open">¡Abrir!${ready > 1 ? ` ×${ready}` : ''}</span>`
           : `<span class="bar"><i style="width:${part / CHAR_EVERY * 100}%"></i><b>${locked ? '?' : `${part}/${CHAR_EVERY}`}</b></span>`) + `</div>`;
