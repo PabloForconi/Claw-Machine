@@ -175,12 +175,12 @@
   /* (the gallery's and collection's world banners are a thin strip, as the user asked, October 2026: they
      were 104 px high, with the text at the bottom over a dark fade, then 60) */
   .banner { position: relative; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 46px; margin: 0 0 10px; padding: 2px 12px;
-    border-radius: 14px; border: 3px solid #fff; background: #000 center 40% / cover no-repeat; overflow: hidden; }
+    border-radius: 14px; border: 3px solid #4d4a43; background: #000 center 40% / cover no-repeat; overflow: hidden; }   /* (the dots' grey, like the covers: it was white) */
   .banner::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0, 0, 0, .72), rgba(0, 0, 0, .2) 70%, rgba(0, 0, 0, .45)); }
   .banner > * { position: relative; margin: 0; color: #fff; text-shadow: 0 2px 4px #000; }
   .banner h3, .banner h2 { display: block; margin: 0; font-size: 20px; color: #fff; }
   .banner span { font-size: 18px; }
-  .banner.locked { background-color: #8c8c8c; background-blend-mode: luminosity; border-color: #8a8a8a; box-shadow: inset 0 0 0 999px rgba(0, 0, 0, .35); }
+  .banner.locked { background-color: #8c8c8c; background-blend-mode: luminosity; box-shadow: inset 0 0 0 999px rgba(0, 0, 0, .35); }
   .banner.locked h3, .banner.locked h2 { color: #d8d8d8; }
   /* (twice as high as the other screens' banners, as the user asked, October 2026; it was 150) */
   #lvlBanner { width: 100%; max-width: 640px; height: 92px; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 8px 14px; border-radius: 16px; text-align: center; }
@@ -197,11 +197,13 @@
   .wpage { display: flex; justify-content: center; padding: 0 22px 8px; }
   /* (on a computer the covers leave room at the sides, so the fade there is much wider) */
   @media (min-width: 760px) { #worldShelf { --fade: 160px; } }
-  .cover { position: relative; height: 100%; max-width: 100%; aspect-ratio: 4 / 5; border-radius: 22px; border: 4px solid #fff; overflow: hidden;
+  /* (its border is the grey of the carousel's dots, the cream ink at .3 on black: the user asked, October
+     2026; it was white) */
+  .cover { position: relative; height: 100%; max-width: 100%; aspect-ratio: 4 / 5; border-radius: 22px; border: 4px solid #4d4a43; overflow: hidden;
     background: #000 center / cover no-repeat; box-shadow: 0 8px 24px rgba(0, 0, 0, .6); }
   /* (a locked world's cover is greyed by blending the picture with grey, not with a filter, which would
      dull the white lock and the chains over it too) */
-  .cover.locked { background-color: #8c8c8c; background-blend-mode: luminosity; border-color: #777;
+  .cover.locked { background-color: #8c8c8c; background-blend-mode: luminosity;
     box-shadow: inset 0 0 0 999px rgba(0, 0, 0, .42), 0 8px 24px rgba(0, 0, 0, .6); }
   .cover.locked .winfo { filter: grayscale(1) brightness(.85); }
   /* (a dark fade at the top, under the world's name and progress, so they read on any art) */
@@ -332,7 +334,11 @@
   /* A special capsule's sign (bomb, skull, +2) */
   .cap.sign::before { content: attr(data-sign); top: 0; height: auto; display: grid; place-items: center; background: none; color: var(--fg);
     font: 700 15px/1 "Baloo 2", sans-serif; z-index: 1; transform: rotate(18deg); }
-  #galBtn.new::after, #charBtn.new::after { content: ''; position: absolute; top: -5px; right: -5px; width: 12px; height: 12px; border-radius: 50%; background: var(--pink); }   /* (no white rim: the user asked, October 2026) */
+  #galBtn.new::after, #charBtn.new::after { content: ''; position: absolute; top: -5px; right: -5px; width: 12px; height: 12px; border-radius: 50%; background: var(--pink);
+    animation: dotIn .5s ease-out both; }   /* (no white rim: the user asked, October 2026) */
+  /* (it pops in with a bounce, as the user described it: from small, a little past its size, a little
+     under, then its size) */
+  @keyframes dotIn { 0% { transform: scale(0); } 50% { transform: scale(1.35); } 75% { transform: scale(.85); } 100% { transform: scale(1); } }
   .stars { display: inline-flex; gap: 4px; font-size: 44px; }
   .stars img { display: block; width: 1em; height: 1em; }
   .stars i { display: contents; }
@@ -1112,12 +1118,14 @@ for (const sx of [-1, 1]) {
   const g = new THREE.Mesh(new THREE.PlaneGeometry(BOX.z * 2, 4.6), GLASS);
   g.position.set(sx * BOX.x, 2.3, 0); g.rotation.y = Math.PI / 2; scene.add(g);
 }
-// Clear walls around the hole, with a yellow top edge
+// Clear walls around the hole, with a top edge in the machine's main colour (HOLE_EDGE, set by setSkin:
+// the user asked, October 2026; it was gold on every machine)
+const HOLE_EDGE = PINK.clone();
 const ACRYLIC = new THREE.MeshStandardMaterial({ color: 0xffd23f, transparent: true, opacity: .28, depthWrite: false });
-// A wall of acrylic with a gold top edge, or a solid block (a pedestal), as meshes
+// A wall of acrylic with its edge on top, or a solid block (a pedestal) with a gold one, as meshes
 function wallMeshes(w, look) {
   const s = w.max.map((v, i) => v - w.min[i]), c = w.max.map((v, i) => (v + w.min[i]) / 2);
-  const out = [box(s[0], s[1], s[2], look === 'solid' ? PINK_DARK : ACRYLIC, c[0], c[1], c[2]), box(s[0] + .02, .05, s[2] + .02, GOLD, c[0], w.max[1], c[2])];
+  const out = [box(s[0], s[1], s[2], look === 'solid' ? PINK_DARK : ACRYLIC, c[0], c[1], c[2]), box(s[0] + .02, .05, s[2] + .02, look === 'solid' ? GOLD : HOLE_EDGE, c[0], w.max[1], c[2])];
   if (look === 'solid') for (const m of out) m.castShadow = m.receiveShadow = true;
   return out;
 }
@@ -1513,7 +1521,7 @@ function setColumns(w) {
 }
 function setSkin(w) {
   skin = SKINS[WORLDS[w].skin] || null;
-  PINK.color.set(skin ? skin.body : PINK_HEX);
+  PINK.color.set(skin ? skin.body : PINK_HEX); HOLE_EDGE.color.set(skin ? skin.body : PINK_HEX);
   if (skin?.pillar) { pillarTex.repaint(); PILLAR_FACE.map = pillarTex; PILLAR_FACE.color.set(0xffffff); }
   else { PILLAR_FACE.map = null; PILLAR_FACE.color.set(skin ? skin.body : PINK_HEX); }
   PILLAR_FACE.needsUpdate = true;
@@ -1532,9 +1540,10 @@ const RAIL = mat(0xc9c3d8, { metalness: .6, roughness: .35 });
 for (const sx of [-1, 1]) box(.1, .1, BOX.z * 2, RAIL, sx * (BOX.x - .05), CARRIAGE_Y + .05, 0);
 const bridge = box(BOX.x * 2, .08, .14, RAIL, 0, CARRIAGE_Y + .05, 0);
 const carriage = box(.34, .18, .34, mat(0xefeaf7), 0, CARRIAGE_Y - .04, 0);
-// The cable is drawn as one short cylinder per rope segment (see cableStep)
+// The cable is drawn as one short cylinder per rope segment (see cableStep). It only draws, so its
+// thickness changes nothing else: it is .02 thick, as the user asked for it thicker (October 2026; it was .012)
 const CABLE_NODES = 24;
-const CABLE_GEO = new THREE.CylinderGeometry(.012, .012, 1, 6), CABLE_MAT = mat(0xdddddd);
+const CABLE_GEO = new THREE.CylinderGeometry(.02, .02, 1, 8), CABLE_MAT = mat(0xdddddd);
 const cableSegs = Array.from({ length: CABLE_NODES }, () => {
   const m = new THREE.Mesh(CABLE_GEO, CABLE_MAT); m.castShadow = true; m.renderOrder = 2; scene.add(m); return m;
 });
@@ -1898,7 +1907,7 @@ function startLevel(i, data) {
 function reset() {
   for (const p of prizes) scene.remove(p.mesh);
   for (const { p } of rain) scene.remove(p.mesh);
-  prizes = []; rain = [];
+  prizes = []; rain = []; simT = 0;   // (the clock restarts too, so a level fills the same way every time it is seeded)
   // x, z, vx, vz: the carriage; len: cable paid out; winch: its current speed; head: the hanging claw
   claw = {
     x: HOME.x, z: HOME.z, vx: 0, vz: 0, len: L_MIN, winch: 0, dist: L_MIN, open: 0, flex: FINGER_ANGLES.map(() => 0), held: null, q: 0, t: 0,
@@ -2000,12 +2009,22 @@ function clawWallPush() {
 // the held prize (kinematic: they push with their own velocity), or the floor, glass and hole walls.
 
 const SOLVER_ITERS = 12, POS_ITERS = 4, MARGIN = .01, SLOP = .003;
-const MU = { prize: .45, claw: .7, floor: .6, glass: .15, wall: .3 };     // friction
-// Restitution (the claw lands dead). The capsules are hollow plastic balls, like a ball pit's: the user
-// asked for them to bounce and hop naturally off each other and the floor (October 2026); it was .3 all
-// round and they landed nearly dead.
-const BOUNCE = { prize: .5, claw: 0, floor: .55, glass: .45, wall: .45 };
+// Friction. The claw's metal on the plastic is slippery (.25): the user found the claw coming down onto
+// the capsules lifeless, as if it had no physics (October 2026). At .7 its fingertips gripped the round
+// tops and pressed them straight down into the pile, where they couldn't go, so they were only shoved
+// aside by the position correction, without speed; now they slip out from under it and roll away, and
+// the claw bounces a little as it lands.
+const MU = { prize: .45, claw: .25, floor: .6, glass: .15, wall: .3 };
+// Restitution. The capsules are hollow plastic balls, like a ball pit's: the user asked for them to
+// bounce and hop naturally off each other and the floor (October 2026); it was .3 all round and they
+// landed nearly dead. The claw landed dead too (0) until the user found it lifeless; struck capsules now
+// spring off it. The glass is acrylic, about as lively as the floor: at .45 it was the deadest surface,
+// which the user noticed, and the hole walls and pedestals went up with it (.45).
+const BOUNCE = { prize: .5, claw: .35, floor: .55, glass: .6, wall: .55 };
 const BOUNCE_MIN = .35;   // slower impacts don't bounce, so resting contacts stay calm (it was .6)
+// The glass and the walls bounce slower impacts too, so a capsule rolling into them comes back a little
+// instead of stopping dead (it was BOUNCE_MIN); lower still, a pile at rest against the glass jittered
+const BOUNCE_MIN_SIDE = .25;
 // Rolling resistance, per second, while touching something (it was 1.2, which stopped them rolling
 // almost at once), and the faster decay of a spin about the upright axis, which grinds on the contact
 const ROLL_DAMP = .4, TWIST_DAMP = 2.5;
@@ -2142,7 +2161,7 @@ function solveContacts(cs, dt) {
     // An impact that closes the gap within this step bounces now: braking it to just touching first, as
     // before, left it too slow to bounce next step, so a hop died dead about one time in four, and most
     // small hops did (the user felt the bounces stop short, October 2026).
-    const hits = vn < -BOUNCE_MIN && vn * dt <= c.pen;
+    const hits = vn < -(c.kind === 'glass' || c.kind === 'wall' ? BOUNCE_MIN_SIDE : BOUNCE_MIN) && vn * dt <= c.pen;
     c.target = hits ? -BOUNCE[c.kind] * vn : c.pen < 0 ? c.pen / dt : 0;
   }
   for (let it = 0; it < SOLVER_ITERS; it++) for (const c of cs) {
@@ -2550,14 +2569,16 @@ function win(p) {
 // (openCard), and gets a character of its rarity. The user asked for that (October 2026); at first the
 // character came on its own. Every world capsule won is announced at once with how far along its card
 // is (ballToast); a card just completed is also counted on the level's card (newCards), and the
-// gallery's button gets a dot while any card is ready to open (galDot).
+// gallery's button gets a dot while any card is ready to open (galDot). A card just completed only
+// gets it once its toast has gone up (dotAfterToast, see hideToast), as the user asked (October 2026).
 const galDot = () => $('galBtn').classList.toggle('new', Object.values(meta.prog).some(n => n >= CHAR_EVERY));
+let dotAfterToast = false;
 function winBall(kind) {
   const w = WORLDS[lv.world].id, k = `${w}:${kind.slice(1)}`;
   meta.balls[k] = (meta.balls[k] || 0) + 1;
   meta.prog[k] = (meta.prog[k] || 0) + 1;
   const done = meta.prog[k] % CHAR_EVERY === 0;
-  if (done) { newCards++; galDot(); }
+  if (done) { newCards++; dotAfterToast = true; }
   const n = done ? CHAR_EVERY : meta.prog[k] % CHAR_EVERY;
   setTimeout(() => ballToast(kind, n, done), TOAST_DELAY * 1000);
   try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (e) {}
@@ -2572,7 +2593,10 @@ function winBall(kind) {
 // well into the next round, which can start about 0.35 s before a released capsule even drops in.
 const TOAST_DELAY = .5, TOAST_TIME = 2.2, TOAST_MIN = .6;
 let toastAt = -1, toastTimer = 0;
-function hideToast() { clearTimeout(toastTimer); toastAt = -1; $('toast').classList.remove('show'); }
+function hideToast() {
+  clearTimeout(toastTimer); toastAt = -1; $('toast').classList.remove('show');
+  if (dotAfterToast) { dotAfterToast = false; galDot(); }
+}
 function ballToast(kind, n, done) {
   const t = $('toast'), k = KIND[kind], c = capOf(kind);
   t.innerHTML = `<span class="cap ${c.cls}" style="${c.style}"></span><span class="tt"><small style="color:${TIERS[k.tier].css}">Cápsula ${TIERS[k.tier].name}</small>${k.name}</span>` +
@@ -2594,7 +2618,7 @@ function openCard(w, b) {
   const i = tier * 5 + (Math.random() * 5 | 0), ck = `${wd.id}:${i}`, n = (meta.chars[ck] || 0) + 1;
   meta.chars[ck] = n;
   try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (e) {}
-  $('charBtn').classList.add('new');
+  charDot = true;   // (shown, popping in, once back on the machine: see closeScreens)
   const kind = worldKinds(w)[b], c = capOf(kind.key, { [kind.key]: kind }), half = `<span class="cap ${c.cls}" style="${c.style}"></span>`;
   $('revealStage').innerHTML = `<span class="glow" style="--g:${TIERS[tier].css}"></span><img src="${charSrc(w, i)}" alt="">` +
     `<span class="half top">${half}</span><span class="half bot">${half}</span>`;
@@ -3074,10 +3098,11 @@ const LOCK_SVG = '<svg viewBox="0 0 24 26" aria-hidden="true"><path d="M7 12V8a5
   '<path fill="currentColor" fill-rule="evenodd" d="M5.5 11h13a2.5 2.5 0 0 1 2.5 2.5v8a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 21.5v-8A2.5 2.5 0 0 1 5.5 11zM12 14.6a1.9 1.9 0 0 0-1 3.5V20.5h2v-2.4a1.9 1.9 0 0 0-1-3.5z"/></svg>';
 const lockIcon = cls => `<span class="${cls}">${LOCK_SVG}</span>`;
 // Two chains crossed over a cover (4:5): links along each diagonal, a ring seen face on and a flat one
-// seen edge on in turns, steel with a dark rim
+// seen edge on in turns, steel with a dark rim. They cross at the lock's keyhole (y 270 of 500, a little under the
+// middle, as the user asked, October 2026), not at the cover's centre
 const CHAINS_SVG = (() => {
   let out = '';
-  for (const [x0, y0, x1, y1] of [[-30, 30, 430, 470], [430, 30, -30, 470]]) {
+  for (const [x0, y0, x1, y1] of [[-30, 50, 430, 490], [430, 50, -30, 490]]) {
     const len = Math.hypot(x1 - x0, y1 - y0), a = Math.atan2(y1 - y0, x1 - x0) * 180 / Math.PI, n = Math.ceil(len / 36);
     for (let i = 0; i <= n; i++) {
       const t = i / n, x = (x0 + (x1 - x0) * t).toFixed(1), y = (y0 + (y1 - y0) * t).toFixed(1), tr = `translate(${x} ${y}) rotate(${a.toFixed(1)})`;
@@ -3290,7 +3315,7 @@ function openChars() {
     }).join('') + '</div></div>').join('');
     return `<section class="season${worldOpen(w) ? '' : ' locked'}">${banner(w, wd.name, worldOpen(w) ? `<span>${have}/20</span>` : lockIcon('lockic'))}${rows}</section>`;   // (no note on how a locked world opens: the user dropped it, October 2026)
   }).join(''), worldNow());
-  $('charBtn').classList.remove('new');
+  $('charBtn').classList.remove('new'); charDot = false;
 }
 // Show one of the screens (and hide the others); the game holds still while one is open. Closing one
 // goes back to the machine, and to the level's card if it had ended.
@@ -3299,8 +3324,10 @@ function showScreen(id) {
   $('over').hidden = true; paused = true; stickEnd();
   keys.l = keys.r = keys.u = keys.d = false;
 }
+let charDot = false;
 function closeScreens() {
   for (const s of SCREENS) $(s).hidden = true;
+  if (charDot) { charDot = false; $('charBtn').classList.add('new'); }
   paused = false;
   if (state === 'over') $('over').hidden = false;
 }
@@ -3386,7 +3413,7 @@ function draw(now) {
 }
 
 // Handle for poking at the game from the console
-window.game = { get state() { return state; }, get paused() { return paused; }, set paused(v) { paused = v; }, get claw() { return claw; }, get prizes() { return prizes; }, get score() { return score; }, get level() { return level; }, get got() { return got; }, get meta() { return meta; }, get coins() { return coins; }, get bag() { return bag; }, levelCard, lightShow, lanterns, ballToast, startLevel, startDaily, showIntro, startRound, startDrop, segments, cable,
+window.game = { BOUNCE, MU, get state() { return state; }, get paused() { return paused; }, set paused(v) { paused = v; }, get claw() { return claw; }, get prizes() { return prizes; }, get score() { return score; }, get level() { return level; }, get got() { return got; }, get meta() { return meta; }, get coins() { return coins; }, get bag() { return bag; }, levelCard, lightShow, lanterns, ballToast, startLevel, startDaily, showIntro, startRound, startDrop, segments, cable,
   // Run n simulation steps right now, without waiting for frames (fast, repeatable tests)
   step(n = 1) { for (let i = 0; i < n; i++) { update(STEP); physics(STEP, state === 'fill'); } },
   // Draw the current state right now (the browser pane may not be asking for frames)
