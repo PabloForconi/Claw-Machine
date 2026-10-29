@@ -206,7 +206,11 @@
   /* (only the world's name, as the user asked: "Mundo n" was dropped) */
   .winfo h3 { display: block; margin: 0; font-size: clamp(24px, 7.5vw, 32px); line-height: 1.1; white-space: nowrap; color: var(--gold); text-shadow: 0 2px 0 #000, 0 0 6px #000, 0 0 12px #000; }
   .winfo p { margin: 2px 0 0; font-size: clamp(13px, 3.9vw, 17px); text-shadow: 0 1px 0 #000, 0 0 5px #000, 0 0 10px #000; }
-  .winfo .lock { font-size: 20px; }
+  /* A locked world: a big lock over the middle of its greyed cover, outside it so it keeps its colour (the
+     user asked, October 2026, for it in place of "🔒 Superá al jefe de…" under the name) */
+  .wpage { position: relative; }
+  .wlock { position: absolute; left: 50%; top: calc(50% - 4px); transform: translate(-50%, -50%); font-size: clamp(80px, 26vw, 130px); line-height: 1;
+    filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .7)); pointer-events: none; }
   .wplay { position: absolute; left: 0; right: 0; bottom: 16px; text-align: center; }
   /* (Jugar looks like the screens' main button, Volver a la máquina, as the user asked) */
   .wplay .play { font: inherit; font-size: 24px; color: #3a2400; background: linear-gradient(#ffe36e, #f6c837); border: 4px solid #d9a21b; border-radius: 16px;
@@ -315,10 +319,10 @@
   .cap.dots { background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .8) 0 6%, transparent 20%),
       radial-gradient(circle, rgba(255, 255, 255, .75) 0 18%, transparent 20%) 0 0 / 34% 34%,
       radial-gradient(circle at 50% 38%, var(--c) 0 50%, color-mix(in srgb, var(--c) 55%, #000) 100%); }
-  /* A special capsule's sign (bomb -1, skull, +2) */
+  /* A special capsule's sign (bomb, skull, +2) */
   .cap.sign::before { content: attr(data-sign); top: 0; height: auto; display: grid; place-items: center; background: none; color: var(--fg);
     font: 700 15px/1 "Baloo 2", sans-serif; z-index: 1; transform: rotate(18deg); }
-  #galBtn.new::after, #charBtn.new::after { content: ''; position: absolute; top: -5px; right: -5px; width: 12px; height: 12px; border-radius: 50%; background: var(--pink); border: 2px solid var(--ink); }
+  #galBtn.new::after, #charBtn.new::after { content: ''; position: absolute; top: -5px; right: -5px; width: 12px; height: 12px; border-radius: 50%; background: var(--pink); }   /* (no white rim: the user asked, October 2026) */
   .stars { display: inline-flex; gap: 4px; font-size: 44px; }
   .stars img { display: block; width: 1em; height: 1em; }
   .stars i { display: contents; }
@@ -635,8 +639,9 @@ const R_MIN = .29, R_MAX = .32;
 // A level's pile: PILE_STEPS by its place in its world, four fewer where pedestals take up the floor,
 // or the level's own (pile, the buried boss's heap). When it falls under RESTOCK_SHARE of that, more
 // rain in to fill it up again.
-const PILE_STEPS = [20, 22, 24, 26, 24], RESTOCK_SHARE = .55;
-const pileSize = () => lv.pile || (level < 0 ? 22 : PILE_STEPS[level % 5]) - (lv.stands ? 4 : 0);
+const PILE_STEPS = [20, 21, 22, 23, 24, 22, 23, 24, 25, 26], RESTOCK_SHARE = .55;
+const MIX_SIZE = [.25, .27], MIX_EXTRA = 4;   // a mixed level's small capsules, and how many more it has (see mix)
+const pileSize = () => lv.pile || (level < 0 ? 22 : PILE_STEPS[levelInWorld(level)]) - (lv.stands ? 4 : 0) + (lv.mix ? MIX_EXTRA : 0);
 const PILE_SPARE = 2;   // a level's pile has this many more of each kind it asks for than it still needs
 // A level starts with the machine empty and its capsules raining in from the top, so the change of level
 // shows (the user asked, October 2026; the pile used to be settled out of sight and shown at rest). The
@@ -678,7 +683,7 @@ let KINDS = worldKinds(0), KIND = Object.fromEntries(KINDS.map(k => [k.key, k]))
 const RAINBOW = ['#ff5d8f', '#ff9f43', '#ffd23f', '#80ed99', '#4cc9f0', '#b388ff'];
 
 // Prizes that aren't the world's capsules: traps and a bonus (not in the gallery), and the bosses' giant
-// capsule. A bomb in the hole costs a coin, the skull loses the level, the +2 one gives two coins. They
+// capsule. A bomb in the hole costs two coins (BOMB_COST), the skull loses the level, the +2 one gives two coins. They
 // are dark or white capsules with their sign printed round them (see shellMat).
 const SPECIAL = {
   bomb: { name: 'Bomba', css: '#2a2233', fg: '#ff5a4d', sign: '💣', disc: '#ff5a4d' },
@@ -701,6 +706,9 @@ const kindTier = key => KIND[key] ? KIND[key].tier : -1;
 // in every world); 'any' is any of the world's capsules. On top of that a level can have:
 // - order: the goal's kinds only count in the order listed;
 // - size: the radius range of its capsules (small ones slip between the fingers, big ones squeeze out);
+// - mix: the share of the random capsules that come small (MIX_SIZE), among the normal ones, with a few
+//   more capsules in all (MIX_EXTRA), so the machine looks fuller (the user asked, October 2026). The
+//   ones the goal needs still come normal;
 // - traps: so many bombs and skulls in the pile; bonus: so many +2 capsules;
 // - stands: pedestals, one, two or three apart, or a staircase (see STANDS), and onTop, the capsule set
 //   on each one's top (null for none). The user asked for these instead of a wall across the middle,
@@ -708,30 +716,61 @@ const kindTier = key => KIND[key] ? KIND[key].tier : -1;
 // - bury: a capsule buried under a pile of `pile` capsules;
 // - giant: the boss, a giant capsule (see SPECIAL.giant);
 // - tip: a card at the start that explains what is new. Each new thing first comes in an easy level,
-//   the bosses come every five levels, and an easier level follows each hard one.
+//   the bosses come halfway through each world and at its end, and an easier level follows each hard one.
 const SLOT = { C1: 'b0', C2: 'b1', U1: 'b2', U2: 'b3', R1: 'b4', R2: 'b5', L1: 'b6', L2: 'b7' };
+// Ten levels a world (the user asked for more, October 2026; there were five): a boss halfway (the 5th)
+// and a final boss (the 10th), which opens the next world. The new levels go over and mix what the
+// world and the ones before brought, and they use the second colours (R2, L2) too.
+const PER_WORLD = 10;
+const levelInWorld = i => i % PER_WORLD;
+// 'Jefe Final', 'Jefe' (halfway) or ''
+const bossOf = i => i < 0 ? '' : levelInWorld(i) === PER_WORLD - 1 ? 'Jefe Final' : levelInWorld(i) === 4 ? 'Jefe' : '';
 const LEVELS = [
+  // Animalitos: the basics, the giant, the bombs
   { goal: [['C1', 3]], coins: 12 },
   { goal: [['C2', 3]], coins: 10, tip: 'Cada nivel te da sus fichas, pero si te sobraron más, <b>arrancás con las tuyas</b>. Y cada estrella que ganás te da una ficha más.' },
+  { goal: [['any', 4]], coins: 11, mix: .45 },
   { goal: [['U1', 2], ['U2', 2]], coins: 12 },
-  { goal: [['R1', 3]], coins: 12, traps: { bomb: 2 }, tip: 'Ojo con las <b>bombas</b>: si una cae al hueco, perdés una ficha.' },
   { goal: [['giant', 1]], coins: 7, giant: true, tip: '<b>¡Jefe!</b> La gigante es grande y pesada: la garra solo la levanta si la bajás justo en el medio, y se resbala más.' },
-  { goal: [['any', 4]], coins: 10 },
+  { goal: [['C1', 2], ['C2', 2]], coins: 11, mix: .45 },
+  { goal: [['R1', 3]], coins: 12, traps: { bomb: 2 }, tip: 'Ojo con las <b>bombas</b>: si una cae al hueco, perdés dos fichas.' },
+  { goal: [['U1', 3]], coins: 11, mix: .45, traps: { bomb: 1 } },
+  { goal: [['C2', 1], ['U2', 1], ['R2', 1]], coins: 11, traps: { bomb: 2 } },
+  { goal: [['giant', 1], ['R1', 2]], coins: 12, giant: true, traps: { bomb: 2 }, tip: '<b>¡Jefe final!</b> La gigante y dos raras, con bombas.' },
+  // Monstruitos: the +2 capsules, in order, small capsules, the pedestal
+  { goal: [['any', 4]], coins: 10, mix: .45 },
   { goal: [['C1', 4]], coins: 9, bonus: 2, tip: 'Las cápsulas <b>+2</b> te dan dos fichas más. Y si sacás premios tres rondas seguidas, ganás una ficha.' },
   { goal: [['C2', 1], ['U1', 1], ['U2', 1]], coins: 10, order: true, tip: 'Esta vez <b>en orden</b>, como muestra el tablero. Las que saques fuera de orden no cuentan.' },
-  { goal: [['U1', 3]], coins: 12, size: [.25, .27], tip: 'Cápsulas <b>chicas</b>: se escapan entre los dedos. Agarralas bien centradas.' },
+  { goal: [['R2', 2], ['C2', 2]], coins: 11, mix: .45, traps: { bomb: 1 } },
   { goal: [['L1', 1]], coins: 8, stands: 'one', onTop: ['L1'], traps: { bomb: 2 }, tip: '<b>¡Jefe!</b> La legendaria está arriba del pedestal.' },
-  { goal: [['U2', 3]], coins: 10, bonus: 1 },
+  { goal: [['U1', 3]], coins: 12, size: [.25, .27], tip: 'Cápsulas <b>chicas</b>: se escapan entre los dedos. Agarralas bien centradas.' },
+  { goal: [['C1', 1], ['R1', 1], ['C2', 1]], coins: 11, mix: .45, order: true, traps: { bomb: 1 } },
+  { goal: [['any', 4]], coins: 11, size: [.25, .27], bonus: 1 },
+  { goal: [['L2', 1], ['U1', 2]], coins: 11, mix: .45, stands: 'one', onTop: ['L2'], traps: { bomb: 1 } },
+  { goal: [['R1', 1], ['R2', 1], ['L1', 1]], coins: 12, order: true, stands: 'one', onTop: ['L1'], traps: { bomb: 2 }, tip: '<b>¡Jefe final!</b> Dos raras y después la legendaria del pedestal, en orden.' },
+  // Dulce Halloween: two pedestals, the skull, big capsules, the buried one
+  { goal: [['U2', 3]], coins: 10, mix: .45, bonus: 1 },
   { goal: [['C1', 1], ['C2', 1]], coins: 9, stands: 'two', onTop: ['C1', 'C2'], tip: 'Ahora son <b>dos pedestales</b>, cada uno con su premio arriba.' },
-  { goal: [['any', 4]], coins: 10, traps: { skull: 1, bomb: 1 }, tip: 'La <b>calavera</b>: si cae al hueco, perdés el nivel.' },
+  { goal: [['any', 4]], coins: 10, mix: .45, traps: { skull: 1, bomb: 1 }, tip: 'La <b>calavera</b>: si cae al hueco, perdés el nivel.' },
   { goal: [['R1', 3]], coins: 12, size: [.34, .36], tip: 'Cápsulas <b>grandes</b>: cuesta que entren en la garra.' },
-  { goal: [['L1', 1]], coins: 9, bury: 'L1', pile: 48, tip: '<b>¡Jefe!</b> La legendaria está enterrada debajo de las demás: desenterrala.' },
+  { goal: [['L1', 1], ['L2', 1]], coins: 10, stands: 'two', onTop: ['L1', 'L2'], traps: { bomb: 1 }, tip: '<b>¡Jefe!</b> Dos legendarias, una en cada pedestal.' },
+  { goal: [['C1', 2], ['U2', 2]], coins: 12, size: [.34, .36], traps: { skull: 1 } },
+  { goal: [['U1', 1], ['R2', 1], ['U2', 1]], coins: 12, mix: .45, order: true, traps: { skull: 1, bomb: 1 } },
+  { goal: [['R1', 1], ['R2', 1], ['C2', 2]], coins: 12, stands: 'two', onTop: ['R1', 'R2'], traps: { bomb: 1 } },
+  { goal: [['any', 5]], coins: 12, mix: .45, bonus: 1, traps: { skull: 1, bomb: 2 } },
+  { goal: [['L1', 1]], coins: 9, bury: 'L1', pile: 48, tip: '<b>¡Jefe final!</b> La legendaria está enterrada debajo de las demás: desenterrala.' },
+  // Feliz Navidad: the stairs, and everything mixed
   { goal: [['U1', 2], ['L1', 1]], coins: 12, bonus: 1, stands: 'stairs', onTop: [null, null, 'L1'], tip: 'Una <b>escalera</b>: la legendaria está en el escalón más alto.' },
-  { goal: [['C1', 1], ['C2', 1], ['R1', 1], ['U2', 1]], coins: 12, order: true, traps: { bomb: 2 } },
-  { goal: [['L1', 2], ['C2', 2]], coins: 14, size: [.26, .36], stands: 'two', onTop: ['L1', 'L1'], traps: { bomb: 1 } },
-  { goal: [['C1', 1], ['C2', 1], ['U1', 1], ['U2', 1], ['R1', 1]], coins: 14, traps: { skull: 1, bomb: 2 } },
+  { goal: [['any', 4]], coins: 11, size: [.26, .36] },
+  { goal: [['C1', 1], ['C2', 1], ['R1', 1], ['U2', 1]], coins: 12, mix: .45, order: true, traps: { bomb: 2 } },
+  { goal: [['R2', 1], ['C1', 2]], coins: 11, bury: 'R2', pile: 40, traps: { bomb: 1 } },
+  { goal: [['L1', 2], ['C2', 2]], coins: 14, size: [.26, .36], stands: 'two', onTop: ['L1', 'L1'], traps: { bomb: 1 }, tip: '<b>¡Jefe!</b> Dos legendarias en los pedestales, y cápsulas de todos los tamaños.' },
+  { goal: [['R1', 1], ['U2', 2]], coins: 12, stands: 'stairs', onTop: [null, null, 'R1'], traps: { bomb: 2 } },
+  { goal: [['C1', 1], ['C2', 1], ['U1', 1], ['U2', 1], ['R1', 1]], coins: 14, mix: .45, traps: { skull: 1, bomb: 2 } },
+  { goal: [['giant', 1], ['U1', 2]], coins: 11, giant: true, traps: { skull: 1, bomb: 1 } },
+  { goal: [['C1', 1], ['U1', 1], ['R1', 1], ['L2', 1]], coins: 14, mix: .45, order: true, stands: 'one', onTop: ['L2'], traps: { skull: 1, bomb: 2 } },
   { goal: [['giant', 1], ['L1', 1]], coins: 14, giant: true, stands: 'one', onTop: ['L1'], traps: { bomb: 2 }, tip: '<b>¡Jefe final!</b> La gigante y la legendaria del pedestal, con bombas.' },
-].map((l, i) => cookLevel(l, Math.floor(i / 5)));
+].map((l, i) => cookLevel(l, Math.floor(i / PER_WORLD)));
 // The level's goal as { key, n }, its world, and its star thresholds filled in. kept: the capsules the
 // level keeps in one place (on the pedestals, buried), which aren't anywhere else in the pile.
 function cookLevel(l, world) {
@@ -744,12 +783,13 @@ function cookLevel(l, world) {
 // (sound, music, hand) are kept. Version 2 is the end of testing mode (October 2026): the user asked for
 // the game locked and empty again, with no capsules won and no characters. Version 3 is the coins no
 // longer piling up (October 2026): the user asked for the coins and the levels wiped, but not the
-// capsules and characters, so from version 2 only those go.
-const SAVE_KEY = 'clawMachine.save', SAVE_VERSION = '3';
+// capsules and characters, so from version 2 only those go. Version 4 is ten levels a world (October
+// 2026): the levels saved meant others, so they go again, with the coins, from version 2 or 3.
+const SAVE_KEY = 'clawMachine.save', SAVE_VERSION = '4';
 try {
   const was = localStorage.getItem(SAVE_KEY);
   if (was !== SAVE_VERSION) {
-    for (const k of was === '2' ? ['levelsDone', 'stars', 'bag'] : ['levelsDone', 'stars', 'meta', 'daily', 'bag']) localStorage.removeItem('clawMachine.' + k);
+    for (const k of was === '2' || was === '3' ? ['levelsDone', 'stars', 'bag'] : ['levelsDone', 'stars', 'meta', 'daily', 'bag']) localStorage.removeItem('clawMachine.' + k);
     localStorage.setItem(SAVE_KEY, SAVE_VERSION);
   }
 } catch (e) {}
@@ -758,7 +798,7 @@ const STARS_KEY = 'clawMachine.stars';         // the most stars won on each lev
 // For testing the user had the whole game unlocked for a while (October 2026); now worlds and levels
 // unlock in order again. UNLOCK_ALL true opens everything.
 const UNLOCK_ALL = false;
-const worldOpen = w => UNLOCK_ALL || levelsDone >= w * 5;   // a world opens with its first level
+const worldOpen = w => UNLOCK_ALL || levelsDone >= w * PER_WORLD;   // a world opens with its first level
 const levelOpen = i => UNLOCK_ALL || i <= levelsDone;
 // Pedestals, as [x from, x to, height], all over the back half of the floor (STAND_Z): one in the
 // middle, two apart, or three steps rising to the right. A top that holds a prize is STAND_W wide and
@@ -951,7 +991,7 @@ const boardTex = canvasTex(1024, Math.round(1024 * BOARD_H / BOARD_W), (g, w, h)
     g.fillStyle = label === 'TIEMPO' && board.low ? '#ff5d8f' : label === 'FICHAS' && board.flash ? board.flash : '#fff6e0';
     g.font = '700 94px "Baloo 2", sans-serif'; g.fillText(value, x, h * .5);
   });
-  g.fillStyle = '#b9a8e0'; g.font = '700 40px "Baloo 2", sans-serif'; g.fillText(level < 0 ? 'DESAFÍO DEL DÍA' : `NIVEL ${level % 5 + 1}`, w / 2, h * .2, w * .5);
+  g.fillStyle = '#b9a8e0'; g.font = '700 40px "Baloo 2", sans-serif'; g.fillText(level < 0 ? 'DESAFÍO DEL DÍA' : `NIVEL ${levelInWorld(level) + 1}`, w / 2, h * .2, w * .5);
   // The goal: a capsule of each kind asked for and "won/needed", shrunk to fit between coins and time.
   // A kind asked for once is just its capsule, ticked once won (with six kinds "0/1" got too small to read).
   // An ordered goal has arrows between its parts, and the ones still to come are dimmed.
@@ -1396,9 +1436,11 @@ for (const sx of [-1, 1]) for (let i = 0; i < 6; i++) {
   const m = box(.06, .1, .06, new THREE.MeshBasicMaterial({ color: LIGHT_OFF }), sx * (BOX.x - .02), .7 + i * .7, BOX.z + .02);
   m.row = i; lanterns.push(m);
 }
-// The show (LIGHT_SHOW seconds, from lightShow.at, set by win()): two runs chasing up the pillars, a
-// blink of every other light in turns, then all on in the first colour, dimming to off
-const LIGHT_SHOW = 2.2, BULB_BLINK = .84, lightShow = { at: -1 };
+// The show (LIGHT_SHOW seconds, from lightShow.at, set by win()): runs chasing up the pillars until
+// SHOW_CHASE, a blink of every other light in turns until SHOW_BLINK, then all on in the first colour,
+// dimming to off. The user asked for it to last longer (October 2026): it was 2.2 s (1, 1.8), and the
+// bulbs blinked for .84 s.
+const LIGHT_SHOW = 3.6, SHOW_CHASE = 1.5, SHOW_BLINK = 2.7, BULB_BLINK = 1.68, lightShow = { at: -1 };
 const BULB_CHASE = 260;   // ms a step of the bulbs' chase (160 until the user asked for it slower, October 2026)
 function lightsTick(now) {
   const t = lightShow.at < 0 ? -1 : (now - lightShow.at) / 1000, pal = LIGHTS[WORLDS[lv.world].id] || LIGHTS.animales;
@@ -1406,9 +1448,9 @@ function lightsTick(now) {
   for (const m of lanterns) {
     const c = m.material.color, i = m.row;
     if (t < 0 || t > LIGHT_SHOW) c.copy(LIGHT_OFF);
-    else if (t < 1) { const step = Math.floor(t / .06), d = step - i; c.set(d >= 0 && d % 8 < 2 ? pal[Math.floor(step / 8 + i) % pal.length] : LIGHT_OFF); }
-    else if (t < 1.8) { const f = Math.floor((t - 1) / .1); c.set((i + f) % 2 === 0 ? pal[(f >> 1) % pal.length] : LIGHT_OFF); }
-    else c.set(pal[0]).lerp(LIGHT_OFF, (t - 1.8) / (LIGHT_SHOW - 1.8));
+    else if (t < SHOW_CHASE) { const step = Math.floor(t / .06), d = step - i; c.set(d >= 0 && d % 8 < 2 ? pal[Math.floor(step / 8 + i) % pal.length] : LIGHT_OFF); }
+    else if (t < SHOW_BLINK) { const f = Math.floor((t - SHOW_CHASE) / .1); c.set((i + f) % 2 === 0 ? pal[(f >> 1) % pal.length] : LIGHT_OFF); }
+    else c.set(pal[0]).lerp(LIGHT_OFF, (t - SHOW_BLINK) / (LIGHT_SHOW - SHOW_BLINK));
   }
 }
 let skinTick = 0;
@@ -1763,8 +1805,9 @@ function randomKind() {
 // A capsule: two solid halves (see shellMat) with a dark band where they meet. Its kind is one of the
 // world's (KINDS) or a special one; if none is given it is one of the world's at random.
 function mkPrize(x, y, z, kind) {
+  const small = !kind && lv.mix && rnd() < lv.mix;   // (only random ones come small, see mix)
   kind = kind || randomKind();
-  const rare = kindTier(kind) === 3, size = lv.size || [R_MIN, R_MAX];   // (legendary ones slip more)
+  const rare = kindTier(kind) === 3, size = small ? MIX_SIZE : lv.size || [R_MIN, R_MAX];   // (legendary ones slip more)
   const r = SPECIAL[kind]?.r || size[0] + rnd() * (size[1] - size[0]);
   const g = new THREE.Group(), shell = shellMat(kind);
   const halves = [new THREE.Mesh(HEMI_TOP, shell), new THREE.Mesh(HEMI_BOT, shell)];
@@ -2461,13 +2504,15 @@ function loosen(dt, rate) {
   }
 }
 
+const BOMB_COST = 2;   // coins a bomb takes (2 since the user asked, October 2026; it was 1)
+
 // A prize in the hole scores on the board, with a jingle. There is no floating "+1" / "+5 ¡Dorada!"
 // text any more: the user asked to drop it (October 2026).
-// The specials do their thing instead: a bomb takes a coin (and ends the streak), the skull loses the
+// The specials do their thing instead: a bomb takes BOMB_COST coins (and ends the streak), the skull loses the
 // level, a +2 capsule gives two coins.
 function win(p) {
   if (state === 'over' || (endT !== null && !endWon)) return;
-  if (p.kind === 'bomb') { coins = Math.max(0, coins - 1); roundGood = false; streak = 0; flashCoins('#ff5d8f'); sfx('boom'); hud(); return; }
+  if (p.kind === 'bomb') { coins = Math.max(0, coins - BOMB_COST); roundGood = false; streak = 0; flashCoins('#ff5d8f'); sfx('boom'); hud(); return; }
   if (p.kind === 'skull') { if (endT === null) { endT = CLEAR_DELAY; endWon = false; lostTo = 'skull'; } sfx('boom'); return; }
   if (p.kind === 'bonus') { coins += 2; flashCoins('#80ed99'); sfx('coin'); hud(); return; }
   score += p.rare ? 5 : 1; won++;
@@ -2486,13 +2531,14 @@ function win(p) {
 // (openCard), and gets a character of its rarity. The user asked for that (October 2026); at first the
 // character came on its own. Every world capsule won is announced at once with how far along its card
 // is (ballToast); a card just completed is also counted on the level's card (newCards), and the
-// gallery's button gets a dot.
+// gallery's button gets a dot while any card is ready to open (galDot).
+const galDot = () => $('galBtn').classList.toggle('new', Object.values(meta.prog).some(n => n >= CHAR_EVERY));
 function winBall(kind) {
   const w = WORLDS[lv.world].id, k = `${w}:${kind.slice(1)}`;
   meta.balls[k] = (meta.balls[k] || 0) + 1;
   meta.prog[k] = (meta.prog[k] || 0) + 1;
   const done = meta.prog[k] % CHAR_EVERY === 0;
-  if (done) { newCards++; $('galBtn').classList.add('new'); }
+  if (done) { newCards++; galDot(); }
   ballToast(kind, done ? CHAR_EVERY : meta.prog[k] % CHAR_EVERY, done);
   try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (e) {}
 }
@@ -2513,6 +2559,7 @@ function openCard(w, b) {
   const wd = WORLDS[w], k = `${wd.id}:${b}`;
   if ((meta.prog[k] || 0) < CHAR_EVERY) return;
   meta.prog[k] -= CHAR_EVERY;
+  galDot();   // (it stayed on after the card was opened, which the user noticed, October 2026)
   let tier = b === 8 ? 4 : b >> 1;
   if (tier === 4) { let r = Math.random() * TIERS.slice(0, 4).reduce((s, t) => s + t.w, 0); tier = 0; while (r > TIERS[tier].w) r -= TIERS[tier++].w; }
   const i = tier * 5 + (Math.random() * 5 | 0), ck = `${wd.id}:${i}`, n = (meta.chars[ck] || 0) + 1;
@@ -2671,11 +2718,11 @@ function restClose(dt) {
 // plus "Niveles" unless it is a level's opening tip
 let cardMain = null;
 function card({ title, html, main, onMain, levels = false }) {
-  const boss = level % 5 === 4;
+  const boss = bossOf(level);
   $('ovHead').style.backgroundImage = `url(${backSrc(lv.world)})`;
   $('ovWorld').textContent = level < 0 ? 'Desafío del día' : WORLDS[lv.world].name;
-  $('ovLevel').textContent = level < 0 ? WORLDS[lv.world].name : `Nivel ${level % 5 + 1}${boss ? ' · Jefe Final' : ''}`;
-  $('ovLevel').classList.toggle('boss', level >= 0 && boss);
+  $('ovLevel').textContent = level < 0 ? WORLDS[lv.world].name : `Nivel ${levelInWorld(level) + 1}${boss ? ' · ' + boss : ''}`;
+  $('ovLevel').classList.toggle('boss', !!boss);
   $('ovTitle').hidden = !title; $('ovTitle').textContent = title || ''; $('ovStats').innerHTML = html; $('again').textContent = main;
   $('ovLevels').hidden = !levels; cardMain = onMain; $('over').hidden = false;
 }
@@ -2703,9 +2750,9 @@ function levelCard(cleared) {
       if (last) html += '<br>¡Completaste todos los niveles!';
     }
     // (after a world's boss the next world opens: its cover comes up, see showIntro)
-    const next = level >= 0 && !last, newWorld = next && level % 5 === 4;
+    const next = level >= 0 && !last, newWorld = next && levelInWorld(level) === PER_WORLD - 1;
     card({ title: '¡Superado!', html: html + cardsHtml(),
-      main: newWorld ? '¡Nuevo mundo!' : next ? 'Siguiente nivel' : 'Jugar de nuevo', onMain: newWorld ? () => showIntro((level + 1) / 5) : next ? () => startLevel(level + 1) : retry, levels: true });
+      main: newWorld ? '¡Nuevo mundo!' : next ? 'Siguiente nivel' : 'Jugar de nuevo', onMain: newWorld ? () => showIntro((level + 1) / PER_WORLD) : next ? () => startLevel(level + 1) : retry, levels: true });
   } else {
     const skull = lostTo === 'skull';
     const html = skull ? 'Cayó la calavera al hueco: perdiste el nivel.'
@@ -2723,7 +2770,7 @@ function showIntro(w) {
   $('introName').textContent = WORLDS[w].name;
   const el = $('intro');
   el.hidden = false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
-  $('introGo').onclick = () => { el.hidden = true; startLevel(w * 5); };
+  $('introGo').onclick = () => { el.hidden = true; startLevel(w * PER_WORLD); };
   sfx('prize');
 }
 // The cards completed during the level, for its card, with a button to go and open them
@@ -2994,7 +3041,7 @@ const backSrc = w => `assets/backs/${WORLDS[w].id}.png`;
 const banner = (w, title, right = '') => `<div class="banner${worldOpen(w) ? '' : ' locked'}" style="background-image:url(${backSrc(w)})"><h3>${title}</h3>${right}</div>`;
 // How far along a world is: levels cleared, stars, characters
 function worldStats(w) {
-  const lvls = [0, 1, 2, 3, 4].map(i => w * 5 + i);
+  const lvls = Array.from({ length: PER_WORLD }, (_, i) => w * PER_WORLD + i);
   return { done: lvls.filter(i => bestStars[i]).length, stars: lvls.reduce((s, i) => s + (bestStars[i] || 0), 0),
     chars: WORLDS[w].chars.filter((c, i) => meta.chars[`${WORLDS[w].id}:${i}`]).length };
 }
@@ -3011,9 +3058,9 @@ function openWorlds(at = worldNow()) {
   worldCar.fill(WORLDS.map((wd, w) => {
     const st = worldStats(w), open = worldOpen(w);
     return `<section class="season wpage"><div class="cover${open ? '' : ' locked'}" style="background-image:url(${coverSrc(w)})"><div class="winfo">` +
-      `<h3>${wd.name}</h3><p>Niveles ${st.done}/5 · ${ISTAR} ${st.stars}/15 · Personajes ${st.chars}/20</p>` +
-      (open ? '' : `<p class="lock">🔒 Superá al jefe de ${WORLDS[w - 1].name}</p>`) + '</div>' +
-      (open ? `<div class="wplay"><button class="play" data-w="${w}">Jugar</button></div>` : '') + '</div></section>';
+      `<h3>${wd.name}</h3><p>Niveles ${st.done}/${PER_WORLD} · ${ISTAR} ${st.stars}/${PER_WORLD * 3} · Personajes ${st.chars}/20</p>` +
+      '</div>' + (open ? `<div class="wplay"><button class="play" data-w="${w}">Jugar</button></div>` : '') + '</div>' +
+      (open ? '' : '<span class="wlock">🔒</span>') + '</section>';
   }).join(''), at);
 }
 $('worldShelf').addEventListener('click', e => { const b = e.target.closest('.play'); if (b) openLevels(+b.dataset.w); });
@@ -3028,12 +3075,12 @@ function openLevels(w = worldNow()) {
   const st = worldStats(w);
   $('lvlBanner').style.backgroundImage = `url(${backSrc(w)})`;
   $('lvlTitle').textContent = WORLDS[w].name;
-  $('lvlSub').innerHTML = `Niveles ${st.done}/5&nbsp;&nbsp;·&nbsp;&nbsp;${ISTAR} ${st.stars}/15`;
-  $('lvlList').innerHTML = [0, 1, 2, 3, 4].map(k => {
-    const i = w * 5 + k, l = LEVELS[i], locked = !levelOpen(i), boss = k === 4;
+  $('lvlSub').innerHTML = `Niveles ${st.done}/${PER_WORLD}&nbsp;&nbsp;·&nbsp;&nbsp;${ISTAR} ${st.stars}/${PER_WORLD * 3}`;
+  $('lvlList').innerHTML = Array.from({ length: PER_WORLD }, (_, k) => {
+    const i = w * PER_WORLD + k, l = LEVELS[i], locked = !levelOpen(i), boss = bossOf(i);
     const st = bestStars[i] ? starsHtml(bestStars[i], 'stars sm') : locked ? '🔒' : '<i class="play">▶</i>';
     return `<button class="lvl${i === level ? ' cur' : ''}${locked ? ' locked' : ''}${boss ? ' boss' : ''}" data-i="${i}"${locked ? ' disabled' : ''}>` +
-      `<span class="n">${boss ? '👑' : k + 1}</span><span class="goal">${boss ? '<b>Jefe Final</b>' : ''}${goalHtml(l)}${levelTags(l)}</span><span class="st">${st}</span></button>`;
+      `<span class="n">${boss ? '👑' : k + 1}</span><span class="goal">${boss ? `<b>${boss}</b>` : ''}${goalHtml(l)}${levelTags(l)}</span><span class="st">${st}</span></button>`;
   }).join('');
 }
 $('lvlList').addEventListener('click', e => {
@@ -3154,7 +3201,6 @@ const charCar = carousel($('charShelf'), $('charPrev'), $('charNext'), $('charDo
 const worldCar = carousel($('worldShelf'), $('worldPrev'), $('worldNext'), $('worldDots'));
 // The world the screens open on: the one being played
 const worldNow = () => lv.world;
-const lockedNote = w => `<p class="sub">Se abre al superar al jefe de ${WORLDS[w - 1].name}</p>`;
 
 // The gallery (the capsule button, top left): a page per world with its nine capsules in a panel per
 // rarity, each with its name on a label and how far its card is to complete (a bar to CHAR_EVERY, with the count inside it). A complete card
@@ -3177,7 +3223,7 @@ function openGallery(at = worldNow()) {
     // (the banner counts the capsules won at least once, of the world's nine, like the collection's count)
     const have = worldKinds(w).filter(k => meta.balls[`${wd.id}:${k.key.slice(1)}`]).length;
     return `<section class="season${locked ? ' locked' : ''}">${banner(w, wd.name, locked ? '<span>🔒</span>' : `<span>${have}/9</span>`)}` +
-      (locked ? lockedNote(w) : '') + `<div class="shelf">${slots}</div></section>`;   // (the user dropped the hint line, October 2026)
+      `<div class="shelf">${slots}</div></section>`;   // (the user dropped the hint line, and the note on how a locked world opens, October 2026)
   }).join(''), at);
 }
 $('shelf').addEventListener('click', e => { const el = e.target.closest('.slot.ready'); if (el) openCard(+el.dataset.w, +el.dataset.b); });
@@ -3193,7 +3239,7 @@ function openChars() {
       return `<span class="toy${n ? '' : ' none'}"><span class="plate">${n ? charName(w, i) : '?'}</span>` +
         `<span class="pic"><img src="${charSrc(w, i)}" alt="" loading="lazy" draggable="false">${n ? '' : '<i>?</i>'}</span>${n > 1 ? `<b>×${n}</b>` : ''}</span>`;
     }).join('') + '</div></div>').join('');
-    return `<section class="season${worldOpen(w) ? '' : ' locked'}">${banner(w, wd.name, `<span>${have}/20</span>`)}${worldOpen(w) ? '' : lockedNote(w)}${rows}</section>`;
+    return `<section class="season${worldOpen(w) ? '' : ' locked'}">${banner(w, wd.name, `<span>${have}/20</span>`)}${rows}</section>`;   // (no note on how a locked world opens: the user dropped it, October 2026)
   }).join(''), worldNow());
   $('charBtn').classList.remove('new');
 }
@@ -3213,6 +3259,7 @@ function closeScreens() {
 for (const [btn, open] of [['galToLvl', openWorlds], ['lvlToGal', openGallery], ['galToChar', openChars], ['charToGal', openGallery], ['charToLvl', openWorlds], ['lvlToChar', openChars], ['lvlToWorlds', openWorlds], ['wToGal', openGallery], ['wToChar', openChars]]) $(btn).addEventListener('click', () => open());
 $('galBtn').style.setProperty('--c', KINDS[0].css);
 $('galBtn').addEventListener('click', () => openGallery());
+galDot();
 $('charBtn').addEventListener('click', openChars);
 for (const b of ['galBack', 'charBack']) $(b).addEventListener('click', closeScreens);
 addEventListener('blur', () => { keys.l = keys.r = keys.u = keys.d = false; });
