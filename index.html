@@ -611,10 +611,23 @@ const FREE_PLAY = false;
 const WAIT_TIME = .3;
 // Few enough capsules to leave gaps for the fingers, and sizes close together: a tight carpet of
 // capsules only lets the claw pinch tops, small ones sit too low to reach and big ones squeeze out
-// (15 for now: the user asked for it, October 2026; it was 66, a heap)
-const PRIZE_COUNT = 15, R_MIN = .29, R_MAX = .32, RESTOCK_BELOW = 8;
+// (15 for a while: the user asked for it, October 2026; it was 66, a heap). Then the user found the
+// machine empty and asked for more, rising through a world (see pileSize).
+const R_MIN = .29, R_MAX = .32;
+// A level's pile: PILE_STEPS by its place in its world, four fewer where pedestals take up the floor,
+// or the level's own (pile, the buried boss's heap). When it falls under RESTOCK_SHARE of that, more
+// rain in to fill it up again.
+const PILE_STEPS = [20, 22, 24, 26, 24], RESTOCK_SHARE = .55;
+const pileSize = () => lv.pile || (level < 0 ? 22 : PILE_STEPS[level % 5]) - (lv.stands ? 4 : 0);
 const PILE_SPARE = 2;   // a level's pile has this many more of each kind it asks for than it still needs
-const SETTLE_STEPS = 600;   // physics steps (5 s) run at a reset so the pile is settled when shown
+// A level starts with the machine empty and its capsules raining in from the top, so the change of level
+// shows (the user asked, October 2026; the pile used to be settled out of sight and shown at rest). The
+// rain falls from FILL_Y, in layers, and play starts once it has landed: after FILL_MIN, when nothing
+// moves faster than FILL_CALM (a last one rolling on is no matter, too slow to hop into the hole), or by
+// FILL_MAX at most. Waiting for the pile to be quite still took 4–5 s.
+const FILL_Y = 4.2, FILL_MIN = 1, FILL_MAX = 3.5, FILL_CALM = .6;
+// While it fills, the hole is fenced off up to the top, so nothing hops in on its own
+const HOLE_FENCE = { min: [-BOX.x - 1, -1, HOLE.z], max: [HOLE.x, 9, BOX.z + 1] };
 // Worlds (the user asked for them, October 2026): the levels go in worlds of five (Animalitos, Monstruitos,
 // Dulce Halloween, Feliz Navidad: the user's names; ids, skins and asset folders keep the first ones), each with its own nine kinds of capsule and its own twenty characters to collect.
 // The capsules come in four rarities, two colours each, and one rainbow kind. The rarity shows in the
@@ -681,7 +694,7 @@ const kindTier = key => KIND[key] ? KIND[key].tier : -1;
 const SLOT = { C1: 'b0', C2: 'b1', U1: 'b2', U2: 'b3', R1: 'b4', R2: 'b5', L1: 'b6', L2: 'b7' };
 const LEVELS = [
   { goal: [['C1', 3]], coins: 12 },
-  { goal: [['C2', 3]], coins: 10 },
+  { goal: [['C2', 3]], coins: 10, tip: 'Las fichas que te sobran <b>pasan al nivel siguiente</b>, y cada estrella que ganás te da una ficha más.' },
   { goal: [['U1', 2], ['U2', 2]], coins: 12 },
   { goal: [['R1', 3]], coins: 12, traps: { bomb: 2 }, tip: 'Ojo con las <b>bombas</b>: si una cae al hueco, perdés una ficha.' },
   { goal: [['giant', 1]], coins: 7, giant: true, tip: '<b>¡Jefe!</b> La gigante es grande y pesada: la garra solo la levanta si la bajás justo en el medio, y se resbala más.' },
@@ -715,7 +728,7 @@ function cookLevel(l, world) {
 const SAVE_KEY = 'clawMachine.save', SAVE_VERSION = '2';
 try {
   if (localStorage.getItem(SAVE_KEY) !== SAVE_VERSION) {
-    for (const k of ['levelsDone', 'stars', 'meta', 'daily']) localStorage.removeItem('clawMachine.' + k);
+    for (const k of ['levelsDone', 'stars', 'meta', 'daily', 'bag']) localStorage.removeItem('clawMachine.' + k);
     localStorage.setItem(SAVE_KEY, SAVE_VERSION);
   }
 } catch (e) {}
@@ -788,6 +801,18 @@ const levelMet = () => lv.goal.every(g => goalLeft(g) === 0);
 const goalNow = () => lv.goal.find(goalLeft);
 // Stars for the coins left: 1, 2 or 3
 const starsFor = left => 1 + (left >= lv.stars[0]) + (left >= lv.stars[1]);
+// The coins left over carry on to the next level (the user chose it, October 2026, over one bag of
+// coins per world, which would have to be huge for a long world). Each level still gives its own coins
+// on top of the ones brought (brought), and clearing it gives one more per star (STAR_COINS), so coins
+// are also won by playing well, as are the streaks and the +2 capsules. Its stars count the coins left
+// beyond the ones brought, as before. Running out leaves none to carry, so a retry has just the level's.
+// A level left half played (for another, or by reloading) keeps what it brought, less what was spent of
+// it, so leaving never gains coins; the skull counts like that too. bag is saved under BAG_KEY, kept
+// up to date while a level is played (inPlay). The daily challenge has its own coins, apart.
+const BAG_KEY = 'clawMachine.bag', STAR_COINS = 1;
+let bag = 0, brought = 0, inPlay = false;
+try { bag = Math.max(0, +localStorage.getItem(BAG_KEY) || 0); } catch (e) {}
+const saveBag = n => { try { localStorage.setItem(BAG_KEY, n); } catch (e) {} };
 const STREAK_N = 2;   // catches in a row that win a coin
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -1742,9 +1767,17 @@ function spawn(n, y0, initial, around) {
       if (around && i < 12) { x = clamp(around.x - rnd() * .9, -1.7, 1.7); z = clamp(around.z + rnd() * .9, -1.2, 1.2); }
       else { x = (rnd() * 2 - 1) * 1.7; z = (rnd() * 2 - 1) * 1.2; }
     } while (++tries < 50 && ((x < HOLE.x + .5 && z > HOLE.z - .5) || WALLS.some(w => x > w.min[0] - .3 && x < w.max[0] + .3 && z > w.min[2] - .3 && z < w.max[2] + .3)));
-    prizes.push(mkPrize(x, y0 + Math.floor(i / (around && i < 12 ? 4 : 12)) * .7 + rnd() * .2, z, kinds[i]));
+    // (the heap over a buried prize drops from low down, or it scatters). The layers wait out of sight
+    // and come in RAIN_GAP apart from the same height (stacked, the upper ones showed over the roof); a
+    // restock's first layer comes at once, a level's first pile only once its hold is over (see update).
+    const heap = around && i < 12, layer = heap ? 0 : Math.floor(i / 12);
+    const p = mkPrize(x, (heap ? .9 + Math.floor(i / 4) * .7 : y0) + rnd() * .2, z, kinds[i]);
+    if (!initial && !layer) prizes.push(p);
+    else { p.mesh.visible = false; rain.push({ p, at: simT + layer * RAIN_GAP }); }
   }
 }
+const RAIN_GAP = .4;   // (s: by then the layer before has fallen clear)
+let rain = [], simT = 0;   // the capsules still to come in, and the simulation's clock
 
 // The kinds the pile must get: each kind the level still needs with some to spare (PILE_SPARE, or 1
 // when the goal has many kinds, to keep the pile small), and its traps. One entry per prize missing.
@@ -1752,7 +1785,8 @@ function spawn(n, y0, initial, around) {
 // The kinds the level keeps in one place (on the pedestal, buried) and the giant aren't restocked.
 function needed(initial) {
   const goal = lv.goal, spare = goal.length > 3 ? 1 : PILE_SPARE, out = [];
-  const want = (key, n) => { for (let i = prizes.filter(p => p.kind === key).length; i < n; i++) out.push(key); };
+  const all = [...prizes, ...rain.map(r => r.p)];   // (the ones still to rain in count too)
+  const want = (key, n) => { for (let i = all.filter(p => p.kind === key).length; i < n; i++) out.push(key); };
   for (const g of goal) if (g.key !== 'any' && g.key !== 'giant' && !lv.kept.has(g.key)) want(g.key, goalLeft(g) ? goalLeft(g) + spare : 0);
   for (const [k, n] of Object.entries(lv.traps || {})) want(k, n);
   if (initial && lv.bonus) want('bonus', lv.bonus);
@@ -1766,6 +1800,9 @@ const GIANT_AT = { x: .4, z: .45 }, BURY_AT = { x: 1.6, z: -1.1 };
 // Start (or retry) level i (-1: the daily challenge, see startDaily): its coins, nothing won towards it
 // yet, and a fresh pile with what it asks for
 function startLevel(i, data) {
+  // (a level left half played keeps what it brought, less whatever of that was spent: see BAG_KEY)
+  if (inPlay) bag = Math.min(brought, coins);
+  brought = i < 0 ? 0 : bag; inPlay = i >= 0;
   level = i; lv = data || LEVELS[i]; got = {}; endT = null; lostTo = null; streak = 0; roundOpen = false; coinFlash = 0; newCards = 0;
   KINDS = worldKinds(lv.world); KIND = Object.fromEntries(KINDS.map(k => [k.key, k]));
   setBackWall(lv.world); setSkin(lv.world);
@@ -1774,7 +1811,8 @@ function startLevel(i, data) {
 
 function reset() {
   for (const p of prizes) scene.remove(p.mesh);
-  prizes = [];
+  for (const { p } of rain) scene.remove(p.mesh);
+  prizes = []; rain = [];
   // x, z, vx, vz: the carriage; len: cable paid out; winch: its current speed; head: the hanging claw
   claw = {
     x: HOME.x, z: HOME.z, vx: 0, vz: 0, len: L_MIN, winch: 0, dist: L_MIN, open: 0, flex: FINGER_ANGLES.map(() => 0), held: null, q: 0, t: 0,
@@ -1783,28 +1821,41 @@ function reset() {
   setMass(claw.head, HEAD_MASS, false);
   lastSegs = null;
   resetCable();
-  state = 'idle'; coins = lv.coins; score = 0; won = 0; caught = 0;
+  state = 'idle'; coins = lv.coins + brought; score = 0; won = 0; caught = 0;
   // The level's pedestals, and the contact grid sized for its biggest capsules
   setSolids();
   CELL = 2 * Math.max(R_MAX, lv.size ? lv.size[1] : 0, lv.giant ? SPECIAL.giant.r : 0) + .06;
   // The prizes the level puts in place, still: the giant, the ones on the pedestals, the buried one
-  const still = p => { p.vx = p.vz = 0; return p; };
+  // (pinned while the rest rains in, like a prize riding in the claw: a capsule landing on the pedestal
+  // knocked its prize off now and then)
+  const still = p => { p.vx = p.vz = 0; p.held = true; return p; };
   if (lv.giant) prizes.push(still(mkPrize(GIANT_AT.x, SPECIAL.giant.r, GIANT_AT.z, 'giant')));
   (STANDS[lv.stands] || []).forEach(([x0, x1, h], i) => {
     const k = lv.onTop[i];
     if (k) prizes.push(still(mkPrize((x0 + x1) / 2, h + R_MAX + .02, (STAND_Z[0] + STAND_Z[1]) / 2, k)));
   });
   if (lv.bury) prizes.push(still(mkPrize(BURY_AT.x, .3, BURY_AT.z, lv.bury)));
-  const total = Math.max(lv.pile || PRIZE_COUNT, prizes.length + needed(true).length + 3);
-  spawn(total - prizes.length, lv.bury ? .9 : 1, true, lv.bury && BURY_AT);
-  // Let the pile settle before showing it. Nothing may fall in on its own meanwhile: the hole has a
-  // floor while settling, and whatever ends up over it is taken away before the level is shown (the
-  // user saw capsules drop in by themselves as a level started, October 2026)
-  for (let i = 0; i < SETTLE_STEPS; i++) physics(STEP, true);
-  prizes = prizes.filter(p => !(p.x < HOLE.x && p.z > HOLE.z) || (scene.remove(p.mesh), false));
+  const total = Math.max(pileSize(), prizes.length + needed(true).length + 3);
+  spawn(total - prizes.length, FILL_Y, true, lv.bury && BURY_AT);
   rnd = Math.random;   // (the daily challenge seeds only its first pile)
+  // The rest of the pile rains in (see fillDone). Nothing may fall in on its own meanwhile (the user saw
+  // capsules drop in by themselves as a level started, October 2026): the hole is fenced off and has a
+  // floor while it fills (physics' settling), and the claw stays up out of the way.
+  state = 'fill'; fillT = 0; fillHold = FILL_HOLD;
   $('over').hidden = true;
   hud();
+}
+// The pile is in: whatever ended up over the hole anyway is taken away, the round can start, and the
+// level's tip comes up
+// Before it rains the machine stands empty for FILL_HOLD; when the game opens, until the machine's back
+// wall has loaded too (BOOT_WAIT at most), so the rain is seen on the finished machine (the user asked for
+// the rain on opening the game too, October 2026)
+const FILL_HOLD = .5, BOOT_WAIT = 2.5;
+let fillT = 0, fillHold = 0, booting = true;
+function fillDone() {
+  prizes = prizes.filter(p => !(p.x < HOLE.x && p.z > HOLE.z) || (scene.remove(p.mesh), false));
+  for (const p of prizes) p.held = false;
+  state = 'idle'; booting = false; hud();
   if (lv.tip) card({ title: level < 0 ? 'Desafío del día' : `${WORLDS[lv.world].name} · Nivel ${level % 5 + 1}`, html: lv.tip, main: '¡Dale!', onMain: closeCard });
 }
 
@@ -1944,12 +1995,12 @@ function findContacts(segs, segVel, margin, withClaw) {
         toPoint(lerp3(s0, s1, t), FINGER_R, 'claw', segVel ? lerp3(segVel[k][0], segVel[k][1], t) : ZERO, h);
       });
     }
-    if (!withClaw || !(a.x < HOLE.x && a.z > HOLE.z)) add(null, 0, -1, 0, a.r - a.y, 'floor', ZERO);   // no floor over the hole (but while settling, see reset)
+    if (!withClaw || !(a.x < HOLE.x && a.z > HOLE.z)) add(null, 0, -1, 0, a.r - a.y, 'floor', ZERO);   // no floor over the hole (but while it fills, see reset)
     add(null, -1, 0, 0, a.r - (a.x + BOX.x), 'glass', ZERO);
     add(null, 1, 0, 0, a.r - (BOX.x - a.x), 'glass', ZERO);
     add(null, 0, 0, -1, a.r - (a.z + BOX.z), 'glass', ZERO);
     add(null, 0, 0, 1, a.r - (BOX.z - a.z), 'glass', ZERO);
-    for (const w of WALLS) {
+    for (const w of withClaw ? WALLS : [...WALLS, HOLE_FENCE]) {
       const q = [clamp(a.x, w.min[0], w.max[0]), clamp(a.y, w.min[1], w.max[1]), clamp(a.z, w.min[2], w.max[2])];
       if (Math.hypot(a.x - q[0], a.y - q[1], a.z - q[2]) > 1e-9) { toPoint(q, 0, 'wall', ZERO); continue; }
       // The centre is inside the wall: out through the nearest face
@@ -2464,6 +2515,9 @@ function update(dt) {
   const c = claw;
   if (endT !== null && state !== 'over' && (endT -= dt) <= 0) levelCard(endWon);
   if (coinFlash > 0 && (coinFlash -= dt) <= 0) hud();
+  const hold = state === 'fill' && ((fillHold -= dt) > 0 || booting && !coverTexs[lv.world]?.image && fillHold > -BOOT_WAIT);
+  if (!hold) for (simT += dt; rain.length && rain[0].at <= simT;) { const { p } = rain.shift(); p.mesh.visible = true; prizes.push(p); }
+  if (state === 'fill' && !hold && ((fillT += dt) > FILL_MAX || fillT > FILL_MIN && !rain.length && prizes.every(p => Math.hypot(p.vx, p.vy, p.vz) < FILL_CALM))) fillDone();
   // Where the carriage wants to go; it only moves while aiming and on the way back
   let tx = 0, tz = 0;
   if (state === 'aim') {
@@ -2560,7 +2614,7 @@ function update(dt) {
           state = 'idle';
           // Restock from the top when the pile runs low or is out of a kind the level still needs
           const miss = needed().length;
-          if (prizes.length < RESTOCK_BELOW || miss) spawn(Math.max(PRIZE_COUNT - prizes.length, miss), 5);
+          if (prizes.length < pileSize() * RESTOCK_SHARE || miss) spawn(Math.max(pileSize() - prizes.length, miss), FILL_Y);
           hud();
         // Out of coins: the level is lost, once nothing is still on its way into the hole (or after
         // LOSE_WAIT at most), so a last prize dropping in still counts
@@ -2602,10 +2656,14 @@ const closeCard = () => { $('over').hidden = true; };
 function levelCard(cleared) {
   state = 'over'; endT = null; stickEnd();
   const retry = () => level < 0 ? startDaily() : startLevel(level);
+  const fichas = n => `${n} ficha${n === 1 ? '' : 's'}`;
+  // What carries on to the next level (or the retry); see BAG_KEY
+  if (inPlay) { bag = cleared ? coins + starsFor(coins - brought) * STAR_COINS : Math.min(brought, coins); inPlay = false; saveBag(bag); }
   if (cleared) {
-    const st = starsFor(coins), last = level === LEVELS.length - 1;
-    let html = starsHtml(st) + '<br>' + (coins ? `Te sobraron ${coins} ficha${coins === 1 ? '' : 's'}` : '¡Justo con la última ficha!');
-    if (st < 3) html += `<br><small>3 ${ISTAR} con ${lv.stars[1]} fichas de sobra</small>`;
+    const st = starsFor(coins - brought), last = level === LEVELS.length - 1;
+    let html = starsHtml(st) + '<br>' + (coins ? `Te sobraron ${fichas(coins)}` : '¡Justo con la última ficha!');
+    if (level >= 0) html += `<br>+${fichas(st * STAR_COINS)} por las ${ISTAR}<br><b>Seguís con ${fichas(bag)}</b>`;
+    if (st < 3) html += `<br><small>3 ${ISTAR} con ${lv.stars[1] + brought} fichas de sobra</small>`;
     if (level < 0) html += `<br>Racha: ${dailyDone(st)} día${daily.streak === 1 ? '' : 's'} seguidos`;
     else {
       bestStars[level] = Math.max(bestStars[level] || 0, st);
@@ -2620,7 +2678,8 @@ function levelCard(cleared) {
   } else {
     const skull = lostTo === 'skull';
     const html = skull ? 'Cayó la calavera al hueco: perdiste el nivel.'
-      : 'Te faltaron:<br>' + lv.goal.filter(goalLeft).map(g => `<span class="goal">${capHtml(g.key)} ${goalLeft(g)}</span>`).join('');
+      : 'Te faltaron:<br>' + lv.goal.filter(goalLeft).map(g => `<span class="goal">${capHtml(g.key)} ${goalLeft(g)}</span>`).join('')
+      + (level >= 0 ? `<br><small>Reintentás con ${fichas(lv.coins + bag)}</small>` : '');
     card({ title: skull ? '¡La calavera!' : '¡Sin fichas!', html: html + cardsHtml(), main: 'Reintentar', onMain: retry, levels: true });
   }
   sfx(cleared ? 'win' : 'clunk');
@@ -2659,6 +2718,7 @@ function hud() {
   const hint = state !== 'idle' ? '' : streak === STREAK_N - 1 ? '¡Uno más seguido y ganás una ficha!' : FREE_PLAY ? 'Mové el pad o tocá BAJAR' : 'Mové el pad o tocá BAJAR (1 ficha)';
   const next = { coins: FREE_PLAY ? '∞' : coins, goal: level + ':' + lv.goal.map(goalLeft).join(), time: state === 'aim' ? String(Math.ceil(aimT)) : '–', low: state === 'aim' && aimT < 5, hint,
     flash: coinFlash > 0 && board.flashColor };
+  if (inPlay && next.coins !== board.coins) saveBag(Math.min(brought, coins));   // (what leaving now would keep)
   if (Object.keys(next).some(k => next[k] !== board[k])) { Object.assign(board, next); boardTex.repaint(); }
 }
 const hudTime = hud;
@@ -3179,7 +3239,7 @@ let last = performance.now(), acc = 0, paused = false;   // paused: while the se
 function frame(now) {
   const dt = Math.min(.1, (now - last) / 1000);
   last = now; acc = paused ? 0 : acc + dt;
-  while (acc >= STEP) { update(STEP); physics(STEP, false); acc -= STEP; }
+  while (acc >= STEP) { update(STEP); physics(STEP, state === 'fill'); acc -= STEP; }
   if (!screenOpen()) draw(now);
   requestAnimationFrame(frame);
 }
@@ -3199,9 +3259,9 @@ function draw(now) {
 }
 
 // Handle for poking at the game from the console
-window.game = { get state() { return state; }, get paused() { return paused; }, set paused(v) { paused = v; }, get claw() { return claw; }, get prizes() { return prizes; }, get score() { return score; }, get level() { return level; }, get got() { return got; }, get meta() { return meta; }, lightShow, lanterns, ballToast, startLevel, startDaily, showIntro, startRound, startDrop, segments, cable,
+window.game = { get state() { return state; }, get paused() { return paused; }, set paused(v) { paused = v; }, get claw() { return claw; }, get prizes() { return prizes; }, get score() { return score; }, get level() { return level; }, get got() { return got; }, get meta() { return meta; }, get coins() { return coins; }, get bag() { return bag; }, levelCard, lightShow, lanterns, ballToast, startLevel, startDaily, showIntro, startRound, startDrop, segments, cable,
   // Run n simulation steps right now, without waiting for frames (fast, repeatable tests)
-  step(n = 1) { for (let i = 0; i < n; i++) { update(STEP); physics(STEP, false); } },
+  step(n = 1) { for (let i = 0; i < n; i++) { update(STEP); physics(STEP, state === 'fill'); } },
   // Draw the current state right now (the browser pane may not be asking for frames)
   draw() { draw(performance.now()); },
   // Look at a point from close up (to inspect the claw); fit() puts the normal view back

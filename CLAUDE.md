@@ -18,6 +18,8 @@ To run it, open `index.html` in a browser; it needs internet for Three.js and th
 
 The pane only repaints while its tab is fronted (`tabs_select`); otherwise screenshots show a stale frame.
 
+After `game.startLevel(i)` the machine fills first (`state` `fill`, about 300–420 steps): step until `game.state` is `idle` before starting a round. `game.coins`, `game.bag` and `game.levelCard(cleared)` help test the coins.
+
 `game.claw` is replaced on `reset()` (and so by `game.startLevel(i)`), so read it again after a reset. `game.level` and `game.got` show the level being played and what was won towards it, `game.meta` is the metagame (editable, e.g. `game.meta.prog["animales:0"] = 9` to get a character on the next capsule), and `game.startDaily()` starts the daily challenge. In the in-app browser's `data:` preview `localStorage` is disabled, so cleared levels and the gallery are only kept until the page reloads (and editing `index.html` reloads it). With 66 capsules a round is about 900 steps (1.5 s of work), so keep test batches to about 8 rounds per browser tool call, or the call times out ("Internal error").
 
 ## How the game works
@@ -189,11 +191,11 @@ Capsule count and sizes are tuned to the claw. The user noticed small capsules e
 - Big ones squeezed out sideways: 10 of 12 grabs.
 - Between two closed fingers of three there was a gap of about 0.44–0.6, enough for a 0.58-wide capsule.
 
-Each capsule (`mkPrize()`) is two solid halves of one colour, with its rarity's finish (see Worlds and the metagame), with a dark band where they meet. The user asked to drop the clear top half and the little toy inside it (October 2026). Now the radius is `R_MIN`–`R_MAX` (0.29–0.32). `PRIZE_COUNT` is 15 for now, as the user asked (October 2026), and `RESTOCK_BELOW` is 8. Before that it was 66, after the user asked for three times the 22 there were, and the notes below on the heap are from then.
-- They no longer fit in one layer and heap up like in a real machine: about 1.1 high on average, up to about 1.8, over the hole walls' 1.1. `spawn()` drops them in layers of a dozen. A reset settles them for `SETTLE_STEPS` (about 0.7 s of work), and now and then one tips into the hole while settling.
+Each capsule (`mkPrize()`) is two solid halves of one colour, with its rarity's finish (see Worlds and the metagame), with a dark band where they meet. The user asked to drop the clear top half and the little toy inside it (October 2026). Now the radius is `R_MIN`–`R_MAX` (0.29–0.32). How many there are depends on the level (`pileSize()`): `PILE_STEPS` by its place in its world (20, 22, 24, 26, and 24 for the boss), four fewer with pedestals, or the level's own `pile` (48 for the buried boss). The user found the machine empty at 15 for every level and asked for more, rising through a world, with fewer in some levels (October 2026). The rarities' shares are unchanged. With 26 and dead-centre drops, 10 of 16 rounds still delivered. Before the 15 there were 66, after the user asked for three times the 22 there were, and the notes below on the heap are from then.
+- They no longer fit in one layer and heap up like in a real machine: about 1.1 high on average, up to about 1.8, over the hole walls' 1.1. `spawn()` drops them in layers of a dozen.
 - `findContacts()` uses a grid (`prizeGrid()`, cells of `CELL`) so each prize is only checked against its neighbours. A physics step takes about 1.7 ms with 66.
 - With the heap, about 30% of rounds aiming at capsules deliver one (8 catches in 24 rounds).
-- Earlier, with a single layer, 22 was the compromise and 26 made the floor a tight carpet where only tops could be pinched. When fewer than `RESTOCK_BELOW` remain, enough fall from the top to get back to `PRIZE_COUNT`.
+- Earlier, with a single layer, 22 was the compromise and 26 made the floor a tight carpet where only tops could be pinched. When fewer than `RESTOCK_SHARE` (55%) of the level's pile remain, enough rain in from the top to fill it again.
 
 ### Scoring and the rest
 
@@ -223,17 +225,28 @@ Each capsule (`mkPrize()`) is two solid halves of one colour, with its rarity's 
     - A boss every five levels: the giant (5, and 20 with a pedestal), the legendary on the pedestal (10), the buried legendary (15). Pedestals come back as two (12), stairs (16) and two again with a bomb (18).
     - An easier level after each hard one.
   - The colours kept in one place (`lv.kept`: those `onTop` and `bury`) never appear elsewhere (`mkPrize()` rerolls them), and they aren't restocked.
+  - A level starts with the machine empty and its capsules raining in from the top, so the change of level shows (the user asked, October 2026; the pile used to be settled out of sight and shown at rest).
+    - `reset()` sets `state` to `fill`. Only the placed prizes (giant, pedestal tops, the buried one) are there at once, still and pinned (`p.held`, like a prize riding in the claw) until the rain is in: a capsule landing on a pedestal knocked its prize off now and then.
+    - `spawn()` drops the capsules from `FILL_Y` (4.2, just under the ceiling) a dozen at a time; they wait out of sight in `rain` and come in `RAIN_GAP` (0.4 s) apart from the same height, released in `update()` by the sim clock `simT`. Stacked, the upper ones showed over the roof. Restocks rain in the same way, their first dozen at once. `needed()` counts the capsules still in `rain` too. The heap over a buried prize still drops from low down, or it scatters.
+    - First the machine stands empty for `FILL_HOLD` (0.5 s): the whole first pile waits in `rain`, and `simT` doesn't run meanwhile. When the game opens (`booting`) it also waits for the world's back wall picture to load, `BOOT_WAIT` (2.5 s) at most, so the rain is seen on the finished machine: the user asked for the rain on opening the game too (October 2026). It starts about 1 s after the page loads.
+    - `fillDone()` ends it after `FILL_MIN`, once the rain is in and nothing moves faster than `FILL_CALM` (0.6), or at `FILL_MAX` (3.5 s): about 2–3.5 s. Then the round can start and the level's tip comes up.
   - Nothing falls in on its own when a level starts.
-    - While a reset settles the pile, the hole has a floor (`findContacts()` with `withClaw` off). Whatever ends up over the hole is taken away before the level shows.
-    - The placed prizes start still.
-    - Checked on all 20 levels: no prize fell in during 5 s without playing, and the pedestal prizes stayed on top. The user had seen capsules drop in by themselves as a level started (October 2026).
+    - While it fills, `physics()` runs as settling: no claw contacts, no scoring, a floor over the hole, and the hole fenced off up to the top (`HOLE_FENCE`, in `findContacts()`), so nothing hops in. Whatever is over the hole anyway is taken away in `fillDone()`.
+    - Checked on all 20 levels: no prize fell in during the fill and 3 s more, and the pedestal prizes stayed on top. The user had seen capsules drop in by themselves as a level started (October 2026).
   - `SPECIAL` holds the non-colour kinds; none of them go to the gallery. Each is a capsule with its sign printed round it (`shellMat()` draws a canvas texture per half).
     - The bomb (💣 on a red disc, dark shell) takes a coin and ends the streak.
     - The skull (💀) loses the level after `CLEAR_DELAY` (`lostTo`). The user asked for both kinds of trap.
     - The +2 capsule gives two coins.
     - A plain text "-1" sign wasn't readable on the capsule.
   - The stars are the user's pictures (`concept/estrellas.png`, cut by `tools/cut-stars.mjs` into `assets/ui/star.png`, with a dark outline, and `star-plain.png`, without, 128 px each; October 2026, they were ★ characters). `starsHtml()` shows the outlined one for stars won and greys it out for the rest (the level card, and the levels list, where they sit on a dark see-through label with round ends like the banner's); the star button at the top has the outlined one too. The plain one (`ISTAR`, `.istar`) goes inline with text: the levels banner, the worlds' covers, "Mundos" buttons and "3 ★ con…".
-  - Stars: 1 to 3 for the coins left (`starsFor()`, thresholds `lv.stars`, by default a fifth and two fifths of the coins). The best per level is in `localStorage` (`clawMachine.stars`).
+  - Stars: 1 to 3 for the coins left beyond the ones brought (`starsFor(coins - brought)`, thresholds `lv.stars`, by default a fifth and two fifths of the level's coins). The best per level is in `localStorage` (`clawMachine.stars`).
+  - Coins carry over (`BAG_KEY`, `clawMachine.bag`). The user weighed one bag of coins per world, to be made to last all its levels, and chose this instead (October 2026), afraid a long world would need a huge bag; they wanted coins to be won by playing.
+    - A level gives its own `coins` plus the ones brought (`brought`, from `bag`). Clearing it adds `STAR_COINS` (1) per star, and all of it carries on to the next level (or a replay). The card says "+n fichas por las ★" and "Seguís con n fichas".
+    - Coins are also won by streaks and +2 capsules, as before. Level 2's tip explains the carrying.
+    - Running out leaves nothing to carry, so a retry has only the level's coins ("Reintentás con n fichas" on the card).
+    - Leaving a level half played (for another level, or by reloading) keeps what was brought, less whatever of it was spent (`min(brought, coins)`), so leaving never gains coins. The skull counts the same way. While a level is played (`inPlay`), `hud()` saves that amount whenever the coins change.
+    - Replaying a cleared level can win coins (its coins, less what was spent, plus the stars). Not tuned yet: the levels' coins are as they were.
+    - The daily challenge has its own coins, apart from the bag.
   - Streaks: `endRound()` judges a round when the next one starts, or before a level is lost, so a prize still dropping in counts.
     - A round whose prize counted for the goal (`roundGood`) adds to `streak`. `STREAK_N` (2) in a row win a coin.
     - The board's coins flash green for a coin won and red for a bomb (`flashCoins()`). While a streak is one short, the idle hint says so.
