@@ -149,8 +149,10 @@
   .toy .pic { position: relative; width: 100%; clip-path: inset(0 -50%); }
   .toy img { display: block; width: 150%; max-width: none; aspect-ratio: 1; margin: -9% -25% -12%; object-fit: contain; pointer-events: none; }
   .toy.none img { filter: brightness(0); opacity: .72; }
-  .toy .pic i { position: absolute; inset: 0 0 12%; display: flex; align-items: center; justify-content: center; font-style: normal;
-    font-size: clamp(16px, 4.5vw, 30px); color: rgba(255, 255, 255, .45); }
+  /* (on the middle of the silhouette's body, a little bigger, as the user asked, October 2026: it sat
+     high, over the top of the body, at 16–30 px) */
+  .toy .pic i { position: absolute; inset: 22% 0 0; display: flex; align-items: center; justify-content: center; font-style: normal;
+    font-size: clamp(20px, 6vw, 38px); color: rgba(255, 255, 255, .45); }
   .toy b { position: absolute; bottom: -6px; right: -4px;   /* (at the bottom, clear of the name, as the user asked) */
     padding: 1px 6px; border-radius: 10px; font-size: 13px; line-height: 1.2;
     background: #ff4f7b; color: #fff; box-shadow: 0 2px 0 rgba(0, 0, 0, .3); }
@@ -179,7 +181,8 @@
   .banner > * { position: relative; margin: 0; color: #fff; text-shadow: 0 2px 4px #000; }
   .banner h3, .banner h2 { display: block; margin: 0; font-size: 20px; color: #fff; }
   .banner span { font-size: 18px; }
-  .banner.locked { filter: grayscale(1) brightness(.6); }
+  .banner.locked { background-color: #8c8c8c; background-blend-mode: luminosity; border-color: #8a8a8a; box-shadow: inset 0 0 0 999px rgba(0, 0, 0, .35); }
+  .banner.locked h3, .banner.locked h2 { color: #d8d8d8; }
   /* (twice as high as the other screens' banners, as the user asked, October 2026; it was 150) */
   #lvlBanner { width: 100%; max-width: 640px; height: 92px; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 8px 14px; border-radius: 16px; text-align: center; }
   /* (the fade comes down from the top, and the levels and stars sit on a dark see-through label with
@@ -197,7 +200,11 @@
   @media (min-width: 760px) { #worldShelf { --fade: 160px; } }
   .cover { position: relative; height: 100%; max-width: 100%; aspect-ratio: 4 / 5; border-radius: 22px; border: 4px solid #fff; overflow: hidden;
     background: #000 center / cover no-repeat; box-shadow: 0 8px 24px rgba(0, 0, 0, .6); }
-  .cover.locked { filter: grayscale(1) brightness(.55); border-color: #666; }
+  /* (a locked world's cover is greyed by blending the picture with grey, not with a filter, which would
+     dull the white lock and the chains over it too) */
+  .cover.locked { background-color: #8c8c8c; background-blend-mode: luminosity; border-color: #777;
+    box-shadow: inset 0 0 0 999px rgba(0, 0, 0, .42), 0 8px 24px rgba(0, 0, 0, .6); }
+  .cover.locked .winfo { filter: grayscale(1) brightness(.85); }
   /* (a dark fade at the top, under the world's name and progress, so they read on any art) */
   .cover::before { content: ''; position: absolute; inset: 0 0 auto; height: 34%; background: linear-gradient(rgba(0, 0, 0, .7), transparent); }
   /* (the world's name and progress at the top of the cover, Jugar alone at the bottom, nothing darkening
@@ -206,11 +213,15 @@
   /* (only the world's name, as the user asked: "Mundo n" was dropped) */
   .winfo h3 { display: block; margin: 0; font-size: clamp(24px, 7.5vw, 32px); line-height: 1.1; white-space: nowrap; color: var(--gold); text-shadow: 0 2px 0 #000, 0 0 6px #000, 0 0 12px #000; }
   .winfo p { margin: 2px 0 0; font-size: clamp(13px, 3.9vw, 17px); text-shadow: 0 1px 0 #000, 0 0 5px #000, 0 0 10px #000; }
-  /* A locked world: a big lock over the middle of its greyed cover, outside it so it keeps its colour (the
-     user asked, October 2026, for it in place of "🔒 Superá al jefe de…" under the name) */
-  .wpage { position: relative; }
-  .wlock { position: absolute; left: 50%; top: calc(50% - 4px); transform: translate(-50%, -50%); font-size: clamp(80px, 26vw, 130px); line-height: 1;
-    filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .7)); pointer-events: none; }
+  /* A locked world: two chains crossed over its greyed cover and a big white lock where they cross (the
+     user asked, October 2026, for it in place of "🔒 Superá al jefe de…" under the name, then for a lock
+     icon in white, not the emoji, and the chains) */
+  .chains { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; filter: drop-shadow(0 4px 5px rgba(0, 0, 0, .6)); }
+  .wlock { position: absolute; left: 50%; top: 50%; width: 34%; transform: translate(-50%, -50%); color: #fff; pointer-events: none;
+    filter: drop-shadow(0 5px 8px rgba(0, 0, 0, .75)); }
+  .wlock svg, .lockic svg { display: block; width: 100%; height: auto; }
+  /* (the same lock, small, on a locked world's banner in Cápsulas and Colección) */
+  .lockic { display: block; width: 22px; color: #fff; }
   .wplay { position: absolute; left: 0; right: 0; bottom: 16px; text-align: center; }
   /* (Jugar looks like the screens' main button, Volver a la máquina, as the user asked) */
   .wplay .play { font: inherit; font-size: 24px; color: #3a2400; background: linear-gradient(#ffe36e, #f6c837); border: 4px solid #d9a21b; border-radius: 16px;
@@ -368,7 +379,15 @@
   .lvl { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #e1dffc; border: 3px solid #cccafe; border-radius: 18px;
     box-shadow: 0 4px 0 rgba(0, 0, 0, .35); font: inherit; color: #1f1a4a; text-align: left; cursor: pointer; }
   .lvl.cur { border-color: #fff; }   /* (white, as the user tried; it was gold) */
-  .lvl.locked { opacity: .45; cursor: default; }
+  /* (a locked level looks dimmed, as at .45 opacity over the black screen, but its lock stays at full
+     strength: black on a grey disc the size of the play button, as the user asked, October 2026; it was
+     a 🔒 emoji, dimmed with the rest) */
+  .lvl.locked { cursor: default; background: #656471; border-color: #5c5b72; }
+  .lvl.boss.locked { background: #735e67; border-color: #732437; }
+  .lvl.locked > .n, .lvl.locked > .goal { opacity: .45; }
+  .lvl .lockd { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 50%; color: #000; background: #bdbbd0;
+    box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .14), 0 3px 0 #4a4960; }
+  .lvl .lockd svg { width: 26px; height: auto; }
   .lvl .n { flex: none; width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; font-size: 32px; background: #f0407a; color: #fff;
     box-shadow: inset 0 -4px 0 rgba(0, 0, 0, .15), 0 2px 0 rgba(0, 0, 0, .15); }
   .lvl .play { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 50%; padding-left: 5px; font-size: 26px; font-style: normal; color: #2a1a5e;
@@ -727,49 +746,49 @@ const levelInWorld = i => i % PER_WORLD;
 const bossOf = i => i < 0 ? '' : levelInWorld(i) === PER_WORLD - 1 ? 'Jefe Final' : levelInWorld(i) === 4 ? 'Jefe' : '';
 const LEVELS = [
   // Animalitos: the basics, the giant, the bombs
-  { goal: [['C1', 3]], coins: 12 },
-  { goal: [['C2', 3]], coins: 10, tip: 'Cada nivel te da sus fichas, pero si te sobraron más, <b>arrancás con las tuyas</b>. Y cada estrella que ganás te da una ficha más.' },
-  { goal: [['any', 4]], coins: 11, mix: .45 },
-  { goal: [['U1', 2], ['U2', 2]], coins: 12 },
+  { goal: [['C1', 3]], coins: 7 },
+  { goal: [['C2', 3]], coins: 7, tip: 'Las fichas que te sobran <b>se suman a las del nivel siguiente</b>, y cada estrella que ganás te da una ficha más.' },
+  { goal: [['any', 4]], coins: 7, mix: .45 },
+  { goal: [['U1', 2], ['U2', 2]], coins: 7 },
   { goal: [['giant', 1]], coins: 7, giant: true, tip: '<b>¡Jefe!</b> La gigante es grande y pesada: la garra solo la levanta si la bajás justo en el medio, y se resbala más.' },
-  { goal: [['C1', 2], ['C2', 2]], coins: 11, mix: .45 },
-  { goal: [['R1', 3]], coins: 12, traps: { bomb: 2 }, tip: 'Ojo con las <b>bombas</b>: si una cae al hueco, perdés dos fichas.' },
-  { goal: [['U1', 3]], coins: 11, mix: .45, traps: { bomb: 1 } },
-  { goal: [['C2', 1], ['U2', 1], ['R2', 1]], coins: 11, traps: { bomb: 2 } },
-  { goal: [['giant', 1], ['R1', 2]], coins: 12, giant: true, traps: { bomb: 2 }, tip: '<b>¡Jefe final!</b> La gigante y dos raras, con bombas.' },
+  { goal: [['C1', 2], ['C2', 2]], coins: 7, mix: .45 },
+  { goal: [['R1', 3]], coins: 7, traps: { bomb: 2 }, tip: 'Ojo con las <b>bombas</b>: si una cae al hueco, perdés dos fichas.' },
+  { goal: [['U1', 3]], coins: 7, mix: .45, traps: { bomb: 1 } },
+  { goal: [['C2', 1], ['U2', 1], ['R2', 1]], coins: 7, traps: { bomb: 2 } },
+  { goal: [['giant', 1], ['R1', 2]], coins: 7, giant: true, traps: { bomb: 2 }, tip: '<b>¡Jefe final!</b> La gigante y dos raras, con bombas.' },
   // Monstruitos: the +2 capsules, in order, small capsules, the pedestal
-  { goal: [['any', 4]], coins: 10, mix: .45 },
-  { goal: [['C1', 4]], coins: 9, bonus: 2, tip: 'Las cápsulas <b>+2</b> te dan dos fichas más. Y si sacás premios tres rondas seguidas, ganás una ficha.' },
-  { goal: [['C2', 1], ['U1', 1], ['U2', 1]], coins: 10, order: true, tip: 'Esta vez <b>en orden</b>, como muestra el tablero. Las que saques fuera de orden no cuentan.' },
-  { goal: [['R2', 2], ['C2', 2]], coins: 11, mix: .45, traps: { bomb: 1 } },
-  { goal: [['L1', 1]], coins: 8, stands: 'one', onTop: ['L1'], traps: { bomb: 2 }, tip: '<b>¡Jefe!</b> La legendaria está arriba del pedestal.' },
-  { goal: [['U1', 3]], coins: 12, size: [.25, .27], tip: 'Cápsulas <b>chicas</b>: se escapan entre los dedos. Agarralas bien centradas.' },
-  { goal: [['C1', 1], ['R1', 1], ['C2', 1]], coins: 11, mix: .45, order: true, traps: { bomb: 1 } },
-  { goal: [['any', 4]], coins: 11, size: [.25, .27], bonus: 1 },
-  { goal: [['L2', 1], ['U1', 2]], coins: 11, mix: .45, stands: 'one', onTop: ['L2'], traps: { bomb: 1 } },
-  { goal: [['R1', 1], ['R2', 1], ['L1', 1]], coins: 12, order: true, stands: 'one', onTop: ['L1'], traps: { bomb: 2 }, tip: '<b>¡Jefe final!</b> Dos raras y después la legendaria del pedestal, en orden.' },
+  { goal: [['any', 4]], coins: 7, mix: .45 },
+  { goal: [['C1', 4]], coins: 7, bonus: 2, tip: 'Las cápsulas <b>+2</b> te dan dos fichas más. Y si sacás premios tres rondas seguidas, ganás una ficha.' },
+  { goal: [['C2', 1], ['U1', 1], ['U2', 1]], coins: 7, order: true, tip: 'Esta vez <b>en orden</b>, como muestra el tablero. Las que saques fuera de orden no cuentan.' },
+  { goal: [['R2', 2], ['C2', 2]], coins: 7, mix: .45, traps: { bomb: 1 } },
+  { goal: [['L1', 1]], coins: 7, stands: 'one', onTop: ['L1'], traps: { bomb: 2 }, tip: '<b>¡Jefe!</b> La legendaria está arriba del pedestal.' },
+  { goal: [['U1', 3]], coins: 7, size: [.25, .27], tip: 'Cápsulas <b>chicas</b>: se escapan entre los dedos. Agarralas bien centradas.' },
+  { goal: [['C1', 1], ['R1', 1], ['C2', 1]], coins: 7, mix: .45, order: true, traps: { bomb: 1 } },
+  { goal: [['any', 4]], coins: 7, size: [.25, .27], bonus: 1 },
+  { goal: [['L2', 1], ['U1', 2]], coins: 7, mix: .45, stands: 'one', onTop: ['L2'], traps: { bomb: 1 } },
+  { goal: [['R1', 1], ['R2', 1], ['L1', 1]], coins: 7, order: true, stands: 'one', onTop: ['L1'], traps: { bomb: 2 }, tip: '<b>¡Jefe final!</b> Dos raras y después la legendaria del pedestal, en orden.' },
   // Dulce Halloween: two pedestals, the skull, big capsules, the buried one
-  { goal: [['U2', 3]], coins: 10, mix: .45, bonus: 1 },
-  { goal: [['C1', 1], ['C2', 1]], coins: 9, stands: 'two', onTop: ['C1', 'C2'], tip: 'Ahora son <b>dos pedestales</b>, cada uno con su premio arriba.' },
-  { goal: [['any', 4]], coins: 10, mix: .45, traps: { skull: 1, bomb: 1 }, tip: 'La <b>calavera</b>: si cae al hueco, perdés el nivel.' },
-  { goal: [['R1', 3]], coins: 12, size: [.34, .36], tip: 'Cápsulas <b>grandes</b>: cuesta que entren en la garra.' },
-  { goal: [['L1', 1], ['L2', 1]], coins: 10, stands: 'two', onTop: ['L1', 'L2'], traps: { bomb: 1 }, tip: '<b>¡Jefe!</b> Dos legendarias, una en cada pedestal.' },
-  { goal: [['C1', 2], ['U2', 2]], coins: 12, size: [.34, .36], traps: { skull: 1 } },
-  { goal: [['U1', 1], ['R2', 1], ['U2', 1]], coins: 12, mix: .45, order: true, traps: { skull: 1, bomb: 1 } },
-  { goal: [['R1', 1], ['R2', 1], ['C2', 2]], coins: 12, stands: 'two', onTop: ['R1', 'R2'], traps: { bomb: 1 } },
-  { goal: [['any', 5]], coins: 12, mix: .45, bonus: 1, traps: { skull: 1, bomb: 2 } },
-  { goal: [['L1', 1]], coins: 9, bury: 'L1', pile: 48, tip: '<b>¡Jefe final!</b> La legendaria está enterrada debajo de las demás: desenterrala.' },
+  { goal: [['U2', 3]], coins: 7, mix: .45, bonus: 1 },
+  { goal: [['C1', 1], ['C2', 1]], coins: 7, stands: 'two', onTop: ['C1', 'C2'], tip: 'Ahora son <b>dos pedestales</b>, cada uno con su premio arriba.' },
+  { goal: [['any', 4]], coins: 7, mix: .45, traps: { skull: 1, bomb: 1 }, tip: 'La <b>calavera</b>: si cae al hueco, perdés el nivel.' },
+  { goal: [['R1', 3]], coins: 7, size: [.34, .36], tip: 'Cápsulas <b>grandes</b>: cuesta que entren en la garra.' },
+  { goal: [['L1', 1], ['L2', 1]], coins: 7, stands: 'two', onTop: ['L1', 'L2'], traps: { bomb: 1 }, tip: '<b>¡Jefe!</b> Dos legendarias, una en cada pedestal.' },
+  { goal: [['C1', 2], ['U2', 2]], coins: 7, size: [.34, .36], traps: { skull: 1 } },
+  { goal: [['U1', 1], ['R2', 1], ['U2', 1]], coins: 7, mix: .45, order: true, traps: { skull: 1, bomb: 1 } },
+  { goal: [['R1', 1], ['R2', 1], ['C2', 2]], coins: 7, stands: 'two', onTop: ['R1', 'R2'], traps: { bomb: 1 } },
+  { goal: [['any', 5]], coins: 7, mix: .45, bonus: 1, traps: { skull: 1, bomb: 2 } },
+  { goal: [['L1', 1]], coins: 7, bury: 'L1', pile: 48, tip: '<b>¡Jefe final!</b> La legendaria está enterrada debajo de las demás: desenterrala.' },
   // Feliz Navidad: the stairs, and everything mixed
-  { goal: [['U1', 2], ['L1', 1]], coins: 12, bonus: 1, stands: 'stairs', onTop: [null, null, 'L1'], tip: 'Una <b>escalera</b>: la legendaria está en el escalón más alto.' },
-  { goal: [['any', 4]], coins: 11, size: [.26, .36] },
-  { goal: [['C1', 1], ['C2', 1], ['R1', 1], ['U2', 1]], coins: 12, mix: .45, order: true, traps: { bomb: 2 } },
-  { goal: [['R2', 1], ['C1', 2]], coins: 11, bury: 'R2', pile: 40, traps: { bomb: 1 } },
-  { goal: [['L1', 2], ['C2', 2]], coins: 14, size: [.26, .36], stands: 'two', onTop: ['L1', 'L1'], traps: { bomb: 1 }, tip: '<b>¡Jefe!</b> Dos legendarias en los pedestales, y cápsulas de todos los tamaños.' },
-  { goal: [['R1', 1], ['U2', 2]], coins: 12, stands: 'stairs', onTop: [null, null, 'R1'], traps: { bomb: 2 } },
-  { goal: [['C1', 1], ['C2', 1], ['U1', 1], ['U2', 1], ['R1', 1]], coins: 14, mix: .45, traps: { skull: 1, bomb: 2 } },
-  { goal: [['giant', 1], ['U1', 2]], coins: 11, giant: true, traps: { skull: 1, bomb: 1 } },
-  { goal: [['C1', 1], ['U1', 1], ['R1', 1], ['L2', 1]], coins: 14, mix: .45, order: true, stands: 'one', onTop: ['L2'], traps: { skull: 1, bomb: 2 } },
-  { goal: [['giant', 1], ['L1', 1]], coins: 14, giant: true, stands: 'one', onTop: ['L1'], traps: { bomb: 2 }, tip: '<b>¡Jefe final!</b> La gigante y la legendaria del pedestal, con bombas.' },
+  { goal: [['U1', 2], ['L1', 1]], coins: 7, bonus: 1, stands: 'stairs', onTop: [null, null, 'L1'], tip: 'Una <b>escalera</b>: la legendaria está en el escalón más alto.' },
+  { goal: [['any', 4]], coins: 7, size: [.26, .36] },
+  { goal: [['C1', 1], ['C2', 1], ['R1', 1], ['U2', 1]], coins: 7, mix: .45, order: true, traps: { bomb: 2 } },
+  { goal: [['R2', 1], ['C1', 2]], coins: 7, bury: 'R2', pile: 40, traps: { bomb: 1 } },
+  { goal: [['L1', 2], ['C2', 2]], coins: 7, size: [.26, .36], stands: 'two', onTop: ['L1', 'L1'], traps: { bomb: 1 }, tip: '<b>¡Jefe!</b> Dos legendarias en los pedestales, y cápsulas de todos los tamaños.' },
+  { goal: [['R1', 1], ['U2', 2]], coins: 7, stands: 'stairs', onTop: [null, null, 'R1'], traps: { bomb: 2 } },
+  { goal: [['C1', 1], ['C2', 1], ['U1', 1], ['U2', 1], ['R1', 1]], coins: 7, mix: .45, traps: { skull: 1, bomb: 2 } },
+  { goal: [['giant', 1], ['U1', 2]], coins: 7, giant: true, traps: { skull: 1, bomb: 1 } },
+  { goal: [['C1', 1], ['U1', 1], ['R1', 1], ['L2', 1]], coins: 7, mix: .45, order: true, stands: 'one', onTop: ['L2'], traps: { skull: 1, bomb: 2 } },
+  { goal: [['giant', 1], ['L1', 1]], coins: 7, giant: true, stands: 'one', onTop: ['L1'], traps: { bomb: 2 }, tip: '<b>¡Jefe final!</b> La gigante y la legendaria del pedestal, con bombas.' },
 ].map((l, i) => cookLevel(l, Math.floor(i / PER_WORLD)));
 // The level's goal as { key, n }, its world, and its star thresholds filled in. kept: the capsules the
 // level keeps in one place (on the pedestals, buried), which aren't anywhere else in the pile.
@@ -865,10 +884,11 @@ const starsFor = left => 1 + (left >= lv.stars[0]) + (left >= lv.stars[1]);
 // The coins left over carry on to the next level (the user chose it, October 2026, over one bag of
 // coins per world, which would have to be huge for a long world), and clearing one gives one more per
 // star (STAR_COINS), so coins are also won by playing well, as are the streaks and the +2 capsules. A
-// level starts with its own coins or the ones brought (brought), whichever is more: it tops the player
-// up, it doesn't add to them. Added on top, they piled up (the user had over 50 in world 2 and found it
-// too easy, October 2026). Its stars count the coins left beyond the extra brought (extra, over the
-// level's own). Running out leaves none to carry, so a retry has just the level's.
+// level starts with its own coins (7 for all of them) plus the ones brought (brought), from the level
+// before or the world before, as the user asked (October 2026). With levels of 10–14 coins that piled up
+// past 50 by world 2, which the user found too easy; for a while a level then only topped the coins up
+// to its own instead of adding, until all levels came down to 7. Its stars count the coins left beyond
+// the ones brought (extra). Running out leaves none to carry, so a retry has just the level's.
 // A level left half played (for another, or by reloading) keeps what it brought, less what was spent of
 // it, so leaving never gains coins; the skull counts like that too. bag is saved under BAG_KEY, kept
 // up to date while a level is played (inPlay). The daily challenge has its own coins, apart.
@@ -1888,7 +1908,7 @@ function reset() {
   setMass(claw.head, HEAD_MASS, false);
   lastSegs = null;
   resetCable();
-  extra = Math.max(0, brought - lv.coins);
+  extra = brought;
   state = 'idle'; coins = lv.coins + extra; score = 0; won = 0; caught = 0;
   // The level's pedestals, and the contact grid sized for its biggest capsules
   setSolids();
@@ -2539,7 +2559,9 @@ function winBall(kind) {
   meta.prog[k] = (meta.prog[k] || 0) + 1;
   const done = meta.prog[k] % CHAR_EVERY === 0;
   if (done) { newCards++; galDot(); }
-  ballToast(kind, done ? CHAR_EVERY : meta.prog[k] % CHAR_EVERY, done);
+  // (once the marquee's bulbs have finished blinking for it, or it hid them: the user asked, October 2026)
+  const n = done ? CHAR_EVERY : meta.prog[k] % CHAR_EVERY;
+  setTimeout(() => ballToast(kind, n, done), BULB_BLINK * 1000);
   try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (e) {}
 }
 // A capsule just won: a moment at the top of the screen with it, its rarity and name, and on the other
@@ -2757,7 +2779,7 @@ function levelCard(cleared) {
     const skull = lostTo === 'skull';
     const html = skull ? 'Cayó la calavera al hueco: perdiste el nivel.'
       : 'Te faltaron:<br>' + lv.goal.filter(goalLeft).map(g => `<span class="goal">${capHtml(g.key)} ${goalLeft(g)}</span>`).join('')
-      + (level >= 0 ? `<br><small>Reintentás con ${fichas(Math.max(lv.coins, bag))}</small>` : '');
+      + (level >= 0 ? `<br><small>Reintentás con ${fichas(lv.coins + bag)}</small>` : '');
     card({ title: skull ? '¡La calavera!' : '¡Sin fichas!', html: html + cardsHtml(), main: 'Reintentar', onMain: retry, levels: true });
   }
   sfx(cleared ? 'win' : 'clunk');
@@ -3038,6 +3060,25 @@ const coverSrc = w => `assets/covers/${WORLDS[w].id}.png`;
 // (the banners of the gallery, the collection and the levels screen show the world's back wall picture,
 // as the user asked, October 2026: they showed its cover, whose characters got cut off)
 const backSrc = w => `assets/backs/${WORLDS[w].id}.png`;
+// A padlock, in currentColor: a round shackle over a rounded body with a keyhole cut out of it
+const LOCK_SVG = '<svg viewBox="0 0 24 26" aria-hidden="true"><path d="M7 12V8a5 5 0 0 1 10 0v4" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>' +
+  '<path fill="currentColor" fill-rule="evenodd" d="M5.5 11h13a2.5 2.5 0 0 1 2.5 2.5v8a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 21.5v-8A2.5 2.5 0 0 1 5.5 11zM12 14.6a1.9 1.9 0 0 0-1 3.5V20.5h2v-2.4a1.9 1.9 0 0 0-1-3.5z"/></svg>';
+const lockIcon = cls => `<span class="${cls}">${LOCK_SVG}</span>`;
+// Two chains crossed over a cover (4:5): links along each diagonal, a ring seen face on and a flat one
+// seen edge on in turns, steel with a dark rim
+const CHAINS_SVG = (() => {
+  let out = '';
+  for (const [x0, y0, x1, y1] of [[-30, 30, 430, 470], [430, 30, -30, 470]]) {
+    const len = Math.hypot(x1 - x0, y1 - y0), a = Math.atan2(y1 - y0, x1 - x0) * 180 / Math.PI, n = Math.ceil(len / 36);
+    for (let i = 0; i <= n; i++) {
+      const t = i / n, x = (x0 + (x1 - x0) * t).toFixed(1), y = (y0 + (y1 - y0) * t).toFixed(1), tr = `translate(${x} ${y}) rotate(${a.toFixed(1)})`;
+      out += i % 2 ? `<rect transform="${tr}" x="-25" y="-5.5" width="50" height="11" rx="5.5" fill="#cfd5de" stroke="#3a3f48" stroke-width="3"/>`
+        : `<g transform="${tr}"><rect x="-25" y="-14" width="50" height="28" rx="14" fill="none" stroke="#3a3f48" stroke-width="11"/>` +
+          `<rect x="-25" y="-14" width="50" height="28" rx="14" fill="none" stroke="#dfe4ec" stroke-width="5.5"/></g>`;
+    }
+  }
+  return `<svg class="chains" viewBox="0 0 400 500" aria-hidden="true">${out}</svg>`;
+})();
 const banner = (w, title, right = '') => `<div class="banner${worldOpen(w) ? '' : ' locked'}" style="background-image:url(${backSrc(w)})"><h3>${title}</h3>${right}</div>`;
 // How far along a world is: levels cleared, stars, characters
 function worldStats(w) {
@@ -3059,8 +3100,7 @@ function openWorlds(at = worldNow()) {
     const st = worldStats(w), open = worldOpen(w);
     return `<section class="season wpage"><div class="cover${open ? '' : ' locked'}" style="background-image:url(${coverSrc(w)})"><div class="winfo">` +
       `<h3>${wd.name}</h3><p>Niveles ${st.done}/${PER_WORLD} · ${ISTAR} ${st.stars}/${PER_WORLD * 3} · Personajes ${st.chars}/20</p>` +
-      '</div>' + (open ? `<div class="wplay"><button class="play" data-w="${w}">Jugar</button></div>` : '') + '</div>' +
-      (open ? '' : '<span class="wlock">🔒</span>') + '</section>';
+      '</div>' + (open ? `<div class="wplay"><button class="play" data-w="${w}">Jugar</button></div>` : CHAINS_SVG + lockIcon('wlock')) + '</div></section>';
   }).join(''), at);
 }
 $('worldShelf').addEventListener('click', e => { const b = e.target.closest('.play'); if (b) openLevels(+b.dataset.w); });
@@ -3078,7 +3118,7 @@ function openLevels(w = worldNow()) {
   $('lvlSub').innerHTML = `Niveles ${st.done}/${PER_WORLD}&nbsp;&nbsp;·&nbsp;&nbsp;${ISTAR} ${st.stars}/${PER_WORLD * 3}`;
   $('lvlList').innerHTML = Array.from({ length: PER_WORLD }, (_, k) => {
     const i = w * PER_WORLD + k, l = LEVELS[i], locked = !levelOpen(i), boss = bossOf(i);
-    const st = bestStars[i] ? starsHtml(bestStars[i], 'stars sm') : locked ? '🔒' : '<i class="play">▶</i>';
+    const st = bestStars[i] ? starsHtml(bestStars[i], 'stars sm') : locked ? lockIcon('lockd') : '<i class="play">▶</i>';
     return `<button class="lvl${i === level ? ' cur' : ''}${locked ? ' locked' : ''}${boss ? ' boss' : ''}" data-i="${i}"${locked ? ' disabled' : ''}>` +
       `<span class="n">${boss ? '👑' : k + 1}</span><span class="goal">${boss ? `<b>${boss}</b>` : ''}${goalHtml(l)}${levelTags(l)}</span><span class="st">${st}</span></button>`;
   }).join('');
@@ -3222,7 +3262,7 @@ function openGallery(at = worldNow()) {
     const slots = worldKinds(w).map(slot).join('');
     // (the banner counts the capsules won at least once, of the world's nine, like the collection's count)
     const have = worldKinds(w).filter(k => meta.balls[`${wd.id}:${k.key.slice(1)}`]).length;
-    return `<section class="season${locked ? ' locked' : ''}">${banner(w, wd.name, locked ? '<span>🔒</span>' : `<span>${have}/9</span>`)}` +
+    return `<section class="season${locked ? ' locked' : ''}">${banner(w, wd.name, locked ? lockIcon('lockic') : `<span>${have}/9</span>`)}` +
       `<div class="shelf">${slots}</div></section>`;   // (the user dropped the hint line, and the note on how a locked world opens, October 2026)
   }).join(''), at);
 }
@@ -3239,7 +3279,7 @@ function openChars() {
       return `<span class="toy${n ? '' : ' none'}"><span class="plate">${n ? charName(w, i) : '?'}</span>` +
         `<span class="pic"><img src="${charSrc(w, i)}" alt="" loading="lazy" draggable="false">${n ? '' : '<i>?</i>'}</span>${n > 1 ? `<b>×${n}</b>` : ''}</span>`;
     }).join('') + '</div></div>').join('');
-    return `<section class="season${worldOpen(w) ? '' : ' locked'}">${banner(w, wd.name, `<span>${have}/20</span>`)}${rows}</section>`;   // (no note on how a locked world opens: the user dropped it, October 2026)
+    return `<section class="season${worldOpen(w) ? '' : ' locked'}">${banner(w, wd.name, worldOpen(w) ? `<span>${have}/20</span>` : lockIcon('lockic'))}${rows}</section>`;   // (no note on how a locked world opens: the user dropped it, October 2026)
   }).join(''), worldNow());
   $('charBtn').classList.remove('new');
 }
