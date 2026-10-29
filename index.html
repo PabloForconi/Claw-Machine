@@ -162,9 +162,8 @@
      <rarity>" over "Abrila en Cápsulas". */
   #toast { position: fixed; top: max(64px, calc(env(safe-area-inset-top) + 54px)); left: 50%; display: flex; align-items: center; gap: 12px;
     min-width: min(320px, 84vw); padding: 5px 18px 5px 8px; border-radius: 16px; background: var(--panel); border: 3px solid var(--gold); font-size: 19px; line-height: 1.15;
-    transform: translate(-50%, -160%); opacity: 0; pointer-events: none; white-space: nowrap; }
-  #toast.show { animation: toast 3.2s ease both; }
-  @keyframes toast { 0% { transform: translate(-50%, -160%); opacity: 0; } 10%, 85% { transform: translate(-50%, 0); opacity: 1; } 100% { transform: translate(-50%, -160%); opacity: 0; } }
+    transform: translate(-50%, -160%); opacity: 0; pointer-events: none; white-space: nowrap; transition: transform .3s ease, opacity .3s ease; }
+  #toast.show { transform: translate(-50%, 0); opacity: 1; }
   #toast .cap { flex: none; width: 40px; height: 40px; }
   #toast small { display: block; font-size: 13px; }
   #toast .tt { flex: 1; }
@@ -2559,19 +2558,27 @@ function winBall(kind) {
   meta.prog[k] = (meta.prog[k] || 0) + 1;
   const done = meta.prog[k] % CHAR_EVERY === 0;
   if (done) { newCards++; galDot(); }
-  // (once the marquee's bulbs have finished blinking for it, or it hid them: the user asked, October 2026)
   const n = done ? CHAR_EVERY : meta.prog[k] % CHAR_EVERY;
-  setTimeout(() => ballToast(kind, n, done), BULB_BLINK * 1000);
+  setTimeout(() => ballToast(kind, n, done), TOAST_DELAY * 1000);
   try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (e) {}
 }
 // A capsule just won: a moment at the top of the screen with it, its rarity and name, and on the other
 // side a bar to its card being complete (n of CHAR_EVERY, like the gallery's), pink once it is, as the
 // user asked (October 2026; at first it only came when a card was completed)
+// It comes TOAST_DELAY after the capsule drops in, while the marquee's bulbs still blink for it, and
+// goes up after TOAST_TIME, or as soon as the claw is moved again once it has been seen for TOAST_MIN
+// (see update). The user asked for it sooner and gone before the claw moves again (October 2026): at
+// first it came at once, over the bulbs, then only once they had finished (1.7 s), and it stayed 3.2 s,
+// well into the next round, which can start about 0.35 s before a released capsule even drops in.
+const TOAST_DELAY = .5, TOAST_TIME = 2.2, TOAST_MIN = .6;
+let toastAt = -1, toastTimer = 0;
+function hideToast() { clearTimeout(toastTimer); toastAt = -1; $('toast').classList.remove('show'); }
 function ballToast(kind, n, done) {
   const t = $('toast'), k = KIND[kind], c = capOf(kind);
   t.innerHTML = `<span class="cap ${c.cls}" style="${c.style}"></span><span class="tt"><small style="color:${TIERS[k.tier].css}">Cápsula ${TIERS[k.tier].name}</small>${k.name}</span>` +
     `<span class="tbar${done ? ' done' : ''}"><i style="width:${n / CHAR_EVERY * 100}%"></i><b>${n}/${CHAR_EVERY}</b></span>`;
-  t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
+  t.classList.add('show'); toastAt = performance.now();
+  clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, TOAST_TIME * 1000);
   if (done) sfx('prize');
 }
 // Opening a complete card (world w, capsule index b): a character of its rarity at random (they can
@@ -2614,6 +2621,8 @@ function update(dt) {
   if (state === 'fill' && !hold && ((fillT += dt) > FILL_MAX || fillT > FILL_MIN && !rain.length && prizes.every(p => Math.hypot(p.vx, p.vy, p.vz) < FILL_CALM))) fillDone();
   // Where the carriage wants to go; it only moves while aiming and on the way back
   let tx = 0, tz = 0;
+  // (the capsule's toast goes up once the claw is moved again, see ballToast)
+  if (toastAt >= 0 && state === 'aim' && Math.hypot(claw.vx, claw.vz) > .05 && performance.now() - toastAt > TOAST_MIN * 1000) hideToast();
   if (state === 'aim') {
     tx = ((keys.r ? 1 : 0) - (keys.l ? 1 : 0)) * MOVE;
     tz = ((keys.d ? 1 : 0) - (keys.u ? 1 : 0)) * MOVE;
