@@ -56,13 +56,13 @@
      next to it: a round shape looks bigger than a pointed one of the same size; it was the ⚙ character) */
   #gear svg { display: block; width: 26px; height: 26px; }
   /* A capsule drawn in CSS for the gallery: its colour (--c) with a highlight, the lower half a little
-     darker, and the dark band where the halves meet, tilted like a toy lying on a shelf */
+     darker, and a thin line where the halves meet, tilted like a toy lying on a shelf */
   .cap { --c: #ff5d8f; position: relative; width: 76px; height: 76px; border-radius: 50%; overflow: hidden; transform: rotate(-18deg);
     background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .8) 0 6%, transparent 20%),
       radial-gradient(circle at 50% 38%, var(--c) 0 50%, color-mix(in srgb, var(--c) 55%, #000) 100%);
     box-shadow: 0 6px 0 rgba(0, 0, 0, .28); }
   .cap::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 50%; background: rgba(0, 0, 0, .12); }
-  .cap::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 12%; margin-top: -6%; background: #2a1d40; }
+  .cap::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 3%; margin-top: -1.5%; background: rgba(42, 29, 64, .4); }   /* (SEAM_CSS) */
   .cap.mini { display: inline-block; width: 26px; height: 26px; box-shadow: none; flex: none; vertical-align: middle; }
   /* "Any colour" in a level's goal: a capsule of all the colours */
   .cap.any { background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .8) 0 6%, transparent 20%),
@@ -197,6 +197,10 @@
   .banner span { font-size: 18px; }
   .banner.locked { background-color: #8c8c8c; background-blend-mode: luminosity; box-shadow: inset 0 0 0 999px rgba(0, 0, 0, .35); }
   .banner.locked h3, .banner.locked h2 { color: #d8d8d8; }
+  /* (the gallery's and collection's: a dark see-through strip over the screen's wallpaper, with its
+     world's colour on the border, as the user asked, October 2026; it was the back wall picture) */
+  .banner.glass { background: rgba(0, 0, 0, .45); box-shadow: none; }
+  .banner.glass::before { content: none; }
   /* (twice as high as the other screens' banners, as the user asked, October 2026; it was 150) */
   #lvlBanner { width: 100%; max-width: 640px; height: 92px; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 8px 14px; border-radius: 16px; text-align: center; }
   /* (the fade comes down from the top, and the levels and stars sit on a dark see-through label with
@@ -337,8 +341,9 @@
   /* The rarity finishes on the CSS capsules: metallic (a hard shine) and rainbow */
   .cap.metal { background: radial-gradient(circle at 32% 26%, #fff 0 7%, rgba(255, 255, 255, .5) 12%, transparent 26%),
       linear-gradient(160deg, color-mix(in srgb, var(--c) 60%, #fff), var(--c) 40%, color-mix(in srgb, var(--c) 45%, #000) 75%, color-mix(in srgb, var(--c) 80%, #fff)); }
+  /* (the rainbow: the world's five colours, --r1 to --r5, from pole to pole) */
   .cap.rainbow { background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .8) 0 6%, transparent 20%),
-      linear-gradient(#ff5d8f 0 17%, #ff9f43 0 33%, #ffd23f 0 50%, #80ed99 0 67%, #4cc9f0 0 83%, #b388ff 0); }
+      linear-gradient(90deg, var(--r1) 0 20%, var(--r2) 0 40%, var(--r3) 0 60%, var(--r4) 0 80%, var(--r5) 0); }
   /* The gallery's page: a card per capsule, three to a row, the rows sharing the page's height so it
      doesn't scroll (it grows and scrolls only on a screen too short for them). The user asked for that
      and for the rarity's colour on the card's border, over one neutral background for all (October
@@ -353,14 +358,31 @@
   .slot .bar, .slot .open { height: min(24px, 20cqh); }
   /* (the rarities' colours are the collection's frames, .rack's --rim; the rainbow one is pink) */
   .slot.t0 { --tc: #8a5a36; } .slot.t1 { --tc: #3f8f57; } .slot.t2 { --tc: #3a76a6; } .slot.t3 { --tc: #ea9112; } .slot.t4 { --tc: #b04fa8; }
-  /* The other rarity finishes: white stripes (uncommon), white dots (rare) */
+  /* The other rarity patterns, the user's (see BANDS in the script for the shapes): white bands
+     (uncommon), white dots (rare), two rows of white triangles pointing at the cut (legendary) */
   .cap.stripes { background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .8) 0 6%, transparent 20%),
-      repeating-linear-gradient(-50deg, rgba(255, 255, 255, .55) 0 12%, transparent 12% 30%),
+      linear-gradient(transparent 6.4%, rgba(255, 255, 255, .9) 0 24.1%, transparent 0 41.2%, rgba(255, 255, 255, .9) 0 58.8%, transparent 0 75.9%, rgba(255, 255, 255, .9) 0 93.6%, transparent 0),
       radial-gradient(circle at 50% 38%, var(--c) 0 50%, color-mix(in srgb, var(--c) 55%, #000) 100%); }
   .cap.dots { background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .8) 0 6%, transparent 20%),
-      radial-gradient(circle, rgba(255, 255, 255, .75) 0 18%, transparent 20%) 0 0 / 34% 34%,
+      radial-gradient(circle at 25% 25%, rgba(255, 255, 255, .9) 0 19%, transparent 21%) center / 28.5% 28%,
+      radial-gradient(circle at 75% 75%, rgba(255, 255, 255, .9) 0 19%, transparent 21%) center / 28.5% 28%,
       radial-gradient(circle at 50% 38%, var(--c) 0 50%, color-mix(in srgb, var(--c) 55%, #000) 100%); }
-  /* A special capsule's sign (bomb, skull, +2) */
+  .cap.tri { background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .8) 0 6%, transparent 20%),
+      conic-gradient(from -26.57deg at 50% 100%, rgba(255, 255, 255, .9) 0 53.13deg, transparent 0) 50% 15.44% / 36% 25.5% repeat-x,
+      conic-gradient(from 153.43deg at 50% 0, rgba(255, 255, 255, .9) 0 53.13deg, transparent 0) 50% 84.56% / 36% 25.5% repeat-x,
+      radial-gradient(circle at 50% 38%, var(--c) 0 50%, color-mix(in srgb, var(--c) 55%, #000) 100%); }
+  /* The skull capsule: black with a plain white skull (drawSkull() in the script draws the same) */
+  .cap.skull { background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .5) 0 6%, transparent 20%),
+      radial-gradient(circle at 50% 38%, var(--c) 0 50%, #000 100%); }
+  /* (upright, against the capsule's tilt, like the other signs) */
+  .cap.skull::before { content: ''; top: 0; height: auto; z-index: 1; transform: rotate(18deg); background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='white'%3E%3Cellipse cx='50' cy='43' rx='41' ry='37'/%3E%3Crect x='31' y='60' width='38' height='22'/%3E%3Crect x='31' y='72' width='8' height='21' rx='4'/%3E%3Crect x='41' y='72' width='8' height='21' rx='4'/%3E%3Crect x='51' y='72' width='8' height='21' rx='4'/%3E%3Crect x='61' y='72' width='8' height='21' rx='4'/%3E%3C/g%3E%3Cg fill='%23121014' stroke='%23121014'%3E%3Ccircle cx='30' cy='50' r='10.5' stroke='none'/%3E%3Ccircle cx='70' cy='50' r='10.5' stroke='none'/%3E%3Cpath d='M50 58 L56 67 L44 67 Z' stroke-width='4' stroke-linejoin='round'/%3E%3C/g%3E%3C/svg%3E") center / 62% no-repeat; }
+  .cap.skull::after { display: none; }
+  /* The bomb capsule: dark grey with a blast (drawBlast() in the script draws the same) */
+  .cap.bomb { background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .5) 0 6%, transparent 20%),
+      radial-gradient(circle at 50% 38%, var(--c) 0 50%, color-mix(in srgb, var(--c) 45%, #000) 100%); }
+  .cap.bomb::before { content: ''; top: 0; height: auto; z-index: 1; transform: rotate(18deg); background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpolygon fill='%23ffd21f' points='56.5 3.5 63 36.1 89.1 41.7 67.5 57.4 74.4 89 50 69 28.8 83.9 32.5 57.4 7 40.9 39.1 34.4'/%3E%3Cpolygon fill='%23e8561c' transform='translate(50 50) scale(.45) translate(-50 -50)' points='56.5 3.5 63 36.1 89.1 41.7 67.5 57.4 74.4 89 50 69 28.8 83.9 32.5 57.4 7 40.9 39.1 34.4'/%3E%3C/svg%3E") center / 70% no-repeat; }
+  .cap.bomb::after { display: none; }
+  /* A special capsule's sign (+2) */
   .cap.sign::before { content: attr(data-sign); top: 0; height: auto; display: grid; place-items: center; background: none; color: var(--fg);
     font: 700 15px/1 "Baloo 2", sans-serif; z-index: 1; transform: rotate(18deg); }
   #galBtn.new::after, #charBtn.new::after { content: ''; position: absolute; top: -5px; right: -5px; width: 12px; height: 12px; border-radius: 50%; background: var(--pink);
@@ -719,32 +741,53 @@ const TIERS = [
   { name: 'Común', design: 'plain', w: .45, css: '#c9cfdb', rim: '#8a5a36' },
   { name: 'Infrecuente', design: 'stripes', w: .28, css: '#80ed99', rim: '#3f8f57' },
   { name: 'Rara', design: 'dots', w: .17, css: '#4cc9f0', rim: '#3a76a6' },
-  { name: 'Legendaria', design: 'metal', w: .07, css: '#ffae2b', rim: '#ea9112' },   // (orange yellow, as the user asked; it was #ffd23f)
+  { name: 'Legendaria', design: 'tri', w: .07, css: '#ffae2b', rim: '#ea9112' },   // (orange yellow, as the user asked; it was #ffd23f)
   { name: 'Arcoíris', design: 'rainbow', w: .03, css: '#ff9fbd', rim: '#b04fa8' },
 ];
 const WORLDS = [
-  { id: 'animales', name: 'Animalitos', skin: 'animales', balls: [['Marrón', '#9b5d34'], ['Crema', '#f1dcb0'], ['Naranja', '#ff9640'], ['Gris', '#a3aab5'], ['Rosa', '#ff9fbd'], ['Celeste', '#6fc2f0'], ['Verde', '#7fd66b'], ['Dorada', '#ffd23f']],
+  { id: 'animales', name: 'Animalitos', skin: 'animales', balls: [['Salmón', '#fea099'], ['Coral', '#ff5767'], ['Azul', '#365d92'], ['Turquesa', '#11aab4'], ['Naranja', '#f15d22'], ['Roja', '#ff2c2d'], ['Dorada', '#ffd121'], ['Mandarina', '#ff9220']],
+    rainbow: ['#ff432e', '#ffce1f', '#72ee50', '#507eb7', '#c056a7'],
     chars: ['Teddy', 'Bunni', 'Pandu', 'Mishi', 'Waffles', 'Pingu', 'Chicky', 'Mochi', 'Reddy', 'MooMoo', 'Lenny', 'Tiggy', 'Dumbo', 'Koko', 'Momo', 'Foxy', 'Bandit', 'Hooty', 'Wooly', 'Dino'] },
-  { id: 'monstruos', name: 'Monstruitos', skin: 'monstruos', balls: [['Violeta', '#a974ff'], ['Lima', '#a6e35a'], ['Rosa', '#ff6fb5'], ['Turquesa', '#2fd3c6'], ['Naranja', '#ff8a3d'], ['Azul', '#4a86ff'], ['Roja', '#ff4057'], ['Amarilla', '#ffd23f']],
+  { id: 'monstruos', name: 'Monstruitos', skin: 'monstruos', balls: [['Chicle', '#ff9fed'], ['Fucsia', '#ff1fa3'], ['Celeste', '#a8d6ff'], ['Azul', '#00a5ff'], ['Lila', '#cf3dff'], ['Violeta', '#7d02f4'], ['Verde', '#01ad23'], ['Musgo', '#006b15']],
+    rainbow: ['#ff3456', '#ffbd93', '#a5dc81', '#227cff', '#e835f5'],
     chars: ['Reddy', 'Blobby', 'Spike', 'Violett', 'Sunny', 'Pinky', 'Chompy', 'Bloop', 'Fuzzy', 'Cyclo', 'Grumpy', 'Zappy', 'Bubbles', 'Triple', 'Flappy', 'Zippy', 'Spiky', 'Wobble', 'Horny', 'Boingo'] },
-  { id: 'halloween', name: 'Dulce Halloween', skin: 'halloween', balls: [['Calabaza', '#ff8a1f'], ['Hueso', '#eee3c8'], ['Violeta', '#8f52e0'], ['Moco', '#93dc3c'], ['Fantasma', '#cfe3ff'], ['Sangre', '#d9283a'], ['Dorada', '#ffd23f'], ['Plateada', '#c8d0de']],
+  { id: 'halloween', name: 'Dulce Halloween', skin: 'halloween', balls: [['Calabaza', '#ff8a3b'], ['Fuego', '#ff2020'], ['Chicle', '#ff65d4'], ['Bruja', '#b30c8f'], ['Moco', '#79ca00'], ['Pantano', '#007701'], ['Sangre', '#ff0203'], ['Vampiro', '#740001']],
+    rainbow: ['#fe3837', '#ffc752', '#8eed1e', '#7376aa', '#f839b7'],
     chars: ['Vampi', 'Fanty', 'Pumpi', 'Mumi', 'Franki', 'Witchi', 'Gati', 'Skully', 'Devily', 'Oculi', 'Lobin', 'Batty', 'Zombi', 'Reap', 'Candy', 'Caldi', 'Shadow', 'Boozy', 'Spidey', 'Jacky'] },
-  { id: 'navidad', name: 'Feliz Navidad', skin: 'navidad', balls: [['Roja', '#e0323c'], ['Verde', '#2fa64b'], ['Nieve', '#f7f7fb'], ['Jengibre', '#b46a38'], ['Hielo', '#9fd8ff'], ['Caramelo', '#ff7aa0'], ['Dorada', '#ffd23f'], ['Plateada', '#c8d0de']],
+  { id: 'navidad', name: 'Feliz Navidad', skin: 'navidad', balls: [['Roja', '#ff3849'], ['Cereza', '#c01a1b'], ['Verde', '#72c94c'], ['Pino', '#007900'], ['Escarcha', '#7492ac'], ['Pizarra', '#50667a'], ['Algodón', '#f4abaf'], ['Cacao', '#9e6e70']],
+    rainbow: ['#fe3839', '#ffc373', '#aae24b', '#8070b3', '#f639b9'],
     chars: ['Santy', 'Ruddy', 'Snowy', 'Gingy', 'Elfi', 'Polar', 'Pengu', 'Treely', 'Giftie', 'Candy', 'Globie', 'Holly', 'Orbi', 'Twinkle', 'Jingly', 'Puddi', 'Flaky', 'Jingle', 'Santaball', 'Wreathy'] },
 ];
-// A world's nine kinds of capsule: b0–b7, two per rarity, then b8, the rainbow one
-const worldKinds = w => [...WORLDS[w].balls.map(([name, css], i) => ({ key: 'b' + i, name, css, tier: i >> 1 })), { key: 'b8', name: 'Arcoíris', css: '#ff9fbd', tier: 4 }];
+// A world's nine kinds of capsule: b0–b7, two per rarity, then b8, the rainbow one, with the world's five
+// colours (rb). The colours are the user's, from a sheet of them (October 2026), and so are the rarities'
+// patterns (TIERS design): plain, white bands round it, white dots all over, two rings of white
+// triangles pointing at the cut, and five colours from pole to pole. They were plain, diagonal stripes,
+// fewer dots, metallic and six rainbow bands round it.
+const worldKinds = w => [...WORLDS[w].balls.map(([name, css], i) => ({ key: 'b' + i, name, css, tier: i >> 1 })),
+  { key: 'b8', name: 'Arcoíris', css: '#ff9fbd', tier: 4, rb: WORLDS[w].rainbow }];
 // The kinds of the world being played (KINDS, by key in KIND): set by startLevel
 let KINDS = worldKinds(0), KIND = Object.fromEntries(KINDS.map(k => [k.key, k]));
-const RAINBOW = ['#ff5d8f', '#ff9f43', '#ffd23f', '#80ed99', '#4cc9f0', '#b388ff'];
+// The patterns' shapes, the same in 3D, in CSS and on the board, as fractions of the radius (or angles on
+// the ball, in radians), measured off the user's sheet: the bands are white where the height over the
+// middle is in BANDS (the middle one straddles the cut); the dots are DOT_R across, a
+// row every DOT_DY and DOT_DX apart along it, every other row shifted half a step; the triangles are six
+// round each half, their bases at TRI_BASE high and TRI_HALF wide each side, their tips at TRI_TIP.
+const BANDS = [[0, .177], [.518, .872]], DOT_R = .12, DOT_DX = .57, DOT_DY = .28, TRI_N = 6, TRI_BASE = .77, TRI_TIP = .26, TRI_HALF = .255;
+// (SEAM_CSS: the thin line between the halves in the flat drawings, .cap::after in the CSS too; the user
+// asked for a line in place of the dark band, October 2026)
+const PATTERN_WHITE = 'rgba(255,255,255,.9)', SEAM_CSS = 'rgba(42,29,64,.4)';
 
 // Prizes that aren't the world's capsules: traps and a bonus (not in the gallery), and the bosses' giant
 // capsule. A bomb in the hole costs two coins (BOMB_COST), the skull loses the level, the +2 one gives two coins. They
 // are dark or white capsules with their sign printed round them (see shellMat).
 const SPECIAL = {
-  bomb: { name: 'Bomba', css: '#2a2233', fg: '#ff5a4d', sign: '💣', disc: '#ff5a4d' },
-  skull: { name: 'Calavera', css: '#2a2233', fg: '#f4f0ff', sign: '💀', disc: '#f4f0ff' },
-  bonus: { name: '+2 fichas', css: '#fff6e0', fg: '#d99a00', sign: '+2' },
+  // (the bomb dark grey with yellow and orange blasts drawn on it, drawBlast(), from the user's picture,
+  // and the +2 white: the user asked, October 2026. The bomb was the 💣 emoji on a red disc, then black)
+  bomb: { name: 'Bomba', css: '#3a3a42', fg: '#ffd21f', art: 'bomb' },
+  // (the skull black too, with a plain white skull drawn on it, drawSkull(), from the user's picture,
+  // October 2026: it was the 💀 emoji on a white disc)
+  skull: { name: 'Calavera', css: '#121014', fg: '#ffffff', art: 'skull' },
+  bonus: { name: '+2 fichas', css: '#ffffff', fg: '#121014', sign: '+2' },   // (its +2 black, as the user asked; it was gold)
   // The bosses' capsule: as big as the claw can hold, and it slips out more (slip times the usual
   // chance). It was 0.42 at first, to be pushed into a hole without walls, but bigger than the closed
   // claw it rode up wedged in the fingers, overlapping them and the box; the user found the claw looked
@@ -1070,18 +1113,23 @@ const boardTex = canvasTex(1024, Math.round(1024 * BOARD_H / BOARD_W), (g, w, h)
       const cs = KINDS.slice(0, 8).filter((k, i) => i % 2 === 0).map(k => k.css);
       cs.forEach((c, i) => { g.fillStyle = c; g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, cr, i * 2 * Math.PI / cs.length, (i + 1) * 2 * Math.PI / cs.length); g.fill(); });
     } else {
-      // (with its rarity's finish, as on the capsule: stripes, dots, a metallic shine, or a rainbow)
+      // (with its rarity's pattern, as on the capsule, seen from the side: see BANDS)
       const rr = gl.key === 'giant' ? cr * 1.25 : cr, design = TIERS[kindTier(gl.key)]?.design;
       g.save(); g.beginPath(); g.arc(cx, cy, rr, 0, 7); g.clip();
       g.fillStyle = kindCss(gl.key); g.fillRect(cx - rr, cy - rr, rr * 2, rr * 2);
-      g.fillStyle = 'rgba(255,255,255,.6)';
-      if (design === 'stripes') for (let s = -2; s <= 2; s++) { g.beginPath(); g.moveTo(cx + s * rr * .7 - rr, cy + rr); g.lineTo(cx + s * rr * .7 - rr + rr * .25, cy + rr); g.lineTo(cx + s * rr * .7 + rr * 1.25, cy - rr); g.lineTo(cx + s * rr * .7 + rr, cy - rr); g.fill(); }
-      if (design === 'dots') for (const [dx, dy] of [[-.45, -.45], [.35, -.55], [-.1, .1], [.55, .25], [-.55, .5], [.2, .65]]) { g.beginPath(); g.arc(cx + dx * rr, cy + dy * rr, rr * .16, 0, 7); g.fill(); }
-      if (design === 'metal') { const sh = g.createRadialGradient(cx - rr * .4, cy - rr * .4, 0, cx, cy, rr); sh.addColorStop(0, 'rgba(255,255,255,.95)'); sh.addColorStop(.35, 'rgba(255,255,255,0)'); sh.addColorStop(1, 'rgba(0,0,0,.35)'); g.fillStyle = sh; g.fillRect(cx - rr, cy - rr, rr * 2, rr * 2); }
-      if (design === 'rainbow') RAINBOW.forEach((c, i) => { g.fillStyle = c; g.fillRect(cx - rr, cy - rr + i * rr * 2 / RAINBOW.length, rr * 2, rr * 2 / RAINBOW.length + 1); });
+      g.fillStyle = PATTERN_WHITE;
+      if (design === 'stripes') for (const [z0, z1] of BANDS) for (const sgn of [1, -1]) g.fillRect(cx - rr, cy + sgn * z0 * rr, rr * 2, sgn * (z1 - z0) * rr);
+      if (design === 'dots') for (let r = -4; r <= 4; r++) for (let j = -2; j <= 2; j++) {
+        g.beginPath(); g.arc(cx + (j + (r & 1 ? .5 : 0)) * DOT_DX * rr, cy + r * DOT_DY * rr, DOT_R * rr, 0, 7); g.fill();
+      }
+      if (design === 'tri') for (const sgn of [1, -1]) for (let j = -2; j <= 2; j++) {
+        const x = cx + j * .72 * rr;
+        g.beginPath(); g.moveTo(x - TRI_HALF * rr, cy - sgn * TRI_BASE * rr); g.lineTo(x + TRI_HALF * rr, cy - sgn * TRI_BASE * rr); g.lineTo(x, cy - sgn * TRI_TIP * rr); g.fill();
+      }
+      if (design === 'rainbow') KIND[gl.key].rb.forEach((c, i) => { g.fillStyle = c; g.fillRect(cx - rr + i * rr * .4, cy - rr, rr * .4 + 1, rr * 2); });
       g.restore();
     }
-    g.fillStyle = '#2a1d40'; g.fillRect(cx - cr, cy - cr * .1, cr * 2, cr * .2);   // the band
+    g.fillStyle = SEAM_CSS; g.fillRect(cx - cr, cy - cr * .03, cr * 2, cr * .06);   // the cut
     if (!text && !goalLeft(gl)) {
       g.strokeStyle = '#2a1d40'; g.lineWidth = cr * .6; g.lineCap = 'round'; g.beginPath();
       g.moveTo(cx - cr * .5, cy); g.lineTo(cx - cr * .1, cy + cr * .45); g.lineTo(cx + cr * .6, cy - cr * .5); g.stroke();
@@ -1841,9 +1889,36 @@ const vX = new THREE.Vector3(), vY = new THREE.Vector3(), vZ = new THREE.Vector3
 
 // ---------- Prizes ----------
 
-const HEMI_TOP = new THREE.SphereGeometry(1, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2);
-const HEMI_BOT = new THREE.SphereGeometry(1, 28, 14, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
-const BAND = new THREE.TorusGeometry(1, .04, 6, 32), BAND_MAT = mat(0x2a1d40);
+// The two halves of a capsule. There is no band between them any more: the user asked for the cut to
+// show by the light alone (October 2026; it was a dark torus, BAND, darker still at first). Each half's
+// edge rounds in over SEAM (a quarter circle that far across, ending flat against the other half), so
+// the light catches the cut as a soft dark line. The first SEAM_T of each half's rows make the sphere,
+// the rest the rounded edge. Their UVs follow the angle, so the patterns land as before, and the two
+// halves share one texture of the whole ball, pole to pole: the top half its upper half, the bottom one
+// its lower half, so a pattern can point at the cut from both sides.
+const SEAM = .06, SEAM_T = .8;
+function hemi(top) {
+  const geo = new THREE.SphereGeometry(1, 28, 20, 0, Math.PI * 2, top ? 0 : Math.PI / 2, Math.PI / 2);
+  const pos = geo.attributes.position, nrm = geo.attributes.normal, uv = geo.attributes.uv;
+  const thC = Math.acos(SEAM / (1 - SEAM)), rho0 = Math.sqrt((1 - SEAM) ** 2 - SEAM ** 2), sy = top ? 1 : -1;
+  for (let i = 0; i < pos.count; i++) {
+    const t = top ? 1 - uv.getY(i) : uv.getY(i);   // (0 at the pole, 1 at the cut)
+    const x = pos.getX(i), z = pos.getZ(i), rh = Math.hypot(x, z), dx = rh ? x / rh : 0, dz = rh ? z / rh : 0;
+    let r, y, nr, ny, a;
+    if (t <= SEAM_T) {
+      const th = t / SEAM_T * thC;
+      r = nr = Math.sin(th); y = ny = Math.cos(th); a = th / (Math.PI / 2);
+    } else {
+      const s = (t - SEAM_T) / (1 - SEAM_T), ps = thC + s * (Math.PI - thC);
+      nr = Math.sin(ps); ny = Math.cos(ps); r = rho0 + SEAM * nr; y = SEAM + SEAM * ny;
+      a = thC / (Math.PI / 2) + s * (1 - thC / (Math.PI / 2));
+    }
+    pos.setXYZ(i, dx * r, sy * y, dz * r); nrm.setXYZ(i, dx * nr, sy * ny, dz * nr);
+    uv.setY(i, top ? .5 + (1 - a) / 2 : a / 2);
+  }
+  return geo;
+}
+const HEMI_TOP = hemi(true), HEMI_BOT = hemi(false);
 // A capsule's shadow fades in over SHADOW_IN once it shows, instead of popping up on the pile at once
 // as it rains in from the top (the user asked, October 2026). A shadow map has no transparency, so each
 // new capsule casts its shadow through a depth material of its own (shadowFader()) that drops all but
@@ -1870,38 +1945,94 @@ function shadowIn(p, now) {
   for (const m of p.mesh.children) m.customDepthMaterial = undefined;
   p.depth.dispose(); p.depth = null;
 }
-// The shell of a capsule: a world capsule's colour with its rarity's finish (plain, white stripes, white
-// dots, metallic, or rainbow bands), or a special one's colour with its sign printed round it. The
-// texture covers each half, top to bottom. Cached by colour and finish (the kinds' keys repeat across
-// worlds).
+// The shell of a capsule: a world capsule's colour with its rarity's pattern (see BANDS), or a special
+// one's colour with its sign printed round it. The texture is the whole ball, pole to pole (y is the
+// angle from the top pole, x the angle round it, at K pixels a radian both ways). Cached by colour and
+// pattern (the kinds' keys repeat across worlds).
 const shellMats = new Map();
 function shellMat(kind) {
   const sp = SPECIAL[kind], k = KIND[kind], design = sp ? (kind === 'giant' ? 'metal' : 'sign') : TIERS[k.tier].design, css = (sp || k).css;
-  const key = css + design;
+  const key = css + design + (k?.rb || sp?.art || '');
   if (shellMats.has(key)) return shellMats.get(key);
   const metal = design === 'metal';
   if (design === 'plain' || metal) return shellMats.set(key, mat(css, metal ? { metalness: .6, roughness: .22 } : { roughness: .35 })).get(key);
-  const tex = canvasTex(512, 128, (g, w, h) => {
+  const tex = canvasTex(512, 256, (g, w, h) => {
+    const K = h / Math.PI, half = h / 2;
     g.fillStyle = css; g.fillRect(0, 0, w, h);
-    if (design === 'sign') {
-      // (the traps' signs are emoji, on a disc so they stand out from the dark shell)
+    g.fillStyle = PATTERN_WHITE;
+    if (sp?.art === 'skull') {
+      // (three skulls round each half, upright, a little wider than drawn since the ball pinches them there)
+      for (const y of [half * .5, half * 1.5]) for (let i = 0; i < 3; i++) drawSkull(g, w * (i + .5) / 3, y, 1, 1.3, css);
+    } else if (sp?.art === 'bomb') {
+      // (a pair of blasts round each half, turned a little apart, the bottom ones between the top ones)
+      for (const [y, off] of [[half * .5, 0], [half * 1.5, .5]]) for (let i = 0; i < 2; i++) drawBlast(g, w * (i + .25 + off) / 2, y, 1.15, 1.3, i ? .5 : -.3);
+    } else if (design === 'sign') {
+      // (the traps' signs are emoji, on a disc so they stand out from the dark shell; four round each half)
       g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '700 76px "Baloo 2", "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
-      for (let i = 0; i < 4; i++) {
-        const x = w * (i + .5) / 4, y = h * .52;
+      for (const y of [half * .52, half * 1.52]) for (let i = 0; i < 4; i++) {
+        const x = w * (i + .5) / 4;
         if (sp.disc) { g.fillStyle = sp.disc; g.beginPath(); g.arc(x, y, 50, 0, 7); g.fill(); }
         g.fillStyle = sp.fg; g.fillText(sp.sign, x, y + 4);
       }
     } else if (design === 'stripes') {
-      g.fillStyle = 'rgba(255,255,255,.6)';
-      for (let x = -h; x < w; x += 48) { g.beginPath(); g.moveTo(x, h); g.lineTo(x + 18, h); g.lineTo(x + 18 + h, 0); g.lineTo(x + h, 0); g.fill(); }
+      // (the bands are rings round the ball, white where its height over the middle is in BANDS)
+      for (const [z0, z1] of BANDS) for (const sgn of [1, -1]) {
+        const a = Math.acos(sgn * z1) * K, b = Math.acos(sgn * z0) * K;
+        g.fillRect(0, Math.min(a, b), w, Math.abs(b - a));
+      }
     } else if (design === 'dots') {
-      g.fillStyle = 'rgba(255,255,255,.8)';
-      for (let y = 20; y < h; y += 44) for (let x = (y / 44 % 2) * 26 + 13; x < w; x += 52) { g.beginPath(); g.arc(x, y, 9, 0, 7); g.fill(); }
+      // (rings of dots, fewer towards the poles, each stretched sideways in the texture as much as the
+      // ball pinches it there, so they look round on the ball)
+      for (let r = -6; r <= 6; r++) {
+        const th = Math.PI / 2 + r * DOT_DY, sn = Math.sin(th);
+        if (sn < .08) continue;
+        const n = Math.max(1, Math.round(2 * Math.PI * sn / DOT_DX)), rx = Math.min(w / 2, DOT_R * K / sn);
+        for (let j = 0; j < n; j++) {
+          const x = (j + (r & 1 ? .5 : 0)) / n * w;
+          for (const dx of [-w, 0, w]) { g.beginPath(); g.ellipse(x + dx, th * K, rx, DOT_R * K, 0, 0, 7); g.fill(); }
+        }
+      }
+    } else if (design === 'tri') {
+      // (six white triangles round each half, their bases towards the pole and their tips at the band)
+      const yb = Math.acos(TRI_BASE) * K, yt = Math.acos(TRI_TIP) * K, hw = TRI_HALF / Math.sqrt(1 - TRI_BASE ** 2) * K;
+      for (const [b, t] of [[yb, yt], [h - yb, h - yt]]) for (let i = 0; i < TRI_N; i++) {
+        const x = (i + .5) / TRI_N * w;
+        g.beginPath(); g.moveTo(x - hw, b); g.lineTo(x + hw, b); g.lineTo(x, t); g.fill();
+      }
     } else if (design === 'rainbow') {
-      RAINBOW.forEach((c, i) => { g.fillStyle = c; g.fillRect(0, i * h / RAINBOW.length, w, h / RAINBOW.length + 1); });
+      // (the world's five colours from pole to pole, twice round the ball)
+      k.rb.concat(k.rb).forEach((c, i) => { g.fillStyle = c; g.fillRect(i * w / 10, 0, w / 10 + 1, h); });
     }
   });
   return shellMats.set(key, mat(0xffffff, { map: tex, roughness: .35 })).get(key);
+}
+// The skull capsule's sign: a plain white skull (the user's picture, simplified), its eyes and nose the
+// shell's colour (hole), in a box of 100 × 100 scaled by s (and sx more across), centred on x, y. The CSS
+// capsule has the same drawing as an SVG (.cap.skull).
+function drawSkull(g, x, y, s, sx, hole) {
+  g.save(); g.translate(x, y); g.scale(s * sx, s); g.translate(-50, -50);
+  g.fillStyle = '#fff';
+  g.beginPath(); g.ellipse(50, 43, 41, 37, 0, 0, 7); g.fill();
+  g.fillRect(31, 60, 38, 22);
+  for (const tx of [31, 41, 51, 61]) { g.beginPath(); g.roundRect(tx, 72, 8, 21, 4); g.fill(); }
+  g.fillStyle = hole;
+  for (const ex of [30, 70]) { g.beginPath(); g.arc(ex, 50, 10.5, 0, 7); g.fill(); }
+  g.beginPath(); g.moveTo(50, 58); g.lineTo(56, 67); g.lineTo(44, 67); g.closePath();
+  g.lineJoin = 'round'; g.lineWidth = 4; g.strokeStyle = hole; g.fill(); g.stroke();
+  g.restore();
+}
+// The bomb capsule's sign: a blast, a lopsided yellow star with an orange one in it (the user's picture),
+// in a box of 100 × 100 scaled by s (and sx more across), turned by rot, centred on x, y. BLAST is its
+// outline; .cap.bomb in the CSS has the same drawing as an SVG.
+const BLAST = [56.5, 3.5, 63, 36.1, 89.1, 41.7, 67.5, 57.4, 74.4, 89, 50, 69, 28.8, 83.9, 32.5, 57.4, 7, 40.9, 39.1, 34.4];
+function drawBlast(g, x, y, s, sx, rot) {
+  g.save(); g.translate(x, y); g.scale(s * sx, s); g.rotate(rot);
+  for (const [k, c] of [[1, '#ffd21f'], [.45, '#e8561c']]) {
+    g.fillStyle = c; g.beginPath();
+    for (let i = 0; i < BLAST.length; i += 2) g.lineTo((BLAST[i] - 50) * k, (BLAST[i + 1] - 50) * k);
+    g.closePath(); g.fill();
+  }
+  g.restore();
 }
 // A capsule kind of the world at random, by its rarity's share (TIERS w), never one the level keeps in
 // one place (lv.kept)
@@ -1914,7 +2045,7 @@ function randomKind() {
   }
 }
 
-// A capsule: two solid halves (see shellMat) with a dark band where they meet. Its kind is one of the
+// A capsule: two solid halves (see shellMat and hemi) with a rounded cut where they meet. Its kind is one of the
 // world's (KINDS) or a special one; if none is given it is one of the world's at random.
 function mkPrize(x, y, z, kind) {
   const small = !kind && lv.mix && rnd() < lv.mix;   // (only random ones come small, see mix)
@@ -1925,8 +2056,7 @@ function mkPrize(x, y, z, kind) {
   const halves = [new THREE.Mesh(HEMI_TOP, shell), new THREE.Mesh(HEMI_BOT, shell)];
   const fade = { value: 0 }, depth = shadowFader(fade);   // (see SHADOW_IN)
   for (const m of halves) { m.castShadow = m.receiveShadow = true; m.customDepthMaterial = depth; }
-  const band = new THREE.Mesh(BAND, BAND_MAT); band.rotation.x = Math.PI / 2;
-  g.add(...halves, band);
+  g.add(...halves);
   g.scale.setScalar(r);
   g.rotation.set(rnd() * 6, rnd() * 6, rnd() * 6);
   scene.add(g);
@@ -3078,7 +3208,8 @@ const starsHtml = (n, cls = 'stars') => `<span class="${cls}">${STAR.repeat(n)}<
 const capOf = (key, kinds = KIND) => {
   if (key === 'any') return { cls: 'any', style: '' };
   const sp = SPECIAL[key], k = kinds[key];
-  return { cls: sp ? (sp.sign ? 'sign' : key === 'giant' ? 'metal' : '') : TIERS[k.tier].design, style: `--c:${(sp || k).css}${sp?.sign ? `;--fg:${sp.fg}" data-sign="${sp.sign}` : ''}` };
+  return { cls: sp ? (sp.art || (sp.sign ? 'sign' : key === 'giant' ? 'metal' : '')) : TIERS[k.tier].design,
+    style: `--c:${(sp || k).css}${k?.rb ? k.rb.map((c, i) => `;--r${i + 1}:${c}`).join('') : ''}${sp?.sign ? `;--fg:${sp.fg}" data-sign="${sp.sign}` : ''}` };
 };
 const capHtml = (key, kinds) => { const c = capOf(key, kinds); return `<span class="cap mini ${c.cls}" style="${c.style}"></span>`; };
 
@@ -3339,6 +3470,10 @@ const goalHtml = l => {
 // The worlds screen, the levels screen, the gallery and the collection all use them, so they read as
 // one game; a world not open yet is greyed out.
 const coverSrc = w => `assets/covers/${WORLDS[w].id}.png`;
+// The world's colour, its machine's (SKINS' body), on the borders of its cover and its levels banner: the
+// user chose it from a comparison with a gold for all and a white inner line (October 2026), when they were
+// the dots' grey, which a locked world keeps
+const worldRim = w => worldOpen(w) ? '#' + SKINS[WORLDS[w].skin].body.toString(16).padStart(6, '0') : '';
 // (the banners of the gallery, the collection and the levels screen show the world's back wall picture,
 // as the user asked, October 2026: they showed its cover, whose characters got cut off)
 const backSrc = w => `assets/backs/${WORLDS[w].id}.png`;
@@ -3362,7 +3497,7 @@ const CHAINS_SVG = (() => {
   }
   return `<svg class="chains" viewBox="0 0 400 500" aria-hidden="true">${out}</svg>`;
 })();
-const banner = (w, title, right = '') => `<div class="banner${worldOpen(w) ? '' : ' locked'}" style="background-image:url(${backSrc(w)})"><h3>${title}</h3>${right}</div>`;
+const banner = (w, title, right = '') => `<div class="banner glass${worldOpen(w) ? '' : ' locked'}" style="border-color:${worldRim(w)}"><h3>${title}</h3>${right}</div>`;
 // How far along a world is: levels cleared, stars, characters
 function worldStats(w) {
   const lvls = Array.from({ length: PER_WORLD }, (_, i) => w * PER_WORLD + i);
@@ -3381,7 +3516,7 @@ function openWorlds(at = worldNow()) {
     (daily.day === today() ? starsHtml(daily.stars, 'stars sm') : '<b>Jugar ▶</b>');
   worldCar.fill(WORLDS.map((wd, w) => {
     const st = worldStats(w), open = worldOpen(w);
-    return `<section class="season wpage"><div class="cover${open ? '' : ' locked'}" style="background-image:url(${coverSrc(w)})"><div class="winfo">` +
+    return `<section class="season wpage"><div class="cover${open ? '' : ' locked'}" style="background-image:url(${coverSrc(w)});border-color:${worldRim(w)}"><div class="winfo">` +
       `<h3>${wd.name}</h3><p>Niveles ${st.done}/${PER_WORLD} · ${ISTAR} ${st.stars}/${PER_WORLD * 3} · Personajes ${st.chars}/20</p>` +
       '</div>' + (open ? `<div class="wplay"><button class="play" data-w="${w}">Jugar</button></div>` : CHAINS_SVG + lockIcon('wlock')) + '</div></section>';
   }).join(''), at);
@@ -3397,6 +3532,8 @@ function openLevels(w = worldNow()) {
   showScreen('levels');
   const st = worldStats(w);
   $('lvlBanner').style.backgroundImage = `url(${backSrc(w)})`;
+  $('lvlBanner').style.borderColor = worldRim(w);
+  showWall('levels', w);
   $('lvlTitle').textContent = WORLDS[w].name;
   $('lvlSub').innerHTML = `Niveles ${st.done}/${PER_WORLD}&nbsp;&nbsp;·&nbsp;&nbsp;${ISTAR} ${st.stars}/${PER_WORLD * 3}`;
   $('lvlList').innerHTML = Array.from({ length: PER_WORLD }, (_, k) => {
@@ -3523,16 +3660,20 @@ function carousel(shelf, prev, next, dots) {
 const galCar = carousel($('shelf'), $('galPrev'), $('galNext'), $('galDots'));
 const charCar = carousel($('charShelf'), $('charPrev'), $('charNext'), $('charDots'));
 const worldCar = carousel($('worldShelf'), $('worldPrev'), $('worldNext'), $('worldDots'));
-// Behind the gallery and the exhibitor, the wallpaper of the world on show (the machine's, from
-// setWallpaper), fading from one to the next as the pages change: the user asked (October 2026). A locked
-// world's is greyed out, like its banner.
-for (const [id, car] of [['gallery', galCar], ['chars', charCar]]) {
-  const wall = document.createElement('div');
+// Behind the gallery, the exhibitor, the worlds and the levels screens, the wallpaper of the world on show
+// (the machine's, from setWallpaper), fading from one to the next as the pages change: the user asked
+// (October 2026). A locked world's is greyed out, like its banner.
+const walls = {};
+for (const id of ['gallery', 'chars', 'worlds', 'levels']) {
+  const wall = walls[id] = document.createElement('div');
   wall.className = 'wall';
   wall.innerHTML = WORLDS.map(wd => `<i style="background-image:url(assets/wallpapers/${wd.id}.jpg)"></i>`).join('');
   $(id).prepend(wall);
-  car.onMark = i => [...wall.children].forEach((el, w) => { el.classList.toggle('on', w === i); el.classList.toggle('locked', !worldOpen(w)); });
 }
+const showWall = (id, i) => [...walls[id].children].forEach((el, w) => { el.classList.toggle('on', w === i); el.classList.toggle('locked', !worldOpen(w)); });
+galCar.onMark = i => showWall('gallery', i);
+charCar.onMark = i => showWall('chars', i);
+worldCar.onMark = i => showWall('worlds', i);
 // The world the screens open on: the one being played
 const worldNow = () => lv.world;
 
