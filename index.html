@@ -541,6 +541,11 @@
   #over:not([hidden]) > .card, #opts:not([hidden]) > .card, #reveal:not([hidden]) > .card { animation: popIn .34s cubic-bezier(.2, 1.35, .5, 1) both; }
   .screen:not([hidden]) > * { animation: dimIn .18s ease both; }
   @keyframes popIn { from { transform: scale(.7); opacity: 0; } }
+  /* (the opening's card going: it swells a little, then shrinks away fast; REV_CLOSE in the script) */
+  #reveal.closing { animation: dimOut .28s ease-in both; }
+  #reveal.closing > .card { animation: popOut .28s ease-in both; }
+  @keyframes popOut { 30% { transform: scale(1.07); opacity: 1; } to { transform: scale(0); opacity: 0; } }
+  @keyframes dimOut { 40% { opacity: 1; } to { opacity: 0; } }
   @keyframes dimIn { from { opacity: 0; } }
 </style>
 <script type="importmap">
@@ -776,6 +781,8 @@ const BANDS = [[0, .177], [.518, .872]], DOT_R = .12, DOT_DX = .57, DOT_DY = .28
 // (SEAM_CSS: the thin line between the halves in the flat drawings, .cap::after in the CSS too; the user
 // asked for a line in place of the dark band, October 2026)
 const PATTERN_WHITE = 'rgba(255,255,255,.9)', SEAM_CSS = 'rgba(42,29,64,.4)';
+// (the board's tick and the count of a part done: a classic tick green, as the user asked, October 2026)
+const TICK_GREEN = '#2ecc40';
 
 // Prizes that aren't the world's capsules: traps and a bonus (not in the gallery), and the bosses' giant
 // capsule. A bomb in the hole costs two coins (BOMB_COST), the skull loses the level, the +2 one gives two coins. They
@@ -1097,9 +1104,9 @@ const boardTex = canvasTex(1024, Math.round(1024 * BOARD_H / BOARD_W), (g, w, h)
   });
   g.fillStyle = '#b9a8e0'; g.font = '700 40px "Baloo 2", sans-serif'; g.fillText(level < 0 ? 'DESAFÍO DEL DÍA' : `NIVEL ${levelInWorld(level) + 1}`, w / 2, h * .2, w * .5);
   // The goal: a capsule of each kind asked for and "won/needed", shrunk to fit between coins and time.
-  // A kind asked for once is just its capsule, ticked once won (with six kinds "0/1" got too small to read).
-  // An ordered goal has arrows between its parts, and the ones still to come are dimmed.
-  const goal = lv.goal, now = lv.order && goalNow(), rows = goal.map(gl => ({ gl, text: gl.n === 1 ? '' : `${gl.n - goalLeft(gl)}/${gl.n}` }));
+  // A kind asked for once shows "0/1" too, as the user asked (October 2026): it was just its capsule,
+  // ticked once won. An ordered goal has arrows between its parts, and the ones still to come are dimmed.
+  const goal = lv.goal, now = lv.order && goalNow(), rows = goal.map(gl => ({ gl, text: `${gl.n - goalLeft(gl)}/${gl.n}` }));
   let size = 80, width;
   const gap = () => size * (lv.order ? .8 : .45);
   const measure = () => { g.font = `700 ${size}px "Baloo 2", sans-serif`; return rows.reduce((s, r) => s + size * .9 + g.measureText(r.text).width, 0) + (rows.length - 1) * gap(); };
@@ -1109,7 +1116,15 @@ const boardTex = canvasTex(1024, Math.round(1024 * BOARD_H / BOARD_W), (g, w, h)
   for (const [i, { gl, text }] of rows.entries()) {
     const cr = size * .34, cx = x + cr, cy = h * .5 + 2;
     g.globalAlpha = now && goalLeft(gl) && gl !== now ? .4 : 1;
-    if (gl.key === 'any') {
+    // (a part done: its capsule turns into a plain white disc with a green tick on it, as the user asked,
+    // October 2026)
+    if (!goalLeft(gl)) {
+      const rr = gl.key === 'giant' ? cr * 1.25 : cr;
+      g.fillStyle = '#fff'; g.beginPath(); g.arc(cx, cy, rr, 0, 7); g.fill();
+      g.lineCap = g.lineJoin = 'round'; g.beginPath();
+      g.moveTo(cx - cr * .5, cy + cr * .02); g.lineTo(cx - cr * .12, cy + cr * .4); g.lineTo(cx + cr * .55, cy - cr * .42);
+      g.strokeStyle = TICK_GREEN; g.lineWidth = cr * .3; g.stroke();
+    } else if (gl.key === 'any') {
       const cs = KINDS.slice(0, 8).filter((k, i) => i % 2 === 0).map(k => k.css);
       cs.forEach((c, i) => { g.fillStyle = c; g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, cr, i * 2 * Math.PI / cs.length, (i + 1) * 2 * Math.PI / cs.length); g.fill(); });
     } else {
@@ -1129,13 +1144,8 @@ const boardTex = canvasTex(1024, Math.round(1024 * BOARD_H / BOARD_W), (g, w, h)
       if (design === 'rainbow') KIND[gl.key].rb.forEach((c, i) => { g.fillStyle = c; g.fillRect(cx - rr + i * rr * .4, cy - rr, rr * .4 + 1, rr * 2); });
       g.restore();
     }
-    g.fillStyle = SEAM_CSS; g.fillRect(cx - cr, cy - cr * .03, cr * 2, cr * .06);   // the cut
-    if (!text && !goalLeft(gl)) {
-      g.strokeStyle = '#2a1d40'; g.lineWidth = cr * .6; g.lineCap = 'round'; g.beginPath();
-      g.moveTo(cx - cr * .5, cy); g.lineTo(cx - cr * .1, cy + cr * .45); g.lineTo(cx + cr * .6, cy - cr * .5); g.stroke();
-      g.strokeStyle = '#80ed99'; g.lineWidth = cr * .3; g.stroke();
-    }
-    g.fillStyle = goalLeft(gl) ? '#fff6e0' : '#80ed99';
+    if (goalLeft(gl)) { g.fillStyle = SEAM_CSS; g.fillRect(cx - cr, cy - cr * .03, cr * 2, cr * .06); }   // the cut
+    g.fillStyle = goalLeft(gl) ? '#fff6e0' : TICK_GREEN;
     g.fillText(text, x + size * .9, cy + 4);
     x += size * .9 + g.measureText(text).width;
     g.globalAlpha = 1;
@@ -2293,8 +2303,24 @@ function findContacts(segs, segVel, margin, withClaw) {
   const out = [], h = claw.head, grid = prizeGrid();
   for (let i = 0; i < prizes.length; i++) {
     const a = prizes[i];
-    if (a.held) continue;
-    const add = (b, nx, ny, nz, pen, kind, vb) => {
+    if (a.held) {
+      // (a held prize, pinned or riding in the claw, has no contacts of its own, but it still stops the
+      // loose ones after it in the list, as the second body of theirs: skipping it outright let them pass
+      // through it, and the placed prizes, made first, were gone through by the rain, as the user saw with
+      // the giant, October 2026)
+      const cx = Math.floor(a.x / CELL), cy = Math.floor(a.y / CELL), cz = Math.floor(a.z / CELL);
+      for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) for (let oz = -1; oz <= 1; oz++) {
+        const near = grid.get(cellKey(cx + ox, cy + oy, cz + oz));
+        if (near) for (const j of near) {
+          const b = prizes[j];
+          if (j <= i || b.held) continue;
+          const dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z, d = Math.hypot(dx, dy, dz), pen = a.r + b.r - d;
+          if (d > 1e-9 && pen > -margin) out.push({ a: b, b: a, n: [dx / d, dy / d, dz / d], pen, kind: 'prize', vb: null, jn: 0, jt: [0, 0, 0] });
+        }
+      }
+      continue;
+    }
+    const add =(b, nx, ny, nz, pen, kind, vb) => {
       if (pen > -margin) out.push({ a, b, n: [nx, ny, nz], pen, kind, vb, jn: 0, jt: [0, 0, 0] });
     };
     const toPoint = (q, qr, kind, vb, b = null) => {
@@ -2853,18 +2879,20 @@ function openCard(w, b) {
 // The opening's timeline (s), after the maze game's: the capsule waits REV_WAIT, shakes for REV_SHAKE and
 // bursts at REVEAL_OPEN, swelling just before (REV_PUSH) as if the character pushed it open from inside.
 // From then on (s since the burst) the character jumps at once, lands at REV_LAND and settles by
-// REV_END; the rays come in with the burst (over REV_RAYS), hold until REV_HOLD and fade over REV_FADE, the tab and the
-// name pop in at REV_NAME, the line under them (¡Nuevo personaje! or Ya lo tenés) at REV_LINE, and the
-// button last, at REV_OK (one after the other, as the user asked, October 2026). The line and the button
-// come half a second after the rays start fading: they came once the rays were gone, about a second
-// later, until the user asked for them sooner.
+// REV_END; the rays come in with the burst (over REV_RAYS), hold until REV_HOLD and fade over REV_FADE,
+// the rarity's tab pops in at REV_TAB, the name at REV_NAME, the line under it (¡Nuevo personaje! or Ya
+// lo tenés) at REV_LINE, and the button last, at REV_OK, one after the other, as the user asked (October
+// 2026; the tab and the name came together). The line and the button come half a second after the rays
+// start fading: they came once the rays were gone, about a second later, until the user asked for them
+// sooner.
 const REV_WAIT = .4, REV_SHAKE = 1, REVEAL_OPEN = REV_WAIT + REV_SHAKE;
 const REV_PUSH = .15, REV_LAND = .7, REV_END = REV_LAND + .63, REV_RAYS = .12, REV_HOLD = 1.9, REV_FADE = 1.4;
-const REV_NAME = REV_LAND + .25, REV_LINE = REV_HOLD + .5, REV_OK = REV_LINE + .35;
+const REV_TAB = REV_LAND + .2, REV_NAME = REV_TAB + .35, REV_LINE = REV_HOLD + .5, REV_OK = REV_LINE + .35;
 const REV_SPIN = .25;   // how fast the rays turn (rad/s)
-// how far above the middle of the card they turn (px): the user asked for them a little higher twice
-// (October 2026), 25 then 40 px; between the middle and the character's chest, 55 px up, looked off centre
-const REV_RAYS_UP = 40;
+// how far above the middle of the card they turn (px): the user asked for them a little higher three times
+// (October 2026), 25, 40, then 55 px (where they once were, about the character's chest, and the user found
+// them off centre, before the capsule moved down to the middle of the card)
+const REV_RAYS_UP = 55;
 // how long the capsule's halves take to fly off and fade (s): the user asked for them slower (October
 // 2026), when they were gone in 0.15 s
 const REV_SPLIT = .3;
@@ -2973,7 +3001,8 @@ function revealFrame(t) {
     e.rays.style.opacity = (cl(s / REV_RAYS) * (1 - shadowA)).toFixed(3);
     e.rays.style.transform = `translateY(${e.cy - REV_RAYS_UP}px) rotate(${s * REV_SPIN}rad)`;
     e.shadow.style.opacity = shadowA.toFixed(3); e.shadow.style.transform = `scaleX(${ax})`;
-    if (s >= REV_NAME) { e.tab.classList.add('in'); e.name.classList.add('in'); }
+    if (s >= REV_TAB) e.tab.classList.add('in');
+    if (s >= REV_NAME) e.name.classList.add('in');
     if (s >= REV_LINE) e.line.classList.add('in');
     if (s >= REV_OK) e.ok.classList.add('in');
   }
@@ -2996,7 +3025,15 @@ function revealFrame(t) {
     g.restore();
   }
 }
-$('revealOk').addEventListener('click', () => { $('reveal').hidden = true; openGallery(galCar.idx); });
+// (closing, the card swells a little and then shrinks away fast, as the user asked, October 2026: it used
+// to vanish at once)
+const REV_CLOSE = 280;
+$('revealOk').addEventListener('click', () => {
+  const r = $('reveal');
+  if (r.classList.contains('closing')) return;
+  r.classList.add('closing');
+  setTimeout(() => { r.classList.remove('closing'); r.hidden = true; openGallery(galCar.idx); }, REV_CLOSE);
+});
 // A character's picture (cut from the concept sheets by tools/cut-characters.mjs) and name
 const charSrc = (w, i) => `assets/chars/${WORLDS[w].id}/${Math.floor(i / 5)}${i % 5}.png`;
 const charName = (w, i) => WORLDS[w].chars[i];
@@ -3528,8 +3565,10 @@ $('dailyBar').addEventListener('click', () => { closeScreens(); startDaily(); })
 // twists; cleared ones show their stars, the first not cleared is open to play and the rest are locked.
 // The fifth, the boss, stands out. Picking one starts it (the one being played just goes back to it,
 // unless it is over). The game holds still while it is open.
+let lvlWorld = 0;   // (the world whose levels are on show, for the buttons to the other screens)
 function openLevels(w = worldNow()) {
   showScreen('levels');
+  lvlWorld = w;
   const st = worldStats(w);
   $('lvlBanner').style.backgroundImage = `url(${backSrc(w)})`;
   $('lvlBanner').style.borderColor = worldRim(w);
@@ -3705,7 +3744,7 @@ $('shelf').addEventListener('click', e => { const el = e.target.closest('.slot.r
 // The exhibitor (the character button, top left): a page per world, a shelf per rarity (row 1 common to
 // row 4 legendary, as on the concept sheets), and on it the five characters: the ones won with how
 // many (they can repeat), the rest as dark silhouettes with "?".
-function openChars() {
+function openChars(at = worldNow()) {
   showScreen('chars');
   charCar.fill(WORLDS.map((wd, w) => {
     const have = wd.chars.filter((c, i) => meta.chars[`${wd.id}:${i}`]).length;
@@ -3715,7 +3754,7 @@ function openChars() {
         `<span class="pic"><img src="${charSrc(w, i)}" alt="" loading="lazy" draggable="false">${n ? '' : '<i>?</i>'}</span>${n > 1 ? `<b>×${n}</b>` : ''}</span>`;
     }).join('') + '</div></div>').join('');
     return `<section class="season${worldOpen(w) ? '' : ' locked'}">${banner(w, wd.name, worldOpen(w) ? `<span>${have}/20</span>` : lockIcon('lockic'))}${rows}</section>`;   // (no note on how a locked world opens: the user dropped it, October 2026)
-  }).join(''), worldNow());
+  }).join(''), at);
   $('charBtn').classList.remove('new'); charDot = false;
 }
 // Show one of the screens (and hide the others); the game holds still while one is open. Closing one
@@ -3733,11 +3772,15 @@ function closeScreens() {
   if (state === 'over') $('over').hidden = false;
 }
 // From one screen to another: each has buttons for the others
-for (const [btn, open] of [['galToLvl', openWorlds], ['lvlToGal', openGallery], ['galToChar', openChars], ['charToGal', openGallery], ['charToLvl', openWorlds], ['lvlToChar', openChars], ['lvlToWorlds', openWorlds], ['wToGal', openGallery], ['wToChar', openChars]]) $(btn).addEventListener('click', () => open());
+// (on the world on show there, as the user asked, October 2026: from Halloween's capsules to Halloween's
+// collection, and so on; they used to open on the world being played)
+const galW = () => galCar.idx, charW = () => charCar.idx, worldW = () => worldCar.idx, lvlW = () => lvlWorld;
+for (const [btn, open, from] of [['galToLvl', openWorlds, galW], ['lvlToGal', openGallery, lvlW], ['galToChar', openChars, galW], ['charToGal', openGallery, charW], ['charToLvl', openWorlds, charW],
+  ['lvlToChar', openChars, lvlW], ['lvlToWorlds', openWorlds, lvlW], ['wToGal', openGallery, worldW], ['wToChar', openChars, worldW]]) $(btn).addEventListener('click', () => open(from()));
 $('galBtn').style.setProperty('--c', KINDS[0].css);
 $('galBtn').addEventListener('click', () => openGallery());
 galDot();
-$('charBtn').addEventListener('click', openChars);
+$('charBtn').addEventListener('click', () => openChars());
 for (const b of ['galBack', 'charBack']) $(b).addEventListener('click', closeScreens);
 addEventListener('blur', () => { keys.l = keys.r = keys.u = keys.d = false; });
 // On an iPhone, two quick taps zoomed the whole page in, as on a photo, and a pinch could too; the user
@@ -3815,7 +3858,7 @@ function draw(now) {
 }
 
 // Handle for poking at the game from the console
-window.game = { BOUNCE, MU, get rev() { return rev; }, get state() { return state; }, get paused() { return paused; }, set paused(v) { paused = v; }, get claw() { return claw; }, get prizes() { return prizes; }, get score() { return score; }, get level() { return level; }, get got() { return got; }, get meta() { return meta; }, get coins() { return coins; }, get bag() { return bag; }, levelCard, lightShow, lanterns, ballToast, startLevel, startDaily, showIntro, startRound, startDrop, segments, cable,
+window.game = { BOUNCE, MU, get rev() { return rev; }, revealFrame, get state() { return state; }, get paused() { return paused; }, set paused(v) { paused = v; }, get claw() { return claw; }, get prizes() { return prizes; }, get score() { return score; }, get level() { return level; }, get got() { return got; }, get meta() { return meta; }, get coins() { return coins; }, get bag() { return bag; }, levelCard, lightShow, lanterns, ballToast, startLevel, startDaily, showIntro, startRound, startDrop, segments, cable,
   // Run n simulation steps right now, without waiting for frames (fast, repeatable tests)
   step(n = 1) { for (let i = 0; i < n; i++) { update(STEP); physics(STEP, state === 'fill'); } },
   // Draw the current state right now (the browser pane may not be asking for frames)
